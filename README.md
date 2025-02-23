@@ -1,2 +1,2 @@
-# orangejeff
-The main area where Jeff learns php and experiments
+# NetBound.ca Tools
+I am learning how AI can assist me in coding basic utilities I use frequently when playing around learning other ways to use AI. Many of these are specifically related to lip syncing and other audio-video needs. All are free to use, modify and share. I accept comments and praise and even complaints but prefer praise. I'm a 61 year old guy ad the last things I programmed were using a Pet Computer and Commodore basic. (not totally true)
