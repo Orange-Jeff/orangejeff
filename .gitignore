@@ -1,0 +1,21 @@
+# Directories
+.history/
+.history/**
+backups/
+saves/
+vendor/
+node_modules/
+.qodo/
+.storage/
+.vscode/
+invoice/
+projects/
+.DS_Store
+Thumbs.db
+# Backup and temporary files
+*[0-9].php
+*[0-9][a-z].php
+[0-9]*.php
+w-*.php
+1*.php
+*.code-workspace
