@@ -1,3 +1,5 @@
+/* main-editor-init.js */
+
 /**
  * Part of NetBound Tools - main.php
  * https://netbound.ca
@@ -80,10 +82,6 @@ function setEditorMode(filename) {
     editor.session.setMode(mode);
 }
 
-// Export necessary functions to the global scope
-window.loadFile = loadFile;
-window.editor = editor;
-
 // Listen for syntax errors in the editor
 editor.getSession().on("changeAnnotation", () => {
     const annotations = editor.getSession().getAnnotations();
@@ -95,32 +93,13 @@ editor.getSession().on("changeAnnotation", () => {
     }
 });
 
-/**
- * Updates the status bar with a message.
- * @param {string} message - The message to display.
- * @param {string} type - The type of message (e.g., 'success', 'error').
- */
+// Export necessary functions to the global scope
+window.loadFile = loadFile;
+window.editor = editor;
 
-document.getElementById('menuSortBtn').addEventListener('click', async function () {
-    console.log("Sort button clicked!"); // Debug log
-    const sortIcon = this.querySelector('i');
-    await fetch('main.php?toggleSort=1');
-    if (sortIcon.classList.contains('fa-sort-alpha-down')) {
-        sortIcon.classList.remove('fa-sort-alpha-down');
-        sortIcon.classList.add('fa-clock');
-    } else {
-        sortIcon.classList.remove('fa-clock');
-        sortIcon.classList.add('fa-sort-alpha-down');
-    }
-    await updateFileList();
-});
-
-async function updateFileList() {
-    console.log("Fetching file list..."); // Debug log
-    const response = await fetch('main.php?getFileList=1');
-    const html = await response.text();
-    document.querySelector('.file-list').innerHTML = html;
-}
-
-// Load the file list initially
-updateFileList();
+// Initialize the file list
+fetch('main.php?getFileList=1')
+    .then(response => response.text())
+    .then(html => {
+        document.querySelector('.file-list').innerHTML = html;
+    });

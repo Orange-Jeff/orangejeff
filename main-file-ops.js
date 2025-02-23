@@ -1,3 +1,5 @@
+/* main-file-ops.js */
+
 function saveFile(newFilename = null) {
     const filename = newFilename || document.getElementById('editorFilename').value;
     if (!filename) {
@@ -24,25 +26,5 @@ function saveFile(newFilename = null) {
     });
 }
 
-function fromClipboard() {
-    if (editor.getValue() !== editorContent) {
-        if (!confirm('Unsaved changes detected. Continue?')) return;
-    }
-    document.getElementById('editorSection').style.display = 'flex';
-    navigator.clipboard.readText().then(text => {
-        editor.setValue(text);
-        updateStatus(STATUS_MESSAGES.clipboard.paste(document.getElementById('editorFilename').value), 'success');
-        editorContent = editor.getValue();
-    });
-}
-
-function toClipboard() {
-    navigator.clipboard.writeText(editor.getValue()).then(() => {
-        updateStatus(STATUS_MESSAGES.clipboard.copy(document.getElementById('editorFilename').value), 'success');
-    });
-}
-
 // Export functions
 window.saveFile = saveFile;
-window.fromClipboard = fromClipboard;
-window.toClipboard = toClipboard;

@@ -1,3 +1,4 @@
+/* main-shared-utils.js */
 
 // Status message constants
 const STATUS_MESSAGES = {
@@ -25,10 +26,23 @@ function updateStatus(message, type = 'info') {
     }
 }
 
-// Export utilities
-window.STATUS_MESSAGES = STATUS_MESSAGES;
-window.editorContent = editorContent;
-window.updateStatus = updateStatus;
+function fromClipboard() {
+    if (editor.getValue() !== editorContent) {
+        if (!confirm('Unsaved changes detected. Continue?')) return;
+    }
+    document.getElementById('editorSection').style.display = 'flex';
+    navigator.clipboard.readText().then(text => {
+        editor.setValue(text);
+        updateStatus(STATUS_MESSAGES.clipboard.paste(document.getElementById('editorFilename').value), 'success');
+        editorContent = editor.getValue();
+    });
+}
+
+function toClipboard() {
+    navigator.clipboard.writeText(editor.getValue()).then(() => {
+        updateStatus(STATUS_MESSAGES.clipboard.copy(document.getElementById('editorFilename').value), 'success');
+    });
+}
 
 function openInNewTab(filename) {
     const fileExtension = filename.split('.').pop().toLowerCase();
@@ -55,3 +69,30 @@ function openInNewTab(filename) {
     const iframe = backupView.querySelector('iframe');
     iframe.src = filename;
 }
+
+function openInNewWindow(filename) {
+    const fileExtension = filename.split('.').pop().toLowerCase();
+
+    // Check if trying to run main editor
+    if (filename === 'main.php' || filename.includes('main')) {
+        updateStatus('Cannot run the editor interface directly', 'info');
+        return false;
+    }
+
+    if (!['php', 'html', 'htm'].includes(fileExtension)) {
+        updateStatus(`Cannot run ${fileExtension} files directly`, 'info');
+        return false;
+    }
+
+    window.open(filename, '_blank');
+    return false;
+}
+
+// Export utilities
+window.STATUS_MESSAGES = STATUS_MESSAGES;
+window.editorContent = editorContent;
+window.updateStatus = updateStatus;
+window.fromClipboard = fromClipboard;
+window.toClipboard = toClipboard;
+window.openInNewTab = openInNewTab;
+window.openInNewWindow = openInNewWindow;
