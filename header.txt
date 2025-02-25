@@ -1,0 +1,19 @@
+m * main.php
+ *
+ * NetBound Tools - Main Editor
+ * Part of the NetBound suite of PHP web based tools
+ * Written by OrangeJeff and AI Tools in 2024 and 2025
+ * https://netbound.ca
+ * Free to share and modify
+
+ * A lightweight PHP-based file editor with backup functionality.
+ * Features:
+ * - File aloading, saving, and deletion.
+ * - Backup creation and restoration.
+ * - Mobile-friendly interface with Ace Editor.
+ *
+ * Dependencies:
+ * - Ace Editor (https://ace.c9.io/)
+ * - Font Awesome (https://fontawesome.com/)
+ * - PHP 7.0+ with file and session support.
+ *

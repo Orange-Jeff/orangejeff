@@ -10,7 +10,7 @@ session_start();
 // Filename: nb-image-extraction.php
 // Written by Orange Jeff and Cody AI tools
 // Last saved:
-// <#FV> 1.0.3 </#FV>
+// 
 // Dependants: none
 */
 
