@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 /*
 | NetBound Tools: Archive Manager
 | Part of the NetBoundToolSuite NetBound.cad
@@ -188,34 +189,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
+            case 'getFolderContents':
+                $path = isset($_POST['path']) ? $_POST['path'] : '.';
+                $path = realpath($path);
+                
+                if (!$path || !is_dir($path)) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['error' => 'Invalid path']);
+                    exit;
+                }
+
+                $files = glob($path . '/*');
+                $fileData = [];
+                
+                foreach ($files as $file) {
+                    $basename = basename($file);
+                    if ($basename === '.' || $basename === '..') continue;
+                    
+                    $fileData[] = [
+                        'name' => $basename,
+                        'path' => $file,
+                        'date' => date('Y-m-d H:i:s', filemtime($file)),
+                        'timestamp' => filemtime($file),
+                        'size' => filesize($file)
+                    ];
+                }
+
+                usort($fileData, function($a, $b) {
+                    return $b['timestamp'] - $a['timestamp'];
+                });
+
+                header('Content-Type: application/json');
+                echo json_encode(['files' => $fileData]);
+                exit;
+
             case 'getHistory':
                 $historyPath = realpath('.history/');
                 $fileGroups = [];
                 if (is_dir($historyPath)) {
-                    foreach (glob($historyPath . '/*_*.{php,html,js,css}', GLOB_BRACE) as $file) {
-                        $basename = basename($file);
-                        if (preg_match('/(.+)_(\d{14})\.(.+)$/', $basename, $matches)) {
-                            $originalName = $matches[1] . '.' . $matches[3];
-                            $date = DateTime::createFromFormat('YmdHis', $matches[2]);
-
-                            if (!isset($fileGroups[$originalName])) {
-                                $fileGroups[$originalName] = [];
-                            }
-
-                            $fileGroups[$originalName][] = [
-                                'name' => $basename,
-                                'path' => $file,
-                                'date' => $date->format('Y-m-d H:i:s')
-                            ];
-                        }
-                    }
-
-                    foreach ($fileGroups as &$group) {
-                        usort($group, fn($a, $b) => strcmp($b['date'], $a['date']));
-                    }
-                    ksort($fileGroups);
+                    $files = glob($historyPath . '/*_*.{php,html,js,css}', GLOB_BRACE);
+                    $fileGroups = groupFiles($files);
                 }
-
                 header('Content-Type: application/json');
                 echo json_encode($fileGroups);
                 exit;
@@ -250,6 +264,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode($result);
                 exit;
 
+            case 'getFileContent':
+                if (!isset($_POST['file'])) {
+                    http_response_code(400);
+                    exit('File parameter missing');
+                }
+
+                $file = $_POST['file'];
+                if (!file_exists($file) || !is_file($file)) {
+                    http_response_code(404);
+                    exit('File not found');
+                }
+
+                $content = file_get_contents($file);
+                if ($content === false) {
+                    http_response_code(500);
+                    exit('Failed to read file');
+                }
+
+                echo $content;
+                exit;
+
             case 'retrieve':
                 $files = json_decode($_POST['files'], true);
                 $result = ['success' => true, 'retrieved' => []];
@@ -272,9 +307,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $zipName = isset($_POST['zipName']) ? $_POST['zipName'] : 'archive_' . date('YmdHis') . '.zip';
                 $result = ['success' => false, 'filename' => null, 'error' => ''];
 
-                $view = isset($_POST['view']) ? $_POST['view'] : '';
-                $basePath = $view === 'vscode' ? VSCODE_HISTORY_PATH : NETBOUND_BACKUPS_PATH;
-
                 if (!class_exists('ZipArchive')) {
                     $result['error'] = 'ZIP extension not available';
                     echo json_encode($result);
@@ -289,17 +321,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
 
-                $addedFiles = 0;
-                foreach ($files as $file) {
-                    $fullPath = $basePath . '/' . $file;
-                    if (file_exists($fullPath) && is_file($fullPath)) {
-                        if ($zip->addFile($fullPath, basename($file))) {
-                            $addedFiles++;
-                        } else {
-                            $result['error'] .= "Failed to add file: $file; ";
-                        }
-                    } else {
-                        $result['error'] .= "File not found: $file; ";
                     }
                 }
 
@@ -316,8 +337,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $result['error'] = 'ZIP file was not created successfully';
                     }
-                }
-
+                $zipResult = $zip->open($zipName, ZipArchive::CREATE);
+                if ($zipResult !== TRUE) {
                 header('Content-Type: application/json');
                 echo json_encode($result);
                 exit;
@@ -437,11 +458,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 3px;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
-        .command-button:hover {
+        .command-button:hover:not(:disabled) {
             background: #003d82;
+        }
+
+        .command-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .command-button.active {
+            box-shadow: 0 2px 0 #4a9eff;
+        }
+
+        .full-width {
+            width: 100%;
+            margin-top: 10px;
         }
 
         .status-box {
@@ -618,6 +654,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fas fa-trash"></i> Delete Selected
                         </button>
                         <div class="split-button">
+                            <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
+                                <i class="fas fa-file-archive"></i> ZIP
+                            </button>
+                            <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button class="command-button full-width" id="btnToClipboard" title="Copy selected file to clipboard" disabled>
+                            <i class="fas fa-clipboard"></i> TO CLIPBOARD
+                        </button>
                             <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
                                 <i class="fas fa-file-archive"></i> ZIP
                             </button>
@@ -805,7 +851,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         ${files.map(file => `
                                             <div class="tree-file">
                                                 <input type="checkbox" class="file-check" data-path="${file.path}">
-                                                <span>${file.name}</span>
+                                                <span>${file.name}${currentView === 'vscode' ? ` (${new Date(file.date).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})})` : ''}</span>
                                             </div>
                                         `).join('')}
                                     </div>
@@ -835,6 +881,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!fileGroups || !tree) return;
 
             tree.innerHTML = renderFileGroups(fileGroups);
+            // Add click handlers for file rows
+            tree.querySelectorAll('.tree-file').forEach(fileRow => {
+                fileRow.addEventListener('click', (e) => {
+                    // Don't trigger if clicking the checkbox directly
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = fileRow.querySelector('input[type="checkbox"]');
+                        checkbox.checked = !checkbox.checked;
+                        updateCheckedCount();
+                    }
+                });
+            });
+
+            // Keep existing header click behavior for folders/dates
             tree.querySelectorAll('.tree-header').forEach(header => {
                 header.addEventListener('click', handleTreeItemClick);
             });
@@ -997,6 +1056,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('btnSelectAll').addEventListener('click', handleSelectAll);
 
             document.getElementById('btnDeleteSelected').addEventListener('click', handleDeleteSelected);
+
+            document.getElementById('btnToClipboard').addEventListener('click', async () => {
+                const selectedFiles = Array.from(document.querySelectorAll('.file-check:checked'));
+
+                if (selectedFiles.length === 0) {
+                    updateStatus('No file selected', 'error');
+                    return;
+                }
+
+                if (selectedFiles.length > 1) {
+                    updateStatus('Please select only one file', 'error');
+                    return;
+                }
+
+                const filePath = selectedFiles[0].dataset.path;
+
+                try {
+                    const response = await fetch(window.location.href, {
+                        method: 'POST',
+                        body: new URLSearchParams({
+                            'action': 'getFileContent',
+                            'csrf_token': csrfToken,
+                            'file': filePath
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to fetch file content');
+
+                    const content = await response.text();
+                    await navigator.clipboard.writeText(content);
+
+                    // Check if we're running in an iframe
+                    const isIframe = window !== window.parent;
+
+                    if (isIframe) {
+                        // Signal parent window to switch back to editor
+                        window.parent.postMessage({
+                            action: 'switchToEditor',
+                            status: 'Archived file content copied to clipboard'
+                        }, '*');
+                    } else {
+                        // Just show status if running independently
+                        updateStatus('File content copied to clipboard', 'success');
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    updateStatus('Failed to copy file content', 'error');
+                }
+            });
 
             document.getElementById('btnNetboundBackups').addEventListener('click', () => {
                 clearCheckedItems();

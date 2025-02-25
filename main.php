@@ -759,6 +759,23 @@ if (isset($_GET['file']) && !empty($_GET['file'])) {
                     })
                     .catch(() => updateStatus('Failed to refresh file list', 'error'));
             }
+
+            // Listen for messages from the archive manager iframe
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.action === 'switchToEditor') {
+                    const editorView = document.querySelector('.editor-view');
+                    const backupView = document.querySelector('.backup-view');
+
+                    // Switch back to editor view
+                    editorView.classList.remove('hidden');
+                    backupView.classList.remove('active');
+
+                    // Show status message
+                    if (event.data.status) {
+                        updateStatus(event.data.status, 'success');
+                    }
+                }
+            });
         </script>
 </body>
 
