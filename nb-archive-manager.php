@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'getFolderContents':
                 $path = isset($_POST['path']) ? $_POST['path'] : '.';
                 $path = realpath($path);
-                
+
                 if (!$path || !is_dir($path)) {
                     header('Content-Type: application/json');
                     echo json_encode(['error' => 'Invalid path']);
@@ -201,11 +201,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $files = glob($path . '/*');
                 $fileData = [];
-                
+
                 foreach ($files as $file) {
                     $basename = basename($file);
                     if ($basename === '.' || $basename === '..') continue;
-                    
+
                     $fileData[] = [
                         'name' => $basename,
                         'path' => $file,
@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                 }
 
-                usort($fileData, function($a, $b) {
+                usort($fileData, function ($a, $b) {
                     return $b['timestamp'] - $a['timestamp'];
                 });
 
@@ -321,6 +321,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
 
+                $addedFiles = 0;
+                foreach ($files as $file) {
+                    if (file_exists($file) && is_file($file)) {
+                        $zip->addFile($file, basename($file));
+                        $addedFiles++;
                     }
                 }
 
@@ -337,8 +342,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $result['error'] = 'ZIP file was not created successfully';
                     }
-                $zipResult = $zip->open($zipName, ZipArchive::CREATE);
-                if ($zipResult !== TRUE) {
+                } else {
+                    $result['error'] = 'No files were added to the ZIP archive';
+                }
+
                 header('Content-Type: application/json');
                 echo json_encode($result);
                 exit;
@@ -664,16 +671,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <button class="command-button full-width" id="btnToClipboard" title="Copy selected file to clipboard" disabled>
                             <i class="fas fa-clipboard"></i> TO CLIPBOARD
                         </button>
-                            <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
-                                <i class="fas fa-file-archive"></i> ZIP
-                            </button>
-                            <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
-                        </div>
+                        <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
+                            <i class="fas fa-file-archive"></i> ZIP
+                        </button>
+                        <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
                     </div>
                 </div>
-                <div class="file-tree" id="fileTree"></div>
             </div>
+            <div class="file-tree" id="fileTree"></div>
         </div>
+    </div>
     </div>
 
     <script>

@@ -1,27 +1,9 @@
-
-<?php
-$toolName = 'Image Extraction Tool';
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-session_start();
-
-/*
-// NetBound Tools - Netbound.ca
-// Filename: nb-image-extraction.php
-// Written by Orange Jeff and Cody AI tools
-// Last saved:
-// 
-// Dependants: none
-*/
-
-?>
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <input type="file" id="video-upload" accept="video/*">
+    <title>NetBound Tools: Audio Extractor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -31,71 +13,44 @@ session_start();
             width: 550px;
         }
 
-        /* Layout Components */
-        .editor-view {
+        .tool-container {
             background: #f4f4f9;
             height: auto;
             margin: 0;
+            max-width: 600px;
             width: 100%;
             padding: 20px;
             display: flex;
             flex-direction: column;
         }
 
-        .preview-area {
-            padding: 15px;
-            height: auto;
-            background: #f4f4f9;
-            display: flex;
+        .work-area {
             width: 100%;
+            display: flex;
             flex-direction: column;
             align-items: flex-start;
         }
 
-        /* Video Container */
-        #video-container {
-            position: relative;
-            width: 533px;
-            height: 300px;
-            margin: 0 0 20px 0;
-            padding-left: 0px;
-            background: #f4f4f9;
-            display: block;
+        .preview-area {
+            margin-top: 10px;
+            width: 100%;
         }
 
-        #video {
-            width: 533px;
-            height: 300px;
-            background: #f4f4f9;
-            object-fit: contain;
-        }
-
-        #video-upload {
-            display: none;
-        }
-
-        /* Header Elements */
-        .editor-header {
-            background: #f4f4f9;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .editor-title {
-            margin: 0 0 8px 0;
+        .tool-title {
+            margin: 10px 0;
+            padding: 0;
             color: #0056b3;
-            margin-top: 20px;
             line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
         }
 
-        /* Controls and Buttons */
-        .button-controls,
-        .button-group {
+        .button-controls {
             width: 100%;
             padding: 10px 0;
             display: flex;
             gap: 10px;
+            flex-wrap: nowrap;
         }
 
         .command-button {
@@ -103,673 +58,591 @@ session_start();
             color: white;
             border: none;
             border-radius: 3px;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-        }
-
-        .command-button i {
-            margin-right: 6px;
+            gap: 4px;
         }
 
         .command-button:disabled {
-            background-color: #cccccc;
+            background: #ccc;
             cursor: not-allowed;
-            opacity: 0.6;
         }
 
-        /* Status Bar */
-        .persistent-status-bar {
+        .status-bar {
             width: 100%;
-            min-height: 100px;
-            max-height: 100px;
+            height: 80px;
+            min-height: 80px;
+            max-height: 80px;
             overflow-y: auto;
             border: 1px solid #ddd;
             background: #fff;
             padding: 5px;
             margin: 10px 0;
             border-radius: 4px;
-            transition: all 0.3s ease;
             display: flex;
             flex-direction: column-reverse;
+            overflow-anchor: none;
         }
 
         .status-message {
-            margin: 1px 0;
-            font-size: 14px;
-            color: #333;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+            color: #666;
+            background: white;
         }
 
-        .status-message:first-child {
-            background: #0056b3;
-            color: white;
-            padding: 5px;
+        .status-message.info {
+            border-left: 3px solid #2196f3;
         }
 
-        .status-message.error {
-            background: #dc3545;
+        .status-message.info:last-child {
+            background: #2196f3;
             color: white;
-            padding: 5px;
+            border-left: none;
         }
 
         .status-message.success {
-            background: #28a745;
+            border-left: 3px solid #4caf50;
+        }
+
+        .status-message.success:last-child {
+            background: #4caf50;
             color: white;
-            padding: 5px;
+            border-left: none;
         }
 
-        /* Log Area */
-        #log {
-            margin-top: 20px;
-            overflow-y: auto;
-            width: 533px;
-            margin-left: 0px;
+        .status-message.error {
+            border-left: 3px solid #f44336;
         }
 
-        .log-item {
+        .status-message.error:last-child {
+            background: #f44336;
+            color: white;
+            border-left: none;
+        }
+
+        .filename-control {
+            width: 100%;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0;
-            background-color: #f4f4f9;
-            margin-bottom: 10px;
-        }
-
-        .log-item img {
-            height: 60px;
-            width: 150px;
-            margin-right: 15px;
-            object-fit: contain;
-        }
-
-        .log-item .frame-info {
-            flex-grow: 1;
-            text-align: left;
-        }
-
-        .log-item.divider hr {
-            width: 550px;
-            border: 2px solid #0056b3;
+            gap: 10px;
             margin: 10px 0;
         }
 
-        /* Filename Input */
-        .filename-container {
-            width: 100%;
-            padding: 10px 0;
-        }
-
-        #filename-input {
-            width: 100%;
-            padding: 8px 12px;
+        .filename-input {
+            flex: 1;
+            padding: 6px 8px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 3px;
+            font-family: inherit;
             font-size: 14px;
         }
+
+        .filename-input:read-only {
+            background: #f8f8f8;
+        }
+
+        #video-preview {
+            width: 100%;
+            height: 400px;
+            background: #2a2a2a;
+            object-fit: contain;
+        }
+
+        .status-bar.drag-over {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .format-select {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.js"></script>
 </head>
 
 <body>
-    <div class="editor-view">
-        <div class="editor-header">
-            <div class="header-top">
-                <h1 class="editor-title">NetBound Tools: <?php echo $toolName; ?></h1>
-            </div>
-            <div class="persistent-status-bar" id="statusBar"></div>
+    <div class="tool-container">
+        <div class="tool-header">
+            <h1 class="tool-title">NetBound Tools: Video to Audio Converter</h1>
+            <div id="statusBar" class="status-bar"></div>
             <div class="button-controls">
-                <button class="command-button" id="btnOpen"><i class="fas fa-folder-open"></i> Open File</button>
-                <button class="command-button" id="btnReset"><i class="fas fa-redo"></i> Reset</button>
+                <button class="command-button" id="btnOpen">
+                    <i class="fas fa-folder-open"></i> Open Video
+                </button>
+                <button class="command-button" id="btnBulk">
+                    <i class="fas fa-folder-open"></i> Bulk Convert
+                </button>
+                <button class="command-button" id="btnRestart">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
             </div>
-
         </div>
-        <div class="preview-area" id="previewArea">
-            <input type="file" id="video-upload" accept="video/*">
-            <div id="video-container">
-                <video id="video" controls preload="metadata"></video>
+
+        <div class="work-area">
+            <div class="preview-area">
+                <video id="video-preview" controls poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3C/svg%3E"></video>
+                <div class="filename-control">
+                    <input type="text" id="filename" class="filename-input" readonly placeholder="No file selected">
+                    <button class="command-button" id="btnRename" disabled>
+                        <i class="fas fa-edit"></i> Rename
+                    </button>
+                </div>
+                <div class="button-controls">
+                    <button class="command-button" id="btnSaveMp3" disabled>
+                        <i class="fas fa-file-audio"></i> Save MP3
+                        <small style="opacity: 0.8; margin-left: 4px">(SLOW)</small>
+                    </button>
+                    <button class="command-button" id="btnSaveWav" disabled>
+                        <i class="fas fa-file-audio"></i> Save WAV
+                        <small style="opacity: 0.8; margin-left: 4px">(FAST)</small>
+                    </button>
+                </div>
             </div>
-            <div class="filename-container">
-                <input type="text" id="filename-input">
-            </div>
-            <div class="button-group">
-                <button class="command-button extract-frame" id="extract-frame"><i class="fas fa-camera"></i> Extract Frame</button>
-                <button class="command-button" id="split-video"><i class="fas fa-cut"></i> Split Here</button>
-                <button class="command-button" id="rename-video"><i class="fas fa-edit"></i> Rename</button>
-                <button class="command-button" id="btnDone"><i class="fas fa-save"></i> Done</button>
-            </div>
-            <div class="video-controls"></div>
-            <div id="log"></div>
         </div>
-        <div id="log"></div>
-        <script>
-            const video = document.getElementById('video');
-            const videoUpload = document.getElementById('video-upload');
-            const log = document.getElementById('log');
-            const extractButton = document.getElementById('extract-frame');
-            const doneButton = document.getElementById('btnDone');
-            const splitButton = document.getElementById('split-video');
-            const renameButton = document.getElementById('rename-video');
-            const statusBar = document.getElementById('statusBar');
-            const btnOpen = document.getElementById('btnOpen');
-            const btnReset = document.getElementById('btnReset');
-            const filenameInput = document.getElementById('filename-input');
+    </div>
 
-            // Global state variables
-            let splits = [];
-            let baseName = '';
-            let processingComplete = false;
+    <input type="file" id="fileInput" accept=".mp4,.webm,.mkv" style="display: none">
+    <input type="file" id="bulkInput" accept=".mp4,.webm,.mkv" style="display: none" multiple>
 
-            document.addEventListener('DOMContentLoaded', () => {
-                // Initialize buttons
-                setButtonStates(false);
-                btnReset.disabled = false;
-                addIntervalSplitButton();
+    <script>
+        const status = {
+            update(message, type = 'info') {
+                const container = document.getElementById('statusBar');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `status-message ${type}`;
+                messageDiv.textContent = message;
+                container.appendChild(messageDiv);
+                // Auto-scroll only if already near bottom
+                if (container.scrollTop > container.scrollHeight - container.clientHeight - 50) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }
+        };
 
-                // Attach event listeners
-                btnOpen.onclick = () => videoUpload.click();
-                videoUpload.addEventListener('change', handleFileChange);
-                btnReset.onclick = handleReset;
+        let currentFile = null;
+        let isProcessing = false;
+        let bulkFiles = [];
+        let currentBulkIndex = 0;
 
-                renameButton.addEventListener('click', () => {
-                    if (baseName) {
-                        const newName = filenameInput.value.trim();
-                        const originalExt = video.src.split('.').pop();
-                        const newExt = newName.split('.').pop();
-
-                        if (!newName.includes('.')) {
-                            filenameInput.value = `${newName}.${originalExt}`;
-                            baseName = newName;
-                        } else if (newExt !== originalExt) {
-                            filenameInput.value = `${newName.split('.')[0]}.${originalExt}`;
-                            baseName = newName.split('.')[0];
-                        } else {
-                            baseName = newName.split('.')[0];
-                        }
-                        updateStatus('Filename updated: ' + filenameInput.value, 'success');
-                    } else {
-                        updateStatus('No file loaded', 'error');
-                    }
-                });
+        function initDragAndDrop(statusBar, fileInput) {
+            statusBar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                statusBar.classList.add('drag-over');
             });
 
-            // Add these handler functions
-            function handleFileChange(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const existingFrames = document.querySelectorAll('.log-item');
-                    if (existingFrames.length > 0) {
-                        if (confirm('You have unsaved media. Do you wish to clear and load the new file?')) {
-                            loadFile(file);
-                        }
+            statusBar.addEventListener('dragleave', () => {
+                statusBar.classList.remove('drag-over');
+            });
+
+            statusBar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                statusBar.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    if (e.dataTransfer.files.length > 1) {
+                        handleBulkFiles(Array.from(e.dataTransfer.files));
                     } else {
-                        loadFile(file);
+                        handleSingleFile(e.dataTransfer.files[0]);
                     }
                 }
+            });
+        }
+
+        async function handleBulkFiles(files) {
+            if (isProcessing) {
+                status.update('Please wait for current process to complete', 'error');
+                return;
             }
 
-            function handleReset() {
-                log.innerHTML = '';
-                splits = [];
-                video.pause();
-                video.src = '';
-                video.currentTime = 0;
-                setButtonStates(false);
-                filenameInput.value = '';
-                processingComplete = false;
-                updateStatus('Reset complete', 'info');
-            }
+            // Clean up any previous state
+            const videoElement = document.getElementById('video-preview');
+            const filename = document.getElementById('filename');
+            const btnRename = document.getElementById('btnRename');
 
-            function setButtonStates(isEnabled) {
-                [extractButton, splitButton, renameButton, doneButton, btnOpen].forEach(btn =>
-                    btn.disabled = !isEnabled
-                );
-                btnOpen.disabled = isEnabled; // Invert for Open button - disable when video loaded
-            }
-            // Add this after other button declarations
-            function addIntervalSplitButton() {
-                const buttonGroup = document.querySelector('.button-group');
-                if (!buttonGroup) {
-                    console.error('Button group not found');
-                    return;
+            videoElement.src = '';
+            filename.value = '';
+            btnRename.disabled = true;
+            isProcessing = true;
+
+            // Ask for format
+            const format = await new Promise((resolve) => {
+                const formatDiv = document.createElement('div');
+                formatDiv.className = 'format-select';
+
+                status.update(`Select format for ${files.length} files:`, 'info');
+                const mp3Btn = document.createElement('button');
+                mp3Btn.className = 'command-button';
+                mp3Btn.innerHTML = '<i class="fas fa-file-audio"></i> MP3 (SLOW)';
+                mp3Btn.onclick = () => resolve('mp3');
+
+                const wavBtn = document.createElement('button');
+                wavBtn.className = 'command-button';
+                wavBtn.style.marginLeft = '10px';
+                wavBtn.innerHTML = '<i class="fas fa-file-audio"></i> WAV (FAST)';
+                wavBtn.onclick = () => resolve('wav');
+
+                formatDiv.appendChild(mp3Btn);
+                formatDiv.appendChild(wavBtn);
+                document.querySelector('.work-area').appendChild(formatDiv);
+
+                // Clean up on selection
+                const cleanup = () => formatDiv.remove();
+                mp3Btn.addEventListener('click', cleanup);
+                wavBtn.addEventListener('click', cleanup);
+            });
+
+            bulkFiles = files;
+            currentBulkIndex = 0;
+
+            try {
+                status.update(`Starting bulk conversion of ${files.length} files to ${format.toUpperCase()}...`, 'info');
+
+                for (let i = 0; i < files.length; i++) {
+                    currentBulkIndex = i;
+                    currentFile = files[i];
+                    filename.value = currentFile.name;
+
+                    await processFile(currentFile, format);
+                    status.update(`Completed ${i + 1} of ${files.length}: ${currentFile.name}`, 'success');
                 }
 
-                // Remove existing interval button if present
-                const existingButton = document.getElementById('interval-split');
-                if (existingButton) {
-                    existingButton.remove();
-                }
-
-                const intervalButton = document.createElement('button');
-                intervalButton.className = 'command-button';
-                intervalButton.id = 'interval-split';
-                intervalButton.innerHTML = '<i class="fas fa-clock"></i> Interval Split';
-                buttonGroup.appendChild(intervalButton);
-
-                intervalButton.addEventListener('click', handleIntervalSplit);
+                status.update('Bulk conversion complete!', 'success');
+            } catch (error) {
+                status.update(`Error during bulk conversion: ${error.message}`, 'error');
+            } finally {
+                // Clean up
+                isProcessing = false;
+                currentFile = null;
+                bulkFiles = [];
+                currentBulkIndex = 0;
+                filename.value = '';
+                btnRename.disabled = true;
+                videoElement.src = '';
             }
+        }
 
-            async function handleIntervalSplit() {
-                try {
-                    const input = prompt('Enter interval (MM:SS or seconds):', '1:00');
-                    if (!input) return;
+        function handleSingleFile(file) {
+            if (isProcessing) return;
 
-                    const intervalSeconds = normalizeTimeInput(input);
-                    if (intervalSeconds <= 0) {
-                        throw new Error('Interval must be greater than 0');
+            currentFile = file;
+            const videoElement = document.getElementById('video-preview');
+            const filename = document.getElementById('filename');
+            const btnRename = document.getElementById('btnRename');
+
+            // Update filename display
+            filename.value = file.name;
+            btnRename.disabled = false;
+
+            const url = URL.createObjectURL(file);
+            videoElement.src = url;
+
+            videoElement.onloadeddata = () => {
+                videoElement.currentTime = 0;
+            };
+
+            videoElement.onloadedmetadata = () => {
+                const duration = Math.round(videoElement.duration);
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                const size = file.size;
+                const sizeStr = size > 1024 * 1024 ?
+                    `${(size/(1024*1024)).toFixed(1)} MB` :
+                    `${(size/1024).toFixed(1)} KB`;
+
+                status.update(`Loaded: ${file.name} (${sizeStr}, ${durationStr})`, 'success');
+            };
+
+            document.getElementById('btnSaveMp3').disabled = false;
+            document.getElementById('btnSaveWav').disabled = false;
+
+            // Clean up the object URL after video loads
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('fileInput');
+            const bulkInput = document.getElementById('bulkInput');
+            const btnOpen = document.getElementById('btnOpen');
+            const btnBulk = document.getElementById('btnBulk');
+            const btnSaveMp3 = document.getElementById('btnSaveMp3');
+            const btnSaveWav = document.getElementById('btnSaveWav');
+            const btnRestart = document.getElementById('btnRestart');
+            const btnRename = document.getElementById('btnRename');
+            const filename = document.getElementById('filename');
+            const videoPreview = document.getElementById('video-preview');
+            const statusBar = document.getElementById('statusBar');
+
+            // Initialize rename functionality
+            btnRename.onclick = () => {
+                const wasReadOnly = filename.readOnly;
+                filename.readOnly = !wasReadOnly;
+
+                if (wasReadOnly) {
+                    // Enter edit mode
+                    filename.focus();
+                    filename.select();
+                    btnRename.innerHTML = '<i class="fas fa-save"></i> Save';
+                } else {
+                    // Save changes
+                    if (currentFile && filename.value) {
+                        const newName = filename.value;
+                        currentFile = new File([currentFile], newName, {
+                            type: currentFile.type
+                        });
+                        status.update(`File renamed to: ${newName}`, 'success');
+                        btnRename.innerHTML = '<i class="fas fa-edit"></i> Rename';
                     }
-
-                    createIntervalSplits(intervalSeconds);
-                } catch (error) {
-                    updateStatus(error.message, 'error');
                 }
-            }
+            };
 
-            function createIntervalSplits(intervalSeconds) {
-                if (!video.duration || isNaN(video.duration)) {
-                    updateStatus('Video duration not available', 'error');
-                    return;
+            // Handle filename enter key
+            filename.onkeydown = (e) => {
+                if (e.key === 'Enter' && !filename.readOnly) {
+                    btnRename.click();
                 }
+            };
 
-                splits.length = 0; // Clear existing splits
-                const duration = video.duration;
-                let currentTime = intervalSeconds;
-
-                while (currentTime < duration) {
-                    splits.push(currentTime);
-                    // Preview frame at split point
-                    captureFrame(`${baseName}-Split${splits.length}`, currentTime);
-                    currentTime += intervalSeconds;
+            initDragAndDrop(statusBar, fileInput);
+            btnOpen.onclick = () => fileInput.click();
+            btnBulk.onclick = () => {
+                if (!isProcessing) {
+                    bulkInput.click();
+                } else {
+                    status.update('Please wait for current process to complete', 'error');
                 }
+            };
+            btnRestart.onclick = () => location.reload();
 
-                updateStatus(`Created ${splits.length} splits at ${formatTime(intervalSeconds)} intervals`, 'success');
-            }
-            // Initialize button states
-            setButtonStates(false);
-            btnReset.disabled = false;
-
-            function validateAndConvertTime(timeStr) {
-                // Handle both "MM:SS" and seconds-only format
-                const timeRegex = /^(?:(\d+):)?([0-5]?\d)$/;
-                const match = timeStr.trim().match(timeRegex);
-
-                if (!match) {
-                    throw new Error('Invalid time format. Use MM:SS or seconds');
+            fileInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    handleSingleFile(e.target.files[0]);
                 }
+            };
 
-                const minutes = parseInt(match[1] || '0');
-                const seconds = parseInt(match[2]);
-
-                return (minutes * 60) + seconds;
-            }
-
-            function normalizeTimeInput(input) {
-                try {
-                    // If input contains ":", treat as MM:SS
-                    if (input.includes(':')) {
-                        return validateAndConvertTime(input);
-                    }
-                    // Otherwise treat as seconds
-                    const seconds = parseInt(input);
-                    if (isNaN(seconds) || seconds < 0) {
-                        throw new Error('Invalid time value');
-                    }
-                    return seconds;
-                } catch (error) {
-                    throw new Error(`Invalid time format: ${error.message}`);
+            bulkInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    handleBulkFiles(Array.from(e.target.files));
                 }
-            }
-            // Unified loader: check file type and load via the appropriate handler.
-            function loadFile(file) {
-                btnReset.click();
-                baseName = file.name.split('.')[0];
-                filenameInput.value = file.name;
-                updateStatus('Loading File: ' + file.name, 'info');
+            };
 
-                if (file.type.startsWith('video/')) {
-                    extractButton.disabled = false;
-                    splitButton.disabled = false;
-                    renameButton.disabled = false;
-                    doneButton.disabled = false;
+            btnSaveMp3.onclick = () => convertToAudio(currentFile, 'mp3');
+            btnSaveWav.onclick = () => convertToAudio(currentFile, 'wav');
+        });
 
-                    if (file.type === 'video/mp4') {
-                        handleMp4Upload(file);
-                    } else {
-                        if (file.type === 'video/webm') {
-                            updateStatus('WebM files have unknown duration and do not support video controls.', 'error');
-                        }
-                        handleVideoUpload(file);
-                    }
+        async function convertToAudio(videoFile, format) {
+            const videoElement = document.getElementById('video-preview');
+            const btnSaveMp3 = document.getElementById('btnSaveMp3');
+            const btnSaveWav = document.getElementById('btnSaveWav');
+            btnRename = document.getElementById('btnRename');
 
-                    video.addEventListener('loadedmetadata', () => {
-                        if (isNaN(video.duration) || video.duration === Infinity) {
-                            if (!file.type.includes('webm')) {
-                                updateStatus('Webm Video duration unknown. Full playback may be required.', 'warning');
+            btnSaveMp3.disabled = true;
+            btnSaveWav.disabled = true;
+            btnRename.disabled = true;
+            isProcessing = true;
+
+            try {
+                if (format === 'wav') {
+                    // Fast WAV - direct file reading
+                    status.update('Reading audio from video file...', 'info');
+                    // Proper WAV extraction using audio context
+                    const audioContext = new AudioContext();
+                    const videoReader = new FileReader();
+
+                    await new Promise((resolve, reject) => {
+                        videoReader.onload = async (e) => {
+                            try {
+                                const audioBuffer = await audioContext.decodeAudioData(e.target.result);
+                                const wavBlob = audioBufferToWav(audioBuffer);
+                                const link = document.createElement('a');
+                                link.href = URL.createObjectURL(wavBlob);
+                                link.download = videoFile.name.replace(/\.[^.]+$/, '.wav');
+                                link.click();
+                                URL.revokeObjectURL(link.href);
+                                status.update('WAV conversion complete!', 'success');
+                                status.update(`File saved as: ${link.download}`, 'info');
+                                resolve();
+                            } catch (error) {
+                                reject(error);
                             }
-                        } else {
-                            updateStatus(`Video duration detected: ${formatTime(video.duration)}`, 'success');
-                        }
+                        };
+                        videoReader.onerror = reject;
+                        videoReader.readAsArrayBuffer(videoFile);
                     });
                 } else {
-                    updateStatus('Unsupported file type', 'error');
-                }
-            }
-            // Video handling (e.g., MP4).
-            function handleVideoUpload(file) {
-                // Remove existing event listeners to prevent issues with multiple loads.
-                video.onloadedmetadata = null;
-                video.onloadeddata = null;
-                video.onseeked = null;
+                    // Direct MP3 conversion from file
+                    status.update('Extracting audio from video file...', 'info');
+                    const audioContext = new AudioContext();
+                    const fileReader = new FileReader();
 
-                const url = URL.createObjectURL(file);
-                video.src = url;
-                video.load();
-                updateStatus('Video loaded successfully.', 'success');
-                setButtonStates(true);
-
-                video.onloadedmetadata = () => {
-                    video.currentTime = 0;
-
-                    video.onseeked = () => {
-                        captureFrame(`${baseName}-S1F1`, 0);
-                        video.onseeked = null;
-
-                        // Handle last frame capture (as before)
-                        if (!isNaN(video.duration) && video.duration !== Infinity) {
-                            video.currentTime = video.duration;
-                            video.onseeked = () => {
-                                captureFrame(`${baseName}-LastFrame`, video.duration);
-                                video.currentTime = 0; // Reset to beginning
-                                video.onseeked = null;
-                            };
-                        }
-                    };
-                };
-            }
-
-            function handleMp4Upload(file) {
-                // Remove stale event listeners as in handleVideoUpload.
-                video.onloadedmetadata = null;
-                video.onloadeddata = null;
-                video.onseeked = null;
-
-                const url = URL.createObjectURL(file);
-                video.src = url;
-                video.load();
-                updateStatus('MP4 Video loaded successfully.', 'success');
-                setButtonStates(true);
-
-                video.onloadedmetadata = () => {
-                    video.currentTime = 0;
-                    // Optionally, capture the initial frame once metadata is loaded.
-                    video.onseeked = () => {
-                        captureFrame(`${baseName}-S1F1`, 0);
-                        video.onseeked = null;
-                    };
-                };
-
-                // Depending on the browser and MP4 handling,
-                // consider a different approach for processVideoSegment.
-            }
-
-            function captureFrame(frameNumber, time) {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = 100;
-                canvas.height = 56;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                let label = 'Extracted Frame';
-                if (frameNumber.includes('S')) {
-                    const sectionNum = frameNumber.match(/S(\d+)/)[1];
-                    label = `Section ${sectionNum}: First Frame`;
-                }
-                if (frameNumber.includes('LastFrame')) label = 'Split Section End';
-                if (time === video.duration) label = 'Last Frame';
-
-                const frameItem = document.createElement('div');
-                frameItem.className = 'log-item';
-                frameItem.style.display = 'flex';
-                frameItem.style.alignItems = 'center';
-                frameItem.innerHTML = `
-        <img src="${canvas.toDataURL('image/jpeg', 0.9)}" alt="${label}" style="margin-right: 15px;">
-        <div class="frame-info">
-            <strong>${label}</strong><br>
-            Time: ${formatTime(time)}
-        </div>`;
-                log.appendChild(frameItem);
-            }
-            // Split button works only for video files.
-            splitButton.addEventListener('click', function() {
-                const currentTime = video.currentTime;
-                const sectionNumber = splits.length + 1;
-
-                const divider = document.createElement('div');
-                divider.className = 'log-item divider';
-                divider.innerHTML = '<hr style="border: 2px solid #0056b3; margin: 10px 0;">';
-                log.appendChild(divider);
-
-                // Only capture the first frame of next section
-                captureFrame(`${baseName}-S${sectionNumber + 1}F1`, currentTime);
-
-                splits.push(currentTime);
-                updateStatus(`Split created at ${formatTime(currentTime)}`, 'success');
-            });
-
-            function cleanupVideoListeners() {
-                video.onloadedmetadata = null;
-                video.onloadeddata = null;
-                video.onseeked = null;
-            }
-            // Usage in handlers:
-            cleanupVideoListeners();
-
-            extractButton.addEventListener('click', () => {
-                // For video files, capture the current frame.
-                if (video.src) {
-                    captureFrame('Extracted Frame', video.currentTime);
-                }
-                updateStatus('Frame extracted successfully', 'success');
-            });
-
-            // Add new helper functions before the DONE handler
-            function processMp4Video() {
-                video.currentTime = video.duration;
-                return new Promise(resolve => {
-                    video.onseeked = () => {
-                        captureFrame('Final Frame', video.duration);
-                        resolve();
-                    };
-                });
-            }
-
-            function processWebmVideo() {
-                return new Promise(resolve => {
-                    if (isNaN(video.duration) || video.duration === Infinity) {
-                        video.currentTime = 0;
-                        video.play().then(() => {
-                            video.pause();
-                            captureFrame('Final Frame', video.currentTime);
-                            resolve();
-                        }).catch(() => {
-                            captureFrame('Final Frame', video.currentTime);
-                            resolve();
-                        });
-                    } else {
-                        video.currentTime = video.duration;
-                        video.onseeked = () => {
-                            captureFrame('Final Frame', video.duration);
-                            resolve();
-                        };
-                    }
-                });
-            }
-
-            // Replace existing doneButton click event listener with:
-            doneButton.addEventListener('click', async () => {
-                if (processingComplete) return;
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-                video.pause();
-                doneButton.textContent = 'Processing...';
-                updateStatus('Processing frames...', 'info');
-
-                try {
-                    if (video.src) {
-                        if (video.src.includes('.mp4')) {
-                            await processMp4Video();
-                        } else {
-                            await processWebmVideo();
-                        }
-
-                        addDivider();
-                        await processAndSaveAllFrames();
-
-                        if (splits.length > 0) {
-                            updateStatus('Processing segments...', 'info');
-                            for (let i = 0; i < splits.length; i++) {
-                                const startTime = splits[i];
-                                const endTime = splits[i + 1] || video.duration;
-                                await processVideoSegment(startTime, endTime, i + 1);
-                            }
-                        }
-                    } else {
-                        updateStatus('No file loaded', 'error');
-                    }
-                } catch (error) {
-                    console.error("An error occurred:", error);
-                    updateStatus(`Error: ${error.message}`, 'error');
-                } finally {
-                    video.pause();
-                    updateStatus('Processing Complete. All files have been downloaded.', 'success');
-                    doneButton.textContent = 'Done';
-                    doneButton.disabled = true;
-                    processingComplete = true;
-                    video.currentTime = 0;
-                    cleanupVideoListeners();
-                }
-            });
-
-            function addDivider() {
-                const divider = document.createElement('div');
-                divider.className = 'log-item divider';
-                divider.innerHTML = '<hr style="border: 2px dashed #0056b3; margin: 10px 0;">';
-                log.appendChild(divider);
-            }
-            async function processAndSaveAllFrames() {
-                splits.sort((a, b) => a - b);
-                const segments = [0, ...splits, video.duration];
-
-                for (let i = 0; i < segments.length - 1; i++) {
-                    const startTime = segments[i];
-                    const endTime = segments[i + 1];
-                    if (!video.src.includes('.mp4')) {
-                        await processVideoSegment(startTime, endTime, i + 1);
-                    }
-                }
-            }
-
-
-            function formatTime(seconds) {
-                const minutes = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                const tenths = Math.floor((seconds - Math.floor(seconds)) * 10);
-                return `${minutes}:${String(secs).padStart(2, '0')}.${tenths}`;
-            }
-
-            function updateStatus(message, type = 'info') {
-                const statusMessage = document.createElement('div');
-                statusMessage.className = 'status-message' + (type !== 'info' ? ` ${type}` : '');
-                statusMessage.textContent = message;
-                statusBar.insertBefore(statusMessage, statusBar.firstChild);
-                while (statusBar.children.length > 5) {
-                    statusBar.removeChild(statusBar.lastChild);
-                }
-            }
-
-            async function processVideoSegment(startTime, endTime, segmentNumber) {
-                if (video.src.includes('.mp4')) {
-                    // Fast MP4 processing
-                    // First capture start frame
-                    video.currentTime = startTime;
-                    await new Promise(resolve =>
-                        video.addEventListener('seeked', () => {
-                            captureFrame(`${baseName}-S${segmentNumber}Start`, startTime);
-                            // Then capture end frame
-                            video.currentTime = endTime;
-                            video.addEventListener('seeked', () => {
-                                captureFrame(`${baseName}-S${segmentNumber}End`, endTime);
+                    await new Promise((resolve, reject) => {
+                        fileReader.onload = async (e) => {
+                            try {
+                                const audioBuffer = await audioContext.decodeAudioData(e.target.result);
+                                const mp3Blob = await convertToMp3(audioBuffer);
+                                createDownloadLink(mp3Blob, videoFile.name, 'mp3');
                                 resolve();
-                            }, {
-                                once: true
+                            } catch (error) {
+                                reject(error);
+                            } finally {
+                                audioContext.close();
+                            }
+                        };
+                        fileReader.readAsArrayBuffer(videoFile);
+                    });
+                }
+            } catch (error) {
+                status.update(`Error: ${error.message}`, 'error');
+            } finally {
+                btnSaveMp3.disabled = false;
+                btnSaveWav.disabled = false;
+                btnRename.disabled = false;
+                isProcessing = false;
+            }
+        }
+
+        async function processAudioBlob(audioBlob, originalFileName, audioContext) {
+            try {
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                await new Promise((resolve, reject) => {
+                    audioContext.decodeAudioData(arrayBuffer, async (buffer) => {
+                        try {
+                            status.update('Processing MP3 conversion...', 'info');
+                            let totalChunks = 0;
+                            const resultBlob = await convertToMp3(buffer, (current, total) => {
+                                if (totalChunks !== total) totalChunks = total;
+                                const percent = Math.round((current / total) * 100);
+                                if (current % 100 === 0) {
+                                    status.update(`Processing MP3: ${percent}% complete`, 'info');
+                                }
                             });
-                        }, {
-                            once: true
-                        })
-                    );
-                    return;
+
+                            const blobUrl = URL.createObjectURL(resultBlob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.download = originalFileName.replace(/\.[^.]+$/, '.mp3');
+                            link.click();
+                            URL.revokeObjectURL(blobUrl);
+
+                            status.update('MP3 conversion complete!', 'success');
+                            status.update(`File saved as: ${link.download}`, 'info');
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        } finally {
+                            audioContext.close();
+                        }
+                    }, reject);
+                });
+            } catch (error) {
+                throw new Error(`Error processing audio: ${error.message}`);
+            }
+        }
+
+        function audioBufferToWav(audioBuffer) {
+            const numChannels = 1;
+            const sampleRate = audioBuffer.sampleRate;
+            const format = 3; // Float32
+            const bitDepth = 32;
+
+            const wavHeader = new DataView(new ArrayBuffer(44));
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+
+            // RIFF identifier
+            writeString(wavHeader, 0, 'RIFF');
+            // RIFF chunk length
+            wavHeader.setUint32(4, 36 + audioBuffer.length * bytesPerSample, true);
+            // RIFF type
+            writeString(wavHeader, 8, 'WAVE');
+            // Format chunk identifier
+            writeString(wavHeader, 12, 'fmt ');
+            // Format chunk length
+            wavHeader.setUint32(16, 16, true);
+            // Sample format (3 = float)
+            wavHeader.setUint16(20, format, true);
+            // Channel count
+            wavHeader.setUint16(22, numChannels, true);
+            // Sample rate
+            wavHeader.setUint32(24, sampleRate, true);
+            // Byte rate (sample rate * block align)
+            wavHeader.setUint32(28, sampleRate * blockAlign, true);
+            // Block align
+            wavHeader.setUint16(32, blockAlign, true);
+            // Bits per sample
+            wavHeader.setUint16(34, bitDepth, true);
+            // Data chunk identifier
+            writeString(wavHeader, 36, 'data');
+            // Data chunk length
+            wavHeader.setUint32(40, audioBuffer.length * bytesPerSample, true);
+
+            const interleaved = new Float32Array(audioBuffer.length);
+            for (let i = 0; i < audioBuffer.length; i++) {
+                interleaved[i] = audioBuffer.getChannelData(0)[i];
+            }
+
+            const wavBytes = new Uint8Array(wavHeader.byteLength + interleaved.buffer.byteLength);
+            wavBytes.set(new Uint8Array(wavHeader.buffer), 0);
+            wavBytes.set(new Uint8Array(interleaved.buffer), wavHeader.byteLength);
+
+            return new Blob([wavBytes], {
+                type: 'audio/wav'
+            });
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+        }
+
+        function convertToMp3(audioBuffer, progressCallback) {
+            return new Promise((resolve) => {
+                const sampleRate = audioBuffer.sampleRate;
+                const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+                const leftChannel = audioBuffer.getChannelData(0);
+                const samples = new Int16Array(leftChannel.length);
+                const blockSize = 1152;
+                const blocks = Math.ceil(leftChannel.length / blockSize);
+
+                for (let i = 0; i < leftChannel.length; i++) {
+                    const s = Math.max(-1, Math.min(1, leftChannel[i]));
+                    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
 
-                // Existing WebM processing code remains unchanged
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
+                const mp3Data = [];
+                for (let i = 0; i < samples.length; i += blockSize) {
+                    const sampleChunk = samples.subarray(i, i + blockSize);
+                    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(mp3buf);
+                    }
+                    if (progressCallback) {
+                        progressCallback(Math.floor(i / blockSize), blocks);
+                    }
+                }
 
-                const stream = canvas.captureStream();
-                const mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'video/webm;codecs=vp8,opus',
-                });
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
 
-                const chunks = [];
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
-
-                return new Promise(resolve => {
-                    let attempt = 0;
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(chunks, {
-                            type: 'video/webm'
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${baseName}-ScS${segmentNumber}.webm`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        resolve();
-                    };
-
-                    mediaRecorder.start();
-                    video.currentTime = startTime;
-
-                    video.onseeked = function drawFrame() {
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                        if (video.currentTime >= endTime) {
-                            mediaRecorder.stop();
-                            return;
-                        }
-
-                        let lastTime = video.currentTime;
-                        video.currentTime += 1 / 30;
-                        attempt++;
-                        if (attempt > 300 || video.currentTime === lastTime) { // e.g., 10 seconds max at 30fps
-                            mediaRecorder.stop();
-                        }
-                    };
-                });
-            }
-        </script>
-
-    </div>
+                resolve(new Blob(mp3Data, {
+                    type: 'audio/mp3'
+                }));
+            });
+        }
+    </script>
 </body>
 
 </html>
