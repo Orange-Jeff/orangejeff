@@ -18,7 +18,13 @@ if (!isset($_SERVER['REQUEST_METHOD'])) {
 
 // Set up directory and backup directory
 $dir = __DIR__;
+$currentPath = isset($_GET['folder']) ? trim($_GET['folder'], '/') : '';
+$currentPath = preg_replace('/[^a-zA-Z0-9\/_-]/', '', $currentPath); // Sanitize path
+$currentDir = $currentPath ? $dir . '/' . $currentPath : $dir;
 $backupDir = $dir . '/backups/';
+
+// Breadcrumb parts
+$breadcrumbs = $currentPath ? explode('/', $currentPath) : [];
 
 // Create backup directory if it doesn't exist
 if (!is_dir($backupDir)) {
@@ -43,12 +49,19 @@ header("Pragma: no-cache");
  */
 function getFileList($dir, $sortBy = 'date')
 {
-    $files = glob($dir . '/*.*', GLOB_BRACE);
+    $files = glob($dir . '/*') ?: [];
 
     if (!empty($files)) {
         if ($sortBy === 'date') {
             usort($files, function ($a, $b) {
-                return filemtime($b) - filemtime($a);
+                $aIsDir = is_dir($a);
+                $bIsDir = is_dir($b);
+
+                if ($aIsDir === $bIsDir) {
+                    return filemtime($b) - filemtime($a);
+                }
+
+                return $aIsDir ? 1 : -1; // Folders at bottom for date sort
             });
         } else {
             // Custom sorting: nb-files first, then alphabetically
@@ -56,12 +69,23 @@ function getFileList($dir, $sortBy = 'date')
                 $fileA = basename($a);
                 $fileB = basename($b);
 
-                $isNbA = (strpos($fileA, 'nb-') === 0);
-                $isNbB = (strpos($fileB, 'nb-') === 0);
+                $aIsDir = is_dir($a);
+                $bIsDir = is_dir($b);
 
-                // If one is nb- and one isn't, nb- comes first
-                if ($isNbA && !$isNbB) return -1;
-                if (!$isNbA && $isNbB) return 1;
+                // Keep folders on top for name sort
+                if ($aIsDir !== $bIsDir) {
+                    return $aIsDir ? -1 : 1; // Folders at top for name sort
+                }
+
+                // If both are files, check for nb- prefix
+                if (!$aIsDir && !$bIsDir) {
+                    $isNbA = (strpos($fileA, 'nb-') === 0);
+                    $isNbB = (strpos($fileB, 'nb-') === 0);
+
+                    if ($isNbA !== $isNbB) {
+                        return $isNbA ? -1 : 1;  // nb- files come first
+                    }
+                }
 
                 // Otherwise sort alphabetically
                 return strcasecmp($fileA, $fileB);
@@ -73,8 +97,51 @@ function getFileList($dir, $sortBy = 'date')
 }
 
 /**
+ * Helper function to check if directory is empty
+ */
+function is_dir_empty($dir)
+{
+    $files = scandir($dir);
+    return count($files) <= 2; // . and ..
+}
+
+/**
+ * Helper function to recursively remove a directory
+ */
+function rrmdir($dir)
+{
+    if (is_dir($dir)) {
+        $objects = scandir($dir);
+        foreach ($objects as $object) {
+            if ($object != "." && $object != "..") {
+                if (is_dir($dir . "/" . $object)) {
+                    rrmdir($dir . "/" . $object);
+                } else {
+                    unlink($dir . "/" . $object);
+                }
+            }
+        }
+        rmdir($dir);
+    }
+}
+
+/**
  * Get CSS class based on file extension
  */
+
+/**
+ * Get CSS class based on file extension
+ */
+function getFolderClass($path)
+{
+    if (!is_dir($path)) {
+        return '';
+    }
+    if (basename($path) === 'backups') {
+        return 'folder-special';
+    }
+    return 'folder-normal';
+}
 function getFileTypeClass($filename)
 {
     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
@@ -108,39 +175,71 @@ function getFileTypeClass($filename)
 /**
  * Generate HTML for file list
  */
-function generateFileListHTML($files, $currentFilename = '')
+function generateFileListHTML($files, $currentFilename = '', $currentPath = '')
 {
     ob_start();
 
-    if (!empty($files)) {
+    $hasValidFiles = false;
+
+    if (count($files) > 0) {
         foreach ($files as $file) {
             $filename = basename($file);
 
-            // Skip backup files and special directories
+            // Skip backup files and dot directories
             if (
                 preg_match('/\(BAK-\w{3}\d{2}-S\d+\)\.\w+$/', $filename) ||
-                $filename === '.' || $filename === '..'
+                $filename === '.' || $filename === '..' ||
+                (is_dir($file) && $filename === 'backups')
             ) {
                 continue;
             }
 
-            $isCurrentEdit = ($filename === $currentFilename);
-            $fileTypeClass = getFileTypeClass($filename);
+            $hasValidFiles = true;
+            $isDir = is_dir($file);
+            $fileClass = $isDir ? getFolderClass($file) : getFileTypeClass($filename);
+            $icon = $isDir ? 'fa-folder' : 'fa-file';
+            // Ensure proper path construction
+            $relativePath = trim($currentPath ? $currentPath . '/' . $filename : $filename, '/');
 
-            echo "<li class='file-entry " . ($isCurrentEdit ? "current-edit" : "") . "'>
-                <div class='file-controls'>
-                    <button onclick='loadFile(\"" . addslashes($filename) . "\")' title='Edit File'><i class='fas fa-pencil-alt'></i></button>
-                    <a href='#' onclick='openInNewTab(\"" . htmlspecialchars($filename, ENT_QUOTES) . "\")' title='Run File'><i class='fas fa-play'></i></a>
-                    <button onclick='confirmDelete(\"" . htmlspecialchars($filename) . "\")' title='Delete File'><i class='fas fa-trash'></i></button>
-                </div>
-                <a onclick='loadFile(\"" . addslashes($filename) . "\"); return false;' href='#'
-                   class='filename " . $fileTypeClass . "'
-                   title='" . htmlspecialchars($filename, ENT_QUOTES) . "'>" .
-                htmlspecialchars($filename, ENT_QUOTES) . "</a>
-            </li>";
+            if ($isDir) {
+                echo "<li class='file-entry folder-entry'>
+                    <div class='file-controls'>
+                        <a href='?folder=" . urlencode($relativePath) . "' title='Open Folder'>
+                            <i class='fas fa-folder'></i>
+                        </a>
+                    </div>
+                    <a href='?folder=" . urlencode($relativePath) . "'
+                        class='filename'
+                        title='" . htmlspecialchars($filename, ENT_QUOTES) . "'>" .
+                    htmlspecialchars($filename, ENT_QUOTES) . "
+                    </a>
+                    <div class='select-control'>
+                        <input type='checkbox' class='delete-check' data-type='folder' data-name='" . htmlspecialchars($filename, ENT_QUOTES) . "' data-path='" . htmlspecialchars($relativePath, ENT_QUOTES) . "'>
+                    </div>
+                </li>";
+            } else {
+                $isCurrentEdit = ($filename === $currentFilename);
+
+                echo "<li class='file-entry " . ($isCurrentEdit ? "current-edit" : "") . "'>
+                    <div class='file-controls'>
+                        <button onclick='loadFile(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\")' title='Edit File'>
+                            <i class='fas fa-pencil-alt'></i>
+                        </button>
+                        <a href='#' onclick='openInNewTab(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\"); return false;' title='Run File'>
+                            <i class='fas fa-play'></i>
+                        </a>
+                    </div>
+                    <a href='#' onclick='loadFile(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\"); return false;'
+                       class='filename " . $fileClass . "'
+                       title='" . htmlspecialchars($filename, ENT_QUOTES) . "'>
+                       <i class='fas " . $icon . "'></i> " . htmlspecialchars($filename, ENT_QUOTES) . "
+                    </a>
+                    <div class='select-control'>
+                        <input type='checkbox' class='delete-check' data-type='file' data-name='" . htmlspecialchars($filename, ENT_QUOTES) . "' data-path='" . htmlspecialchars($relativePath, ENT_QUOTES) . "'>
+                    </div>
+                </li>";
+            }
         }
-    } else {
-        echo "<li class='no-files'>No files available.</li>";
     }
 
     return ob_get_clean();
@@ -154,8 +253,8 @@ function generateFileListHTML($files, $currentFilename = '')
 if (isset($_GET['file'])) {
     $requestedFile = basename($_GET['file']);
     // Validate filename to prevent path traversal
-    if (preg_match('/^[a-zA-Z0-9._-]+$/', $requestedFile) && file_exists($requestedFile)) {
-        echo file_get_contents($requestedFile);
+    if (preg_match('/^[\w\-\/\.]+$/', $_GET['file']) && file_exists($currentDir . '/' . $_GET['file'])) {
+        echo file_get_contents($currentDir . '/' . $_GET['file']);
         exit;
     }
 }
@@ -180,7 +279,7 @@ if (isset($_GET['getFolders'])) {
 // Get File List Handler - now using centralized function
 if (isset($_GET['getFileList'])) {
     $files = getFileList($dir, $sortBy);
-    $fileListHTML = generateFileListHTML($files, $_GET['edit'] ?? '');
+    $fileListHTML = generateFileListHTML($files, $_GET['edit'] ?? '', $currentPath);
     echo $fileListHTML;
     exit;
 }
@@ -191,6 +290,57 @@ if (isset($_GET['getFileList'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
+    // Fixed delete folder handler - improved error reporting
+    if ($action === 'deleteFolder') {
+        $folderName = basename($_POST['folderName'] ?? '');
+        $response = ['status' => 'error', 'message' => ''];
+
+        if (empty($folderName)) {
+            $response['message'] = 'Folder name is required';
+        } else {
+            $folderPath = $currentDir . '/' . $folderName;
+
+            if (!is_dir($folderPath)) {
+                $response['message'] = 'Folder does not exist: ' . $folderName;
+            } else {
+                try {
+                    // Make sure we have permission to delete the folder
+                    if (!is_readable($folderPath) || !is_writable($folderPath)) {
+                        $response['message'] = 'Permission denied: Cannot delete folder ' . $folderName;
+                    } else {
+                        rrmdir($folderPath);
+                        if (!is_dir($folderPath)) {
+                            $response['status'] = 'success';
+                            $response['message'] = 'Folder deleted: ' . $folderName;
+                        } else {
+                            $response['message'] = 'Failed to delete folder: ' . $folderName;
+                        }
+                    }
+                } catch (Exception $e) {
+                    $response['message'] = 'Error deleting folder: ' . $e->getMessage();
+                }
+            }
+        }
+        echo json_encode($response);
+        exit;
+    }
+
+    // Create folder handler
+    if ($action === 'createFolder') {
+        $folderName = $_POST['folderName'] ?? '';
+        $response = ['status' => 'error', 'message' => ''];
+
+        if (empty($folderName)) {
+            $response['message'] = 'Folder name required';
+        } else if (mkdir($currentDir . '/' . $folderName, 0755)) {
+            $response['status'] = 'success';
+            $response['message'] = 'Folder created: ' . $folderName;
+        } else {
+            $response['message'] = 'Failed to create folder: ' . $folderName;
+        }
+        echo json_encode($response);
+        exit;
+    }
     // File save handler
     if ($action === 'save') {
         $filename = basename($_POST['filename'] ?? '');
@@ -199,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($filename)) {
             echo json_encode(['status' => 'error', 'message' => 'Filename required']);
         } else {
-            $filePath = __DIR__ . '/' . $filename;
+            $filePath = $currentDir . '/' . $filename;
             $originalContent = file_exists($filePath) ? file_get_contents($filePath) : '';
 
             if ($content !== $originalContent) {
@@ -256,18 +406,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($filename)) {
             $response['message'] = 'Filename is required for deletion.';
         } else {
-            $filePath = __DIR__ . '/' . $filename;
+            $filePath = $currentDir . '/' . $filename;
 
             if (!file_exists($filePath)) {
                 $response['message'] = 'File does not exist: ' . $filename;
             } elseif (is_dir($filePath)) {
-                $response['message'] = 'Cannot delete directories: ' . $filename;
+                $response['message'] = 'Cannot delete directories with this method. Use deleteFolder instead.';
             } else {
-                if (unlink($filePath)) {
-                    $response['status'] = 'success';
-                    $response['message'] = 'File deleted successfully: ' . $filename;
+                // Check permissions before attempting to delete
+                if (!is_readable($filePath) || !is_writable($filePath)) {
+                    $response['message'] = 'Permission denied: Cannot delete file ' . $filename;
                 } else {
-                    $response['message'] = 'Failed to delete the file: ' . $filename;
+                    if (@unlink($filePath)) {
+                        $response['status'] = 'success';
+                        $response['message'] = 'File deleted successfully: ' . $filename;
+                    } else {
+                        $error = error_get_last();
+                        $response['message'] = 'Failed to delete the file: ' . $filename .
+                            (isset($error['message']) ? ' - ' . $error['message'] : '');
+                    }
                 }
             }
         }
@@ -285,7 +442,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($_FILES['files']['name'] as $key => $name) {
                 $tmpName = $_FILES['files']['tmp_name'][$key];
-                $targetPath = __DIR__ . '/' . basename($name);
+                $targetPath = $currentDir . '/' . basename($name);
 
                 // Create backup of existing file if applicable
                 if (file_exists($targetPath)) {
@@ -313,18 +470,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /* -------------------------------------------------------------------------- */
 /*                                HTML Output                                 */
-/* -------------------------------------------------------------------------- */
-
 $currentFilename = isset($_GET['file']) ? basename($_GET['file']) : '';
 $content = '';
 if (isset($_GET['file']) && !empty($_GET['file'])) {
-    $content = file_get_contents(basename($_GET['file']));
+    $content = file_get_contents($currentDir . '/' . $_GET['file']);
 }
 
 // Get file list for initial display
-$files = getFileList($dir, $sortBy);
+$files = getFileList($currentDir, $sortBy);
+$validFiles = !empty($files);
+foreach ((array)$files as $file) {
+    $filename = basename($file);
+    if (!preg_match('/\(BAK-\w{3}\d{2}-S\d+\)\.\w+$/', $filename) && $filename !== '.' && $filename !== '..' && !($filename === 'backups' && is_dir($file))) {
+        $validFiles = true;
+        break;
+    }
+}
 
-// Set sort icon based on current sort mode
+// Display empty folder message if no files
+$showEmptyMessage = !$validFiles && !empty($currentPath);
 $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 ?>
 <!DOCTYPE html>
@@ -339,6 +503,69 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     <style>
         /* Main Styles from main-styles.css */
         html,
+
+        /* Folder and Breadcrumb Styles */
+        .folder-entry {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+
+        .folder-entry:hover {
+            background-color: #e9ecef;
+        }
+
+        .folder-normal {
+            color: #b8860b !important;
+        }
+
+        .folder-special {
+            color: #007bff !important;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            margin: 0 -15px 15px -15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .up-level {
+            margin-left: -5px;
+            padding: 5px;
+            color: var(--primary-color);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .up-level:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        .folder-name {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+
+        .breadcrumb .separator {
+            color: #6c757d;
+        }
+
         body {
             width: 100%;
             height: 100%;
@@ -401,9 +628,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             line-height: 1;
         }
 
-        /* Mobile menu toggle button */
+        /* Mobile menu toggle button - now visible on all screens */
         .mobile-menu-toggle {
-            display: none;
+            display: block;
             background: transparent;
             border: none;
             color: white;
@@ -483,6 +710,31 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             width: calc(100% - var(--menu-width));
             height: calc(100vh - var(--header-height));
             transition: margin-left var(--transition-speed) ease;
+            margin-top: var(--header-height);
+        }
+
+        /* Menu collapsed state */
+        .menu.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .container.menu-collapsed {
+            margin-left: 0;
+        }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+        }
+
+        .menu-overlay.active {
+            display: block;
         }
 
         .menu-container {
@@ -578,6 +830,18 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             color: #003d82;
         }
 
+        .select-control {
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .delete-check {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
         .filename {
             flex: 1;
             overflow: hidden;
@@ -607,6 +871,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         .editor.fullscreen {
             max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
         }
 
         .editor-container {
@@ -906,19 +1173,25 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         /* Fullwidth mode */
         .editor-container.fullwidth {
             position: relative;
-            width: 100%;
-            max-width: 768px;
-            margin-left: -10px;
-            margin-right: -10px;
+            width: calc(100% - 40px);
+            /* 100% width minus 40px to prevent overflow */
+            max-width: calc(100% - 40px) !important;
+            margin-left: -20px;
+            margin-right: -20px;
+            padding: 0 20px;
             z-index: 5;
             background-color: #272822;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
         }
 
-        .editor-container.fullwidth .editor-nav-controls {
-            top: 15px;
-            right: 25px;
+        .editor.fullscreen {
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
         }
 
         /* File type colors (specific) */
@@ -953,6 +1226,23 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         .file-other {
             color: #9e9e9e !important;
+        }
+
+        .empty-folder-message {
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: 20px;
+            color: #666;
+            font-style: italic;
+            font-size: 15px;
+            border: 1px dashed #ccc;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .folder-controls {
+            display: flex;
+            gap: 4px;
         }
 
         /* Views */
@@ -1005,8 +1295,14 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             <button id="menuUpdateBtn" class="header-button" title="Transfer files to server">
                 <i class="fas fa-paper-plane"></i>
             </button>
+            <?php if ($currentPath): ?>
+                <a href="?folder=<?php echo dirname($currentPath); ?>" class="up-level" title="Up Level"><i class="fas fa-level-up-alt"></i></a>
+            <?php endif; ?>
             <button id="menuNewBtn" class="header-button" title="New" onclick="createNewFile()">
                 <i class="fas fa-file"></i>
+            </button>
+            <button id="menuNewFolderBtn" class="header-button" title="New Folder" onclick="createNewFolder()">
+                <i class="fas fa-folder-plus"></i>
             </button>
             <button id="menuRefreshBtn" class="header-button" title="Reload Menu">
                 <i class="fas fa-sync-alt"></i>
@@ -1014,15 +1310,35 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortBy === 'date' ? 'by date' : 'alphabetical'; ?>)">
                 <i class="fas <?php echo $sortIcon; ?>"></i>
             </button>
+            <button id="menuDeleteBtn" class="header-button" title="Delete Selected">
+                <i class="fas fa-trash-alt"></i>
+            </button>
         </div>
     </div>
     <div id="menuOverlay" class="menu-overlay"></div>
     <div class="container" id="mainContainer">
         <div class="menu" id="menuPanel">
             <div class="menu-content">
+                <?php if (!empty($breadcrumbs)): ?>
+                    <div class="breadcrumb">
+                        <a href="?"><i class="fas fa-home"></i></a>
+                        <?php foreach ($breadcrumbs as $i => $crumb): ?>
+                            <span class="separator">/</span>
+                            <a href="?folder=<?php echo urlencode(implode('/', array_slice($breadcrumbs, 0, $i + 1))); ?>">
+                                <?php echo htmlspecialchars($crumb); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
                 <ul class="file-list">
                     <?php echo generateFileListHTML($files, $currentFilename); ?>
                 </ul>
+                <?php if ($showEmptyMessage): ?>
+                    <div class="empty-folder-message">
+                        <i class="fas fa-folder-open" style="font-size: 24px; margin-bottom: 10px; color: #999;"></i><br>
+                        This folder is empty.<br>Click the "+" button above to create a new file or upload files to get started.
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <div class="menu-container">
@@ -1033,24 +1349,20 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                             <h1 class="editor-title">
                                 NetBound Editor: <?php echo date("F j Y", filemtime(__FILE__)); ?></h1>
                         </div>
-                        <div class="label-line">
-                            <span class="info-label">Filename:</span>
-                            <input type="text" id="editorFilename" class="info-input" value="" onchange="updateDisplayFilename()">
-                            <button type="button" class="command-button" onclick="updateVersionAndDate()">
-                                <i class="fas fa-sync-alt"></i> Rename
-                            </button>
-                        </div>
                     </div>
+
+                    <div class="persistent-status-bar" id="statusBar"></div>
+
                     <div class="button-group">
-                        <button type="button" class="command-button" onclick="openFileRequester()" title="From File">
+                        <button type="button" class="command-button" onclick="openFileRequester()" title="Open a file from your computer">
                             <i class="fas fa-folder-open"></i> From File
                         </button>
 
                         <div class="split-button">
-                            <div class="main-part" onclick="fromClipboard()">
+                            <div class="main-part" onclick="fromClipboard()" title="Replace editor content with clipboard content">
                                 <i class="fas fa-clipboard"></i> From Clipboard
                             </div>
-                            <div class="append-part" onclick="appendClipboard()">
+                            <div class="append-part" onclick="appendClipboard()" title="Add clipboard content to end of file">
                                 <i class="fas fa-plus"></i>
                             </div>
                         </div>
@@ -1058,13 +1370,12 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                             <div class="main-part" onclick="fromBackup()" title="Load content from latest backup">
                                 <i class="fas fa-history"></i> From Backup
                             </div>
-                            <div class="append-part" onclick="fromBackupManager()" title="Open Backup Manager">
+                            <div class="append-part" onclick="fromBackupManager()" title="Open the full backup manager">
                                 <i class="fas fa-plus"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="persistent-status-bar" id="statusBar"></div>
                     <form method="POST" class="edit-form" style="display:flex;flex-direction:column;height:100%;" id="editorForm">
                         <div class="editor-container" id="editorContainer">
                             <div class="editor-nav-controls">
@@ -1080,10 +1391,18 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                             </div>
                             <div id="editor"></div>
                         </div>
+
+                        <div class="label-line">
+                            <input type="text" id="editorFilename" class="info-input" value="" onchange="updateDisplayFilename()" placeholder="Filename">
+                            <button type="button" class="command-button" onclick="updateVersionAndDate()" title="Change the filename">
+                                <i class="fas fa-sync-alt"></i> Rename
+                            </button>
+                        </div>
+
                         <div class="button-row">
                             <div class="button-group">
                                 <div class="split-button">
-                                    <div class="main-part" onclick="saveFile()">
+                                    <div class="main-part" onclick="saveFile()" title="Save file to server">
                                         <i class="fas fa-upload"></i> Save
                                     </div>
                                     <div class="append-part" onclick="saveAs()" title="Save file to local machine">
@@ -1095,7 +1414,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                                         <i class="fas fa-clipboard"></i> To Clipboard
                                     </div>
                                 </div>
-                                <button type="button" name="run" class="command-button" title="Run"
+                                <button type="button" name="run" class="command-button" title="Run this file in a new tab"
                                     onclick="openInNewTab(document.getElementById('editorFilename').value)">
                                     <i class="fas fa-play"></i> Run
                                 </button>
@@ -1116,6 +1435,12 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     <script>
         // Constants
         const STATUS_MESSAGES = {
+            folder: {
+                created: (name) => `Folder created: ${name}`,
+                error: (name) => `Failed to create folder: ${name}`,
+                deleted: (name) => `Folder deleted: ${name}`
+            },
+            parent: "parent",
             file: {
                 loaded: (filename) => `File loaded: ${filename}`,
                 saved: (filename) => `File saved: ${filename}`,
@@ -1172,7 +1497,15 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             editorView.classList.remove('hidden');
             backupView.classList.remove('active');
 
-            fetch('main.php?file=' + encodeURIComponent(filename))
+            // Get the current folder from URL
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+
+            // Construct the file path
+            const filePath = currentFolder ? currentFolder + '/' + filename : filename;
+
+            // Load the file content
+            fetch('main.php?file=' + encodeURIComponent(filePath))
                 .then(response => response.text())
                 .then(content => {
                     if (editor.getValue() !== editorContent) {
@@ -1185,6 +1518,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
                     // Set Ace editor mode based on file extension
                     setEditorMode(filename);
+                })
+                .catch(error => {
+                    updateStatus(`Error loading file: ${filename}`, 'error');
+                    console.error('Error loading file:', error);
                 });
         }
 
@@ -1222,19 +1559,28 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     },
                     body: `action=save&filename=${encodeURIComponent(filename)}&content=${encodeURIComponent(content)}`
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(result => {
                     updateStatus(result.message, result.status);
                     if (newFilename) {
                         document.getElementById('editorFilename').value = newFilename;
                     }
                     editorContent = editor.getValue();
-                    refreshFileList();
+                    refreshFileList(); // Always refresh after save
+                })
+                .catch(error => {
+                    updateStatus('Error saving file: ' + error.message, 'error');
                 });
         }
 
         function saveAs() {
             const defaultName = document.getElementById('editorFilename').value || 'newfile.php';
+            const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
             const content = editor.getValue();
             const blob = new Blob([content], {
                 type: 'text/plain'
@@ -1242,7 +1588,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = defaultName;
+            a.download = currentFolder ? currentFolder + '/' + defaultName : defaultName;
             a.click();
             URL.revokeObjectURL(url);
             updateStatus('File saved to local machine', 'success');
@@ -1285,6 +1631,73 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             updateStatus(STATUS_MESSAGES.file.new(newFilename), 'success');
             editorContent = editor.getValue();
             setEditorMode(newFilename);
+        }
+
+        // Folder Functions
+        function createNewFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (!folderName || !/^[a-zA-Z0-9_-]+$/.test(folderName)) {
+                return updateStatus('Invalid folder name. Use only letters, numbers, underscore, and dash.', 'error');
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const currentPath = params.get('folder') || '';
+            const fullPath = currentPath ? currentPath + '/' + folderName : folderName;
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=createFolder&folderName=${encodeURIComponent(folderName)}`
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    updateStatus(result.message, result.status);
+                    if (result.status === 'success') {
+                        refreshFileList(); // Always refresh after folder creation
+                    }
+                })
+                .catch(error => {
+                    updateStatus('Error creating folder: ' + error.message, 'error');
+                });
+        }
+
+
+        function deleteFolder(folderName) {
+            if (!confirm(`Are you sure you want to delete the folder "${folderName}" and all its contents?`)) {
+                return;
+            }
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=deleteFolder&folderName=${encodeURIComponent(folderName)}`
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        // If in the deleted folder, navigate up
+                        const params = new URLSearchParams(window.location.search);
+                        const currentPath = params.get('folder') || '';
+
+                        if (currentPath === folderName) {
+                            window.location.href = '?';
+                        } else {
+                            refreshFileList();
+                        }
+                        updateStatus(result.message, 'success');
+                    } else {
+                        updateStatus(result.message, 'error');
+                    }
+                });
         }
 
         // Clipboard Functions
@@ -1396,9 +1809,12 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             const editorView = document.querySelector('.editor-view');
             const backupView = document.querySelector('.backup-view');
 
-            editorView.classList.add('hidden');
+            // Get the current folder from URL
+            const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
+            const filePath = currentFolder ? currentFolder + '/' + filename : filename;
+
             backupView.classList.add('active');
-            backupView.querySelector('iframe').src = filename;
+            backupView.querySelector('iframe').src = filePath;
         }
 
         function updateDisplayFilename() {
@@ -1471,124 +1887,196 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         }
 
-        function refreshFileList() {
-            fetch('main.php?getFileList=1')
-                .then(response => response.text())
+        // Add a debounce function to prevent rapid successive calls
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), wait);
+            };
+        }
+
+        // Improved refresh function with debounce to prevent multiple rapid refreshes
+        const refreshFileList = debounce(function() {
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+
+            // Show loading indicator
+            updateStatus('Refreshing file list...', 'info');
+
+            fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
                 .then(html => {
                     document.querySelector('.file-list').innerHTML = html;
+                    updateStatus('File list refreshed', 'success');
+
+                    // Re-attach event listeners to checkboxes after refresh
+                    document.querySelectorAll('.delete-check').forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            console.log("Checkbox changed: ", {
+                                type: this.getAttribute('data-type'),
+                                name: this.getAttribute('data-name'),
+                                checked: this.checked
+                            });
+                        });
+                    });
                 })
-                .catch(() => updateStatus('Failed to refresh file list', 'error'));
-        }
+                .catch(error => {
+                    console.error('Error refreshing file list:', error);
+                    updateStatus('Failed to refresh file list: ' + error.message, 'error');
+                });
+        }, 300); // 300ms debounce time
 
-        // Editor navigation functions
-        function scrollEditorTop() {
-            editor.gotoLine(1);
-            editor.focus();
-            updateStatus('Scrolled to top', 'info');
-        }
-
-        function scrollEditorBottom() {
-            const lastRow = editor.session.getLength();
-            editor.gotoLine(lastRow, editor.session.getLine(lastRow - 1).length);
-            editor.focus();
-            updateStatus('Scrolled to bottom', 'info');
-        }
-
-        function toggleEditorFullWidth() {
-            const container = document.getElementById('editorContainer');
-            const icon = document.getElementById('fullwidthIcon');
-
-            if (container.classList.contains('fullwidth')) {
-                container.classList.remove('fullwidth');
-                icon.classList.remove('fa-compress');
-                icon.classList.add('fa-expand');
-                updateStatus('Editor normal width', 'info');
-            } else {
-                container.classList.add('fullwidth');
-                icon.classList.remove('fa-expand');
-                icon.classList.add('fa-compress');
-                updateStatus('Editor wide mode', 'info');
+        // Fixed delete selected function with improved error handling
+        function deleteSelected() {
+            const checks = document.querySelectorAll('.delete-check:checked');
+            if (checks.length === 0) {
+                updateStatus('No items selected', 'error');
+                return;
             }
 
-            // Make sure the editor resizes correctly
-            setTimeout(() => editor.resize(), 100);
-        }
-
-        // Mobile menu toggle function
-        function toggleMobileMenu() {
-            const menuPanel = document.getElementById('menuPanel');
-            const mainContainer = document.getElementById('mainContainer');
-            const menuOverlay = document.getElementById('menuOverlay');
-            const body = document.body;
-            const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
-
-            menuPanel.classList.toggle('active');
-            mainContainer.classList.toggle('menu-active');
-            menuOverlay.classList.toggle('active');
-            body.classList.toggle('menu-active');
-
-            // Update icon based on menu state
-            if (menuPanel.classList.contains('active')) {
-                menuToggleIcon.classList.remove('fa-bars');
-                menuToggleIcon.classList.add('fa-times');
-            } else {
-                menuToggleIcon.classList.remove('fa-times');
-                menuToggleIcon.classList.add('fa-bars');
+            if (!confirm(`Delete ${checks.length} selected item(s)?`)) {
+                return;
             }
-        }
 
-        // Add event listener for mobile menu toggle
-        document.getElementById('mobileMenuToggle').addEventListener('click', toggleMobileMenu);
-        document.getElementById('menuOverlay').addEventListener('click', toggleMobileMenu);
+            updateStatus(`Deleting ${checks.length} items...`, 'info');
 
-        // Event Listeners
-        document.getElementById('menuUpdateBtn').addEventListener('click', function() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = true;
-            input.onchange = function(e) {
-                const formData = new FormData();
-                for (let file of e.target.files) {
-                    formData.append('files[]', file);
+            // Process each checked item one by one to ensure reliability
+            let completed = 0;
+            let succeeded = 0;
+            let failed = 0;
+            let currentItem = 0;
+            let deleteQueue = Array.from(checks); // Convert NodeList to Array for easier tracking
+
+            // Use a serial approach instead of Promise.all to ensure each delete completes
+            function processNext() {
+                if (currentItem >= deleteQueue.length) {
+                    // All done
+                    const message = `Deleted ${succeeded} of ${deleteQueue.length} items${failed > 0 ? ` (${failed} failed)` : ''}`;
+                    updateStatus(message, succeeded > 0 ? 'success' : 'error');
+
+                    // Only refresh once at the end of all operations
+                    if (succeeded > 0) {
+                        refreshFileList();
+                    }
+                    return;
                 }
-                formData.append('action', 'transferFiles');
-                formData.append('destination', window.location.pathname);
 
+                const check = deleteQueue[currentItem];
+                const type = check.getAttribute('data-type');
+                const name = check.getAttribute('data-name');
+
+                // Enhanced debugging
+                console.log(`Processing item ${currentItem + 1}/${deleteQueue.length}`);
+                console.log(`Type: "${type}", Name: "${name}"`);
+
+                if (!name || typeof name !== 'string') {
+                    updateStatus(`Error: Invalid name for item #${currentItem + 1}`, 'error');
+                    failed++;
+                    currentItem++;
+                    processNext();
+                    return;
+                }
+
+                // Show which item is being processed
+                updateStatus(`Deleting ${type}: ${name} (${currentItem + 1}/${deleteQueue.length})...`, 'info');
+
+                // Determine the action and parameter name based on type
+                const action = type === 'folder' ? 'deleteFolder' : 'delete';
+                const paramName = type === 'folder' ? 'folderName' : 'filename';
+
+                // Log the request we're about to make
+                console.log(`Sending request: action=${action}&${paramName}=${encodeURIComponent(name)}`);
+
+                // Send the request
                 fetch('main.php', {
                         method: 'POST',
-                        body: formData
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `action=${action}&${paramName}=${encodeURIComponent(name)}`
                     })
-                    .then(response => response.json())
-                    .then(result => {
-                        updateStatus(result.message, result.status === 'success' ? 'success' : 'error');
-                        if (result.status === 'success' || result.status === 'partial') {
-                            refreshFileList();
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}`);
                         }
+                        return response.json();
+                    })
+                    .then(result => {
+                        completed++;
+                        console.log('Server response:', result);
+
+                        if (result.status === 'success') {
+                            succeeded++;
+                            console.log(`Successfully deleted ${type}: ${name}`);
+
+                            // Check for current open file and clear editor if needed
+                            if (type === 'file' && document.getElementById('editorFilename').value === name) {
+                                editor.setValue('');
+                                document.getElementById('editorFilename').value = '';
+                                editorContent = '';
+                            }
+                        } else {
+                            failed++;
+                            console.error(`Failed to delete ${type}: ${name} - ${result.message}`);
+                            updateStatus(`Error: ${result.message}`, 'error');
+                        }
+
+                        // Process next item after a short delay to avoid overwhelming the server
+                        setTimeout(() => {
+                            currentItem++;
+                            processNext();
+                        }, 100);
+                    })
+                    .catch(error => {
+                        console.error(`Error deleting ${type}: ${name}`, error);
+                        updateStatus(`Error deleting ${type}: ${name} - ${error.message}`, 'error');
+                        failed++;
+                        completed++;
+
+                        // Continue with next item even if this one failed
+                        setTimeout(() => {
+                            currentItem++;
+                            processNext();
+                        }, 100);
                     });
-            };
-            input.click();
-        });
+            }
 
-        document.getElementById('menuSortBtn').addEventListener('click', function() {
-            fetch('main.php?toggleSort=1')
-                .then(() => {
-                    refreshFileList();
-                    // Toggle the sort button icon
-                    const sortBtn = document.getElementById('menuSortBtn');
-                    const sortIcon = sortBtn.querySelector('i');
-                    if (sortIcon.classList.contains('fa-sort-alpha-down')) {
-                        sortIcon.classList.remove('fa-sort-alpha-down');
-                        sortIcon.classList.add('fa-clock');
-                        sortBtn.setAttribute('title', 'Toggle Sort (Currently: by date)');
-                    } else {
-                        sortIcon.classList.remove('fa-clock');
-                        sortIcon.classList.add('fa-sort-alpha-down');
-                        sortBtn.setAttribute('title', 'Toggle Sort (Currently: alphabetical)');
-                    }
+            // Start processing
+            processNext();
+        }
+
+        // Initialize event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup all event listeners in one place to avoid duplication
+            setupEventListeners();
+
+            // Add debugging for checkboxes to check if they're properly initialized
+            console.log("Found " + document.querySelectorAll('.delete-check').length + " delete checkboxes");
+
+            // Add a direct event listener to any existing checkboxes
+            document.querySelectorAll('.delete-check').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    console.log("Checkbox changed: ", {
+                        type: this.getAttribute('data-type'),
+                        name: this.getAttribute('data-name'),
+                        checked: this.checked
+                    });
                 });
-        });
+            });
 
-        document.getElementById('menuRefreshBtn').addEventListener('click', refreshFileList);
+            // Clear any lingering status messages on page load
+            const statusBar = document.getElementById('statusBar');
+            if (statusBar) {
+                statusBar.innerHTML = '';
+            }
+        });
 
         window.addEventListener('beforeunload', function(e) {
             if (editor.getValue() !== editorContent) {
@@ -1639,6 +2127,17 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 menuToggleIcon.classList.remove('fa-times');
                 menuToggleIcon.classList.add('fa-bars');
             }
+        });
+    </script>
+
+    <script>
+        // We're removing all the duplicate code here
+        // The deleteSelected function is already properly defined in the main script
+
+        // Initialize event listeners when the page loads to make sure all buttons work
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up all event listeners properly
+            setupEventListeners();
         });
     </script>
 </body>
