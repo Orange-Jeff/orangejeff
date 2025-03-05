@@ -1,0 +1,63 @@
+[2025-03-02 04:18:34] Input audio file not found: 05e7f_250205173226.wav
+[2025-03-02 15:38:51] Input audio file not found: 6be98747-f31d-451b-92fc-df4b50d55c75 (1).wav
+[2025-03-02 15:43:20] Input audio file not found: 89bf5ea4-44b9-4676-9770-dec443032eed.wav
+[2025-03-02 16:12:02] File upload error: Array
+(
+)
+
+[2025-03-02 16:19:21] File upload error: Array
+(
+)
+
+[2025-03-02 16:26:42] File upload error: Array
+(
+)
+
+[2025-03-02 17:18:42] File upload error: Array
+(
+)
+
+[2025-03-02 17:22:02] Processing started
+[2025-03-02 17:22:02] File upload error: Array
+(
+)
+
+[2025-03-02 17:25:59] Processing started
+[2025-03-02 17:25:59] File upload error: Array
+(
+    [audioFile] => Array
+        (
+            [name] => 54d902d9-3ccd-46ef-b5b4-049ce1b5dcc6 (1).wav
+            [full_path] => 54d902d9-3ccd-46ef-b5b4-049ce1b5dcc6 (1).wav
+            [type] => 
+            [tmp_name] => 
+            [error] => 1
+            [size] => 0
+        )
+
+)
+
+[2025-03-02 17:28:57] Processing started
+[2025-03-02 17:28:57] File upload error: Array
+(
+    [audioFile] => Array
+        (
+            [name] => 54d902d9-3ccd-46ef-b5b4-049ce1b5dcc6 (1).wav
+            [full_path] => 54d902d9-3ccd-46ef-b5b4-049ce1b5dcc6 (1).wav
+            [type] => 
+            [tmp_name] => 
+            [error] => 1
+            [size] => 0
+        )
+
+)
+
+[2025-03-02 17:31:37] Processing started
+[2025-03-02 17:31:37] File upload error: Array
+(
+)
+
+[2025-03-02 17:35:57] Script started - basic test version
+[2025-03-02 17:35:57] POST data: []
+[2025-03-02 17:35:57] FILES data: []
+[2025-03-02 17:35:57] Created temporary output files

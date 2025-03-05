@@ -398,9 +398,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 20px;
+            padding: 10px;
             box-sizing: border-box;
-            overflow: auto;
+            overflow: hidden;
             max-width: 600px;
         }
 
@@ -412,34 +412,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             min-height: 0;
             display: flex;
             flex-direction: column;
+            height: calc(100vh - 20px);
+            overflow: hidden;
         }
 
         .editor {
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
-            height: 100%;
-            overflow: auto;
         }
 
         .file-tree {
             flex: 1;
             overflow-y: auto;
-            padding: 15px;
-            margin: 15px;
+            padding: 10px;
+            margin: 0 10px 10px;
             background: white;
             border: 1px solid #dee2e6;
             border-radius: 4px;
+            height: calc(100vh - 280px);
+            min-height: 200px;
         }
 
         .editor-header {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
             flex-shrink: 0;
         }
 
         .editor-title {
             margin: 0;
-            padding: 0 0 15px;
+            padding: 0 0 10px;
             color: #0056b3;
             line-height: 1.2;
             font-weight: bold;
@@ -449,23 +454,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .button-controls {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 5px;
         }
 
         .button-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            align-items: center;
+            line-height: 1;
+            margin-bottom: 5px;
+            /* Adjusted spacing between rows */
         }
 
         .command-button {
             background: #0056b3;
             color: white;
             border: none;
-            padding: 8px 15px;
+            padding: 6px 12px;
             border-radius: 3px;
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
+            height: 28px;
+            line-height: 1;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .command-button:hover:not(:disabled) {
@@ -488,14 +503,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .status-box {
-            padding: 10px;
-            margin: 15px 0;
+            padding: 8px;
+            margin: 8px 0 5px;
             border-radius: 4px;
             border: 1px solid #dee2e6;
             font-size: 14px;
-            height: 5.5em;
-            /* Adjusted to show ~3.5 messages */
-            overflow-y: scroll;
+            height: 4.5em;
+            min-height: 60px;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             background: white;
@@ -620,8 +635,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .contextual-controls {
-            padding: 10px 15px;
-            margin-bottom: 10px;
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background: #f8f9fa;
         }
     </style>
 </head>
@@ -650,15 +666,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="status-box" id="status"></div>
                 </div>
                 <div class="contextual-controls" id="contextualButtons" style="display: none;">
-                    <div class="button-row">
-                        <button class="command-button" id="btnRetrieveSelected" title="Retrieve selected files">
-                            <i class="fas fa-download"></i> Retrieve
-                        </button>
+                    <div class="button-container">
                         <button class="command-button" id="btnSelectAll" title="Select All Files">
                             <i class="fas fa-check-square"></i> Select All
                         </button>
                         <button class="command-button" id="btnDeleteSelected" title="Delete selected files">
-                            <i class="fas fa-trash"></i> Delete Selected
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="command-button" id="btnRetrieveSelected" title="Retrieve selected files">
+                            <i class="fas fa-download"></i> Retrieve
+                        </button>
+                        <button class="command-button" id="btnToClipboard" title="Copy selected file to clipboard" disabled>
+                            <i class="fas fa-clipboard"></i> TO CLIPBOARD
                         </button>
                         <div class="split-button">
                             <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
@@ -666,15 +685,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </button>
                             <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
                         </div>
-                    </div>
-                    <div class="button-row">
-                        <button class="command-button full-width" id="btnToClipboard" title="Copy selected file to clipboard" disabled>
-                            <i class="fas fa-clipboard"></i> TO CLIPBOARD
-                        </button>
-                        <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
-                            <i class="fas fa-file-archive"></i> ZIP
-                        </button>
-                        <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
                     </div>
                 </div>
             </div>
