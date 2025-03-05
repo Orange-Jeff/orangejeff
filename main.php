@@ -1824,54 +1824,91 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         function updateVersionAndDate() {
-            const originalFilename = document.getElementById('editorFilename').value;
-            const newFilename = prompt('Enter new filename:', originalFilename);
-
-            if (newFilename && newFilename !== originalFilename) {
-                // First save content to new file, then delete old file
-                const content = editor.getValue();
-
-                // Save to new file
-                fetch('main.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}`
-                    })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.status === 'success' || result.status === 'info') {
-                            // Update UI first
-                            document.getElementById('editorFilename').value = newFilename;
-                            editorContent = editor.getValue();
-                            updateStatus(`File renamed to: ${newFilename}`, 'success');
-
-                            // Now delete the old file
-                            return fetch('main.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: `action=delete&filename=${encodeURIComponent(originalFilename)}`
-                            });
-                        } else {
-                            throw new Error(result.message || 'Failed to save new file');
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(deleteResult => {
-                        if (deleteResult.status === 'success') {
-                            updateStatus(`Old file deleted: ${originalFilename}`, 'info');
-                        } else {
-                            updateStatus(`Note: Could not delete old file: ${originalFilename}`, 'error');
-                        }
-                        refreshFileList();
-                    })
-                    .catch(error => {
-                        updateStatus('Error during rename: ' + error.message, 'error');
-                    });
+            const originalFilename = document.getElementById('editorFilename').value.trim();
+            if (!originalFilename) {
+                updateStatus('No file is currently open', 'error');
+                return;
             }
+
+            let newFilename = prompt('Enter new filename:', originalFilename);
+            if (!newFilename) {
+                return; // User cancelled
+            }
+
+            // Trim whitespace to prevent accidental spaces causing comparison issues
+            newFilename = newFilename.trim();
+
+            // Log to help with debugging
+            console.log('Original filename:', JSON.stringify(originalFilename));
+            console.log('New filename:', JSON.stringify(newFilename));
+
+            if (newFilename.toLowerCase() === originalFilename.toLowerCase()) {
+                // Check if case is the only difference
+                if (newFilename !== originalFilename) {
+                    updateStatus('Only case difference detected. Proceeding with rename...', 'info');
+                } else {
+                    updateStatus('No change in filename', 'info');
+                    return;
+                }
+            }
+
+            // Get the current path from the URL
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+
+            // Debug logging
+            console.log(`Current folder: ${currentFolder}`);
+            console.log(`Renaming: ${originalFilename} to ${newFilename}`);
+
+            // First save content to new file
+            const content = editor.getValue();
+            updateStatus(`Saving as: ${newFilename}...`, 'info');
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}`
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success' || result.status === 'info') {
+                        // Update UI first
+                        document.getElementById('editorFilename').value = newFilename;
+                        editorContent = editor.getValue();
+                        updateStatus(`New file saved as: ${newFilename}`, 'success');
+
+                        // Now delete the old file if names are different
+                        if (newFilename !== originalFilename) {
+                            updateStatus(`Deleting original file: ${originalFilename}...`, 'info');
+
+                            return fetch('main.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: `action=delete&filename=${encodeURIComponent(originalFilename)}`
+                                })
+                                .then(response => response.json())
+                                .then(deleteResult => {
+                                    if (deleteResult.status === 'success') {
+                                        updateStatus(`Successfully renamed ${originalFilename} to ${newFilename}`, 'success');
+                                    } else {
+                                        updateStatus(`Warning: File saved as ${newFilename} but could not delete ${originalFilename}. Error: ${deleteResult.message}`, 'warning');
+                                    }
+                                    refreshFileList();
+                                });
+                        }
+                    } else {
+                        throw new Error(result.message || 'Failed to save file with new name');
+                    }
+                })
+                .catch(error => {
+                    console.error('Rename error:', error);
+                    updateStatus('Error during rename: ' + error.message, 'error');
+                    refreshFileList();
+                });
         }
 
         function updateStatus(message, type = 'info') {
@@ -2139,6 +2176,130 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             // Set up all event listeners properly
             setupEventListeners();
         });
+    </script>
+    <script>
+        // Add this function before your existing event listeners
+        function setupEventListeners() {
+            // Toggle mobile menu
+            document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+                const menuPanel = document.getElementById('menuPanel');
+                const mainContainer = document.getElementById('mainContainer');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const body = document.body;
+                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
+
+                menuPanel.classList.toggle('active');
+                mainContainer.classList.toggle('menu-active');
+                menuOverlay.classList.toggle('active');
+                body.classList.toggle('menu-active');
+
+                // Update icon based on menu state
+                if (menuPanel.classList.contains('active')) {
+                    menuToggleIcon.classList.remove('fa-bars');
+                    menuToggleIcon.classList.add('fa-times');
+                } else {
+                    menuToggleIcon.classList.remove('fa-times');
+                    menuToggleIcon.classList.add('fa-bars');
+                }
+            });
+
+            // Menu sort button
+            document.getElementById('menuSortBtn').addEventListener('click', function() {
+                fetch('main.php?toggleSort=1')
+                    .then(() => {
+                        refreshFileList();
+                        // Toggle the sort button icon
+                        const sortBtn = document.getElementById('menuSortBtn');
+                        const sortIcon = sortBtn.querySelector('i');
+                        if (sortIcon.classList.contains('fa-sort-alpha-down')) {
+                            sortIcon.classList.remove('fa-sort-alpha-down');
+                            sortIcon.classList.add('fa-clock');
+                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: by date)');
+                        } else {
+                            sortIcon.classList.remove('fa-clock');
+                            sortIcon.classList.add('fa-sort-alpha-down');
+                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: alphabetical)');
+                        }
+                    });
+            });
+
+            // Menu delete button
+            document.getElementById('menuDeleteBtn').addEventListener('click', function() {
+                deleteSelected();
+            });
+
+            // Menu refresh button
+            document.getElementById('menuRefreshBtn').addEventListener('click', function() {
+                refreshFileList();
+            });
+
+            // Transfer files button
+            document.getElementById('menuUpdateBtn').addEventListener('click', function() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.onchange = async function(e) {
+                    const formData = new FormData();
+                    for (let file of e.target.files) {
+                        formData.append('files[]', file);
+                    }
+                    formData.append('action', 'transferFiles');
+
+                    fetch('main.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            updateStatus(result.message, result.status === 'success' ? 'success' : 'error');
+                            if (result.status === 'success' || result.status === 'partial') {
+                                refreshFileList();
+                            }
+                        });
+                };
+                input.click();
+            });
+
+            // Overlay click to close menu on mobile
+            document.getElementById('menuOverlay').addEventListener('click', function() {
+                const menuToggleButton = document.getElementById('mobileMenuToggle');
+                if (menuToggleButton) {
+                    menuToggleButton.click();
+                }
+            });
+
+            // Editor fullscreen toggle function
+            window.toggleEditorFullWidth = function() {
+                const container = document.getElementById('editorContainer');
+                const icon = document.getElementById('fullwidthIcon');
+
+                container.classList.toggle('fullwidth');
+
+                if (container.classList.contains('fullwidth')) {
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                } else {
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                }
+
+                editor.resize();
+            };
+
+            // Add navigation functions if they don't exist
+            window.scrollEditorTop = window.scrollEditorTop || function() {
+                editor.gotoLine(1);
+                editor.focus();
+                updateStatus('Scrolled to top', 'info');
+            };
+
+            window.scrollEditorBottom = window.scrollEditorBottom || function() {
+                const lastRow = editor.session.getLength();
+                editor.gotoLine(lastRow, editor.session.getLine(lastRow - 1).length);
+                editor.focus();
+                updateStatus('Scrolled to bottom', 'info');
+            };
+        }
     </script>
 </body>
 
