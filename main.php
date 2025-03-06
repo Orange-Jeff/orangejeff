@@ -6,6 +6,7 @@
 // Error Reporting and Session Start
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Hide warnings so JSON isn’t polluted
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -1830,27 +1831,15 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 return;
             }
 
-            let newFilename = prompt('Enter new filename:', originalFilename);
-            if (newFilename === null) {
+            const newFilename = prompt('Enter new filename:', originalFilename);
+            if (!newFilename || newFilename === originalFilename) {
+                updateStatus('No change in filename', 'info');
                 return;
             }
 
-            newFilename = newFilename.trim();
+            const confirmed = confirm(`Rename from "${originalFilename}" to "${newFilename}"?\nPress OK to proceed or Cancel to abort.`);
+            if (!confirmed) return;
 
-            // If names are exactly equal (including case) then skip
-            if (newFilename === originalFilename) {
-                updateStatus('No change in filename - using same filename', 'info');
-                return;
-            }
-
-            // For Windows’ case-insensitive file system, a case-only change will be seen as no change.
-            if (newFilename.toLowerCase() === originalFilename.toLowerCase()) {
-                updateStatus('On Windows, renaming with only a case change is not supported. Use a different name first.', 'error');
-                return;
-            }
-
-            // Proceed with renaming logic: First save to the new filename,
-            // then delete the original file.
             const content = editor.getValue();
             updateStatus(`Renaming file to: ${newFilename}...`, 'info');
 
@@ -1867,7 +1856,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .then(result => {
                     if (result.status === 'success' || result.status === 'info') {
-                        // Update the filename in the editor and the editorContent
                         document.getElementById('editorFilename').value = newFilename;
                         editorContent = editor.getValue();
                         updateStatus(`New file saved as: ${newFilename}`, 'success');
