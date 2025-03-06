@@ -1831,38 +1831,28 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
 
             let newFilename = prompt('Enter new filename:', originalFilename);
-            if (!newFilename) {
-                return; // User cancelled
+            if (newFilename === null) {
+                return;
             }
 
-            // Trim whitespace to prevent accidental spaces causing comparison issues
             newFilename = newFilename.trim();
 
-            // Log to help with debugging
-            console.log('Original filename:', JSON.stringify(originalFilename));
-            console.log('New filename:', JSON.stringify(newFilename));
-
-            if (newFilename.toLowerCase() === originalFilename.toLowerCase()) {
-                // Check if case is the only difference
-                if (newFilename !== originalFilename) {
-                    updateStatus('Only case difference detected. Proceeding with rename...', 'info');
-                } else {
-                    updateStatus('No change in filename', 'info');
-                    return;
-                }
+            // If names are exactly equal (including case) then skip
+            if (newFilename === originalFilename) {
+                updateStatus('No change in filename - using same filename', 'info');
+                return;
             }
 
-            // Get the current path from the URL
-            const params = new URLSearchParams(window.location.search);
-            const currentFolder = params.get('folder') || '';
+            // For Windows’ case-insensitive file system, a case-only change will be seen as no change.
+            if (newFilename.toLowerCase() === originalFilename.toLowerCase()) {
+                updateStatus('On Windows, renaming with only a case change is not supported. Use a different name first.', 'error');
+                return;
+            }
 
-            // Debug logging
-            console.log(`Current folder: ${currentFolder}`);
-            console.log(`Renaming: ${originalFilename} to ${newFilename}`);
-
-            // First save content to new file
+            // Proceed with renaming logic: First save to the new filename,
+            // then delete the original file.
             const content = editor.getValue();
-            updateStatus(`Saving as: ${newFilename}...`, 'info');
+            updateStatus(`Renaming file to: ${newFilename}...`, 'info');
 
             fetch('main.php', {
                     method: 'POST',
@@ -1871,41 +1861,42 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     },
                     body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}`
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response error: ' + response.status);
+                    return response.json();
+                })
                 .then(result => {
                     if (result.status === 'success' || result.status === 'info') {
-                        // Update UI first
+                        // Update the filename in the editor and the editorContent
                         document.getElementById('editorFilename').value = newFilename;
                         editorContent = editor.getValue();
                         updateStatus(`New file saved as: ${newFilename}`, 'success');
 
-                        // Now delete the old file if names are different
-                        if (newFilename !== originalFilename) {
-                            updateStatus(`Deleting original file: ${originalFilename}...`, 'info');
-
-                            return fetch('main.php', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded'
-                                    },
-                                    body: `action=delete&filename=${encodeURIComponent(originalFilename)}`
-                                })
-                                .then(response => response.json())
-                                .then(deleteResult => {
-                                    if (deleteResult.status === 'success') {
-                                        updateStatus(`Successfully renamed ${originalFilename} to ${newFilename}`, 'success');
-                                    } else {
-                                        updateStatus(`Warning: File saved as ${newFilename} but could not delete ${originalFilename}. Error: ${deleteResult.message}`, 'warning');
-                                    }
-                                    refreshFileList();
-                                });
-                        }
+                        // Now delete the old file
+                        return fetch('main.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: `action=delete&filename=${encodeURIComponent(originalFilename)}`
+                            })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Delete network error: ' + response.status);
+                                return response.json();
+                            })
+                            .then(deleteResult => {
+                                if (deleteResult.status === 'success') {
+                                    updateStatus(`File renamed from ${originalFilename} to ${newFilename}`, 'success');
+                                } else {
+                                    updateStatus(`Warning: Renamed file but couldn't delete ${originalFilename}`, 'warning');
+                                }
+                                refreshFileList();
+                            });
                     } else {
                         throw new Error(result.message || 'Failed to save file with new name');
                     }
                 })
                 .catch(error => {
-                    console.error('Rename error:', error);
                     updateStatus('Error during rename: ' + error.message, 'error');
                     refreshFileList();
                 });
