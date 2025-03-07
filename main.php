@@ -186,11 +186,12 @@ function generateFileListHTML($files, $currentFilename = '', $currentPath = '')
         foreach ($files as $file) {
             $filename = basename($file);
 
-            // Skip backup files and dot directories
+            // Skip only dot directories and backup files, but show backups folder and .history
             if (
                 preg_match('/\(BAK-\w{3}\d{2}-S\d+\)\.\w+$/', $filename) ||
-                $filename === '.' || $filename === '..' ||
-                (is_dir($file) && $filename === 'backups')
+                $filename === '.' || $filename === '..'
+                // Removed the check that hides the backups folder
+                // Now backups and .history folders will be displayed
             ) {
                 continue;
             }
@@ -346,6 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save') {
         $filename = basename($_POST['filename'] ?? '');
         $content = $_POST['content'] ?? '';
+        $isRename = isset($_POST['isRename']) && $_POST['isRename'] === 'true';
 
         if (empty($filename)) {
             echo json_encode(['status' => 'error', 'message' => 'Filename required']);
@@ -353,23 +355,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $filePath = $currentDir . '/' . $filename;
             $originalContent = file_exists($filePath) ? file_get_contents($filePath) : '';
 
-            if ($content !== $originalContent) {
-                // Backup logic
-                $backupFilename = basename($filename);
-                $version = 1;
-                while (file_exists($backupDir . $backupFilename . '(V' . $version . ').php')) {
-                    $version++;
+            // Skip backup check if this is a new file or part of a rename operation
+            if (!file_exists($filePath) || $isRename) {
+                // Just save the file without attempting backup
+                if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
+                    echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
                 }
-                $backupFilename = $backupFilename . '(V' . $version . ').php';
+            } else if ($content !== $originalContent) {
+                // Regular save with backup attempt for existing file
+                try {
+                    $backupFilename = basename($filename);
+                    $version = 1;
+                    while (file_exists($backupDir . $backupFilename . '(V' . $version . ').php')) {
+                        $version++;
+                    }
+                    $backupFilename = $backupFilename . '(V' . $version . ').php';
 
-                if (copy($filePath, $backupDir . $backupFilename)) {
+                    // Create directory if it doesn't exist
+                    if (!is_dir($backupDir) && !mkdir($backupDir, 0755, true)) {
+                        throw new Exception("Cannot create backup directory");
+                    }
+
+                    if (copy($filePath, $backupDir . $backupFilename)) {
+                        if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
+                            echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup created: ' . $backupFilename . ')']);
+                        } else {
+                            echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
+                        }
+                    } else {
+                        // Failed to create backup but try to save anyway
+                        if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
+                            echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup failed)']);
+                        } else {
+                            echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Try to save anyway even if backup process had errors
                     if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
-                        echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup created: ' . $backupFilename . ')']);
+                        echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup process error: ' . $e->getMessage() . ')']);
                     } else {
                         echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
                     }
-                } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Backup failed: ' . $filename]);
                 }
             } else {
                 echo json_encode(['status' => 'info', 'message' => 'No changes detected, file not saved: ' . $filename]);
@@ -380,57 +409,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Backup retrieval handler
     else if ($action === 'getBackup') {
         $filename = basename($_POST['filename'] ?? '');
+        $filepath = $_POST['filepath'] ?? $filename; // Use full path if provided
+
         if (empty($filename)) {
             echo json_encode(['status' => 'error', 'message' => 'Filename required']);
             exit;
         }
+
+        // Try to find backup with just the basename first (legacy backups)
         $backupFilename = '';
         $version = 1;
-        while (file_exists($backupDir . $filename . '(v' . $version . ').php')) {
-            $backupFilename = $backupDir . $filename . '(v' . $version . ').php';
+        while (
+            file_exists($backupDir . $filename . '(V' . $version . ').php') ||
+            file_exists($backupDir . $filename . '(v' . $version . ').php')
+        ) {
+            if (file_exists($backupDir . $filename . '(V' . $version . ').php')) {
+                $backupFilename = $backupDir . $filename . '(V' . $version . ').php';
+            } else {
+                $backupFilename = $backupDir . $filename . '(v' . $version . ').php';
+            }
             $version++;
         }
-        if ($backupFilename) {
+
+        // If no backup found with basename, try with path-based backup naming
+        if (!$backupFilename && $filepath != $filename) {
+            // Encode the filepath to create a valid filename for the backup
+            $encodedPath = str_replace('/', '_-_', $filepath);
+            $version = 1;
+            while (
+                file_exists($backupDir . $encodedPath . '(V' . $version . ').php') ||
+                file_exists($backupDir . $encodedPath . '(v' . $version . ').php')
+            ) {
+                if (file_exists($backupDir . $encodedPath . '(V' . $version . ').php')) {
+                    $backupFilename = $backupDir . $encodedPath . '(V' . $version . ').php';
+                } else {
+                    $backupFilename = $backupDir . $encodedPath . '(v' . $version . ').php';
+                }
+                $version++;
+            }
+        }
+
+        if ($backupFilename && file_exists($backupFilename)) {
             $content = file_get_contents($backupFilename);
             echo json_encode(['status' => 'success', 'content' => $content, 'backupFilename' => basename($backupFilename)]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'No backups found for this file.']);
         }
-        exit;
-    }
-    // File delete handler
-    else if ($action === 'delete') {
-        $filename = basename($_POST['filename'] ?? '');
-
-        $response = ['status' => 'error', 'message' => ''];
-
-        if (empty($filename)) {
-            $response['message'] = 'Filename is required for deletion.';
-        } else {
-            $filePath = $currentDir . '/' . $filename;
-
-            if (!file_exists($filePath)) {
-                $response['message'] = 'File does not exist: ' . $filename;
-            } elseif (is_dir($filePath)) {
-                $response['message'] = 'Cannot delete directories with this method. Use deleteFolder instead.';
-            } else {
-                // Check permissions before attempting to delete
-                if (!is_readable($filePath) || !is_writable($filePath)) {
-                    $response['message'] = 'Permission denied: Cannot delete file ' . $filename;
-                } else {
-                    if (@unlink($filePath)) {
-                        $response['status'] = 'success';
-                        $response['message'] = 'File deleted successfully: ' . $filename;
-                    } else {
-                        $error = error_get_last();
-                        $response['message'] = 'Failed to delete the file: ' . $filename .
-                            (isset($error['message']) ? ' - ' . $error['message'] : '');
-                    }
-                }
-            }
-        }
-
-        echo json_encode($response);
         exit;
     }
     // Handle file transfers (retained but improved)
@@ -1257,31 +1281,61 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             top: var(--header-height);
             left: var(--menu-width);
             right: 0;
-            transition: transform 0.3s ease-in-out;
-        }
-
-        .editor-view {
-            transform: translateX(0);
-            background: #fff;
-            z-index: 2;
-        }
-
-        .backup-view {
-            z-index: 1;
+            transition: transform 0.3s ease-in-out, left 0.3s ease, visibility 0.3s;
+            visibility: visible;
+            z-index: 10;
         }
 
         .editor-view.hidden {
-            transform: translateX(-100%);
+            visibility: hidden !important;
+            z-index: -1 !important;
+            /* Ensure it's below everything else */
+        }
+
+        .editor-view.hidden .editor-nav-controls {
+            display: none !important;
+            /* Specifically hide the nav controls */
+        }
+
+        .backup-view {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: var(--header-height);
+            left: var(--menu-width);
+            right: 0;
+            z-index: 5;
+            visibility: hidden;
+            transition: visibility 0.3s;
         }
 
         .backup-view.active {
-            z-index: 3;
+            z-index: 20;
+            /* Higher than editor when active */
+            visibility: visible;
         }
 
-        .backup-view iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
+        /* Fix for editor container when hidden */
+        .editor-view.hidden .editor-container,
+        .editor-view.hidden .editor-container * {
+            visibility: hidden !important;
+        }
+
+        /* Ensure the menu-container also slides with the menu */
+        .menu-container {
+            transition: margin-left 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .menu-container {
+                margin-left: 0;
+            }
+
+            .menu-active .menu-container {
+                margin-left: var(--menu-width);
+            }
         }
     </style>
 </head>
@@ -1415,9 +1469,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                                         <i class="fas fa-clipboard"></i> To Clipboard
                                     </div>
                                 </div>
-                                <button type="button" name="run" class="command-button" title="Run this file in a new tab"
-                                    onclick="openInNewTab(document.getElementById('editorFilename').value)">
-                                    <i class="fas fa-play"></i> Run
+                                <button type="button" name="run" class="command-button" title="Run this file in a new browser window"
+                                    onclick="openInNewWindow(document.getElementById('editorFilename').value)">
+                                    <i class="fas fa-external-link-alt"></i> Run
                                 </button>
                             </div>
                         </div>
@@ -1475,6 +1529,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         // State variables
         let editorContent = '';
+        let currentLoadedFilename = ''; // Track the original filename when a file is loaded
         <?php if (!empty($content)): ?>
             editor.setValue(<?php echo json_encode($content); ?>);
             editorContent = editor.getValue();
@@ -1487,7 +1542,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 // Close the menu if it's open
                 const menuPanel = document.getElementById('menuPanel');
                 if (menuPanel.classList.contains('active')) {
-                    toggleMobileMenu();
+                    toggleMobileMenu(); // Use the function instead of direct manipulation
                 }
             }
 
@@ -1514,6 +1569,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     }
                     editor.setValue(content, -1);
                     document.getElementById('editorFilename').value = filename;
+                    currentLoadedFilename = filename; // Store the original filename
                     updateStatus(STATUS_MESSAGES.file.loaded(filename), 'success');
                     editorContent = editor.getValue();
 
@@ -1733,22 +1789,35 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         // Backup Functions
+        function getCurrentFilePath() {
+            const filename = document.getElementById('editorFilename').value;
+            if (!filename) return null;
+
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+            return currentFolder ? currentFolder + '/' + filename : filename;
+        }
+
         function fromBackup() {
             const filename = document.getElementById('editorFilename').value;
             if (!filename) return updateStatus('Filename required', 'error');
+
+            // Get the full path including current folder
+            const filePath = getCurrentFilePath();
 
             fetch('main.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: 'action=getBackup&filename=' + encodeURIComponent(filename)
+                    body: 'action=getBackup&filename=' + encodeURIComponent(filename) +
+                        '&filepath=' + encodeURIComponent(filePath)
                 })
                 .then(response => response.json())
                 .then(result => {
                     if (result.status === 'success') {
                         editor.setValue(result.content, -1);
-                        updateStatus(STATUS_MESSAGES.backup.restored(), 'info');
+                        updateStatus(`Restored from backup: ${result.backupFilename}`, 'success');
                     } else {
                         updateStatus(result.message, 'error');
                     }
@@ -1765,7 +1834,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             editorView.classList.add('hidden');
             backupView.classList.add('active');
-            backupView.querySelector('iframe').src = 'backup-manager.php';
+            backupView.querySelector('iframe').src = 'nb-archive-manager.php'; // Changed from backup-manager.php
 
             updateStatus('Backup manager loaded', 'success');
         }
@@ -1814,8 +1883,34 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
             const filePath = currentFolder ? currentFolder + '/' + filename : filename;
 
+            // Hide editor view completely with proper class
+            editorView.classList.add('hidden');
             backupView.classList.add('active');
             backupView.querySelector('iframe').src = filePath;
+        }
+
+        function openInNewWindow(filename) {
+            if (!filename) return updateStatus('Filename required', 'error');
+
+            const fileExtension = filename.split('.').pop().toLowerCase();
+
+            // Check if trying to run main editor
+            if (filename === 'main.php' || filename.includes('main')) {
+                return updateStatus('Cannot run the editor interface directly', 'info');
+            }
+
+            // Only allow PHP and HTML files to be run directly
+            if (!['php', 'html', 'htm'].includes(fileExtension)) {
+                return updateStatus(`Cannot run ${fileExtension} files directly`, 'info');
+            }
+
+            // Get the current folder from URL
+            const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
+            const filePath = currentFolder ? currentFolder + '/' + filename : filename;
+
+            // Open in a new browser window instead of iframe
+            window.open(filePath, '_blank');
+            updateStatus(`Opened ${filename} in a new window`, 'success');
         }
 
         function updateDisplayFilename() {
@@ -1825,30 +1920,40 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         function updateVersionAndDate() {
-            const originalFilename = document.getElementById('editorFilename').value.trim();
+            const newFilename = document.getElementById('editorFilename').value.trim();
+            const originalFilename = currentLoadedFilename;
+
             if (!originalFilename) {
                 updateStatus('No file is currently open', 'error');
                 return;
             }
 
-            const newFilename = prompt('Enter new filename:', originalFilename);
-            if (!newFilename || newFilename === originalFilename) {
-                updateStatus('No change in filename', 'info');
+            if (newFilename === originalFilename) {
+                updateStatus('Filename unchanged', 'info');
                 return;
             }
 
-            const confirmed = confirm(`Rename from "${originalFilename}" to "${newFilename}"?\nPress OK to proceed or Cancel to abort.`);
-            if (!confirmed) return;
+            if (!newFilename) {
+                updateStatus('New filename cannot be empty', 'error');
+                return;
+            }
+
+            // Optional confirmation
+            if (!confirm(`Rename file from "${originalFilename}" to "${newFilename}"?`)) {
+                document.getElementById('editorFilename').value = originalFilename;
+                return;
+            }
 
             const content = editor.getValue();
             updateStatus(`Renaming file to: ${newFilename}...`, 'info');
 
+            // Save with new name
             fetch('main.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}`
+                    body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}&isRename=true`
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('Network response error: ' + response.status);
@@ -1856,9 +1961,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .then(result => {
                     if (result.status === 'success' || result.status === 'info') {
-                        document.getElementById('editorFilename').value = newFilename;
                         editorContent = editor.getValue();
-                        updateStatus(`New file saved as: ${newFilename}`, 'success');
+                        currentLoadedFilename = newFilename; // Update tracking immediately
 
                         // Now delete the old file
                         return fetch('main.php', {
@@ -1876,7 +1980,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                                 if (deleteResult.status === 'success') {
                                     updateStatus(`File renamed from ${originalFilename} to ${newFilename}`, 'success');
                                 } else {
-                                    updateStatus(`Warning: Renamed file but couldn't delete ${originalFilename}`, 'warning');
+                                    updateStatus(`Warning: Created new file but couldn't delete ${originalFilename}`, 'warning');
                                 }
                                 refreshFileList();
                             });
@@ -1886,10 +1990,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .catch(error => {
                     updateStatus('Error during rename: ' + error.message, 'error');
-                    refreshFileList();
                 });
         }
 
+        // Update the status function to keep 15 messages instead of 5
         function updateStatus(message, type = 'info') {
             const statusBar = document.getElementById('statusBar');
             const statusMessage = document.createElement('div');
@@ -1897,8 +2001,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             statusMessage.textContent = message;
             statusBar.insertBefore(statusMessage, statusBar.firstChild);
 
-            // Keep only last 5 messages
-            while (statusBar.children.length > 5) {
+            // Keep last 15 messages instead of 5
+            while (statusBar.children.length > 15) {
                 statusBar.removeChild(statusBar.lastChild);
             }
         }
@@ -1918,8 +2022,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             const params = new URLSearchParams(window.location.search);
             const currentFolder = params.get('folder') || '';
 
-            // Show loading indicator
-            updateStatus('Refreshing file list...', 'info');
+            // Show loading indicator - we'll update this message later
+            const statusId = Date.now(); // Create unique ID for this status message
+            updateStatus('Refreshing file list...', 'info', statusId);
 
             fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
                 .then(response => {
@@ -1930,7 +2035,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .then(html => {
                     document.querySelector('.file-list').innerHTML = html;
-                    updateStatus('File list refreshed', 'success');
+                    // Update existing status message instead of creating a new one
+                    updateStatusById(statusId, 'File list refreshed', 'success');
 
                     // Re-attach event listeners to checkboxes after refresh
                     document.querySelectorAll('.delete-check').forEach(checkbox => {
@@ -1945,7 +2051,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .catch(error => {
                     console.error('Error refreshing file list:', error);
-                    updateStatus('Failed to refresh file list: ' + error.message, 'error');
+                    // Update the existing status message with error
+                    updateStatusById(statusId, 'Failed to refresh file list: ' + error.message, 'error');
                 });
         }, 300); // 300ms debounce time
 
@@ -2101,7 +2208,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         });
 
-        // Listen for messages from iframe
+        // Update the message event handler
         window.addEventListener('message', function(event) {
             if (event.data && event.data.action === 'switchToEditor') {
                 const editorView = document.querySelector('.editor-view');
@@ -2109,6 +2216,11 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
                 editorView.classList.remove('hidden');
                 backupView.classList.remove('active');
+
+                // Clear the iframe src after a short delay to stop any running scripts
+                setTimeout(() => {
+                    backupView.querySelector('iframe').src = '';
+                }, 300);
 
                 if (event.data.status) {
                     updateStatus(event.data.status, 'success');
@@ -2135,11 +2247,38 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 const menuOverlay = document.getElementById('menuOverlay');
                 const body = document.body;
                 const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
+                const editorView = document.querySelector('.editor-view');
+                const backupView = document.querySelector('.backup-view');
 
                 menuPanel.classList.remove('active');
                 mainContainer.classList.remove('menu-active');
                 menuOverlay.classList.remove('active');
                 body.classList.remove('menu-active');
+                editorView.classList.remove('menu-active');
+                backupView.classList.remove('menu-active');
+                menuToggleIcon.classList.remove('fa-times');
+                menuToggleIcon.classList.add('fa-bars');
+            }
+        });
+
+        // Update resize handler to handle mobile menu state
+        window.addEventListener('resize', function() {
+            // Reset menu state on larger screens
+            if (window.innerWidth > 768) {
+                const menuPanel = document.getElementById('menuPanel');
+                const mainContainer = document.getElementById('mainContainer');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const body = document.body;
+                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
+                const editorView = document.querySelector('.editor-view');
+                const backupView = document.querySelector('.backup-view');
+
+                menuPanel.classList.remove('active');
+                mainContainer.classList.remove('menu-active');
+                menuOverlay.classList.remove('active');
+                body.classList.remove('menu-active');
+                editorView.classList.remove('menu-active');
+                backupView.classList.remove('menu-active');
                 menuToggleIcon.classList.remove('fa-times');
                 menuToggleIcon.classList.add('fa-bars');
             }
@@ -2161,25 +2300,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function setupEventListeners() {
             // Toggle mobile menu
             document.getElementById('mobileMenuToggle').addEventListener('click', function() {
-                const menuPanel = document.getElementById('menuPanel');
-                const mainContainer = document.getElementById('mainContainer');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const body = document.body;
-                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
-
-                menuPanel.classList.toggle('active');
-                mainContainer.classList.toggle('menu-active');
-                menuOverlay.classList.toggle('active');
-                body.classList.toggle('menu-active');
-
-                // Update icon based on menu state
-                if (menuPanel.classList.contains('active')) {
-                    menuToggleIcon.classList.remove('fa-bars');
-                    menuToggleIcon.classList.add('fa-times');
-                } else {
-                    menuToggleIcon.classList.remove('fa-times');
-                    menuToggleIcon.classList.add('fa-bars');
-                }
+                toggleMobileMenu();
             });
 
             // Menu sort button
@@ -2278,6 +2399,34 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 editor.focus();
                 updateStatus('Scrolled to bottom', 'info');
             };
+        }
+
+        function toggleMobileMenu() {
+            const menuPanel = document.getElementById('menuPanel');
+            const mainContainer = document.getElementById('mainContainer');
+            const menuOverlay = document.getElementById('menuOverlay');
+            const body = document.body;
+            const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
+
+            menuPanel.classList.toggle('active');
+            mainContainer.classList.toggle('menu-active');
+            menuOverlay.classList.toggle('active');
+            body.classList.toggle('menu-active');
+
+            // Also toggle the active class on editor and backup views
+            editorView.classList.toggle('menu-active');
+            backupView.classList.toggle('menu-active');
+
+            // Update icon based on menu state
+            if (menuPanel.classList.contains('active')) {
+                menuToggleIcon.classList.remove('fa-bars');
+                menuToggleIcon.classList.add('fa-times');
+            } else {
+                menuToggleIcon.classList.remove('fa-times');
+                menuToggleIcon.classList.add('fa-bars');
+            }
         }
     </script>
 </body>

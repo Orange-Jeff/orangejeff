@@ -391,7 +391,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 0;
             height: 100vh;
             background-color: #e9ecef;
-            /* Changed to match main.php */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
         }
@@ -404,13 +403,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-sizing: border-box;
             overflow: hidden;
             max-width: 768px;
-            /* Changed from 600px to match main.php */
             margin: 0 auto;
+            text-align: left;
+            /* Ensure left-justified text */
         }
 
         .editor-view {
-            background: transparent;
-            /* Make background transparent so page background shows through */
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
             flex: 1;
             min-height: 0;
             display: flex;
@@ -420,6 +421,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 20px;
         }
 
+        .editor {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            /* Add consistent padding */
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin: 0 10px 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            height: calc(100vh - 280px);
+            min-height: 200px;
+        }
+
         .editor-title {
             margin: 0 0 15px 0;
             padding: 0;
@@ -427,21 +448,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
-        }
-
-        .status-box {
-            padding: 8px;
-            margin: 10px 0;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            font-size: 14px;
-            height: 4.5em;
-            min-height: 60px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            scrollbar-gutter: stable;
+            text-align: left;
+            /* Ensure left-justified title */
         }
 
         .button-controls {
@@ -490,137 +498,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 2px 0 #4a9eff;
         }
 
-        .file-tree {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-            margin: 0 0 10px 0;
-            background: white;
-            border: 1px solid #dee2e6;
+        .status-box {
+            padding: 8px;
+            margin: 10px 0;
             border-radius: 4px;
-            height: calc(100vh - 280px);
-            min-height: 200px;
+            border: 1px solid #dee2e6;
+            font-size: 14px;
+            height: 4.5em;
+            min-height: 60px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            scrollbar-gutter: stable;
         }
 
         .contextual-controls {
-            padding: 8px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-        }
-
-        .tree-item {
-            padding: 3px;
-            cursor: pointer;
-        }
-
-        .tree-children {
-            margin-left: 20px;
-            display: none;
-        }
-
-        .tree-file,
-        .tree-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 5px;
-            cursor: pointer;
-        }
-
-        .tree-header .fa-folder {
-            color: #dcb67a;
-        }
-
-        .tree-header .fa-calendar,
-        .tree-file .fa-file-code {
-            color: #0056b3;
-        }
-
-        .tree-file:hover,
-        .tree-header:hover {
-            background: #f0f0f0;
-            border-radius: 3px;
-        }
-
-        .expanded>.tree-children {
-            display: block;
-        }
-
-        .tree-label {
-            flex: 1;
-            user-select: none;
-        }
-
-        .split-button {
-            display: inline-flex;
-            margin-right: 10px;
-        }
-
-        .split-button .zip-main {
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-            margin-right: 1px;
-        }
-
-        .split-button .zip-extra {
-            padding: 5px 10px;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-        }
-
-        .file-tree::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .file-tree::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-
-        .file-tree::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-
-        .status-box::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .status-box::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-
-        .status-box::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-
-        .message {
-            padding: 4px 8px;
-            border-radius: 3px;
-            margin: 2px 0;
-            flex-shrink: 0;
-            color: #505050;
-            background-color: transparent;
-        }
-
-        .message.latest {
-            color: white;
-        }
-
-        .message.latest.info {
-            background-color: #4a9eff;
-        }
-
-        .message.latest.success {
-            background-color: #28a745;
-        }
-
-        .message.latest.error {
-            background-color: #dc3545;
+            padding: 0;
+            margin: 0 0 10px 0;
+            background: transparent;
         }
 
         /* Ensure page doesn't cut off at bottom */
@@ -645,121 +541,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 height: calc(100vh - 300px);
             }
         }
-
-        .list-title {
-            margin: 10px 0;
-            padding: 0;
-        }
-
-        .list-title h2 {
-            font-size: 16px;
-            font-weight: bold;
-            color: #0056b3;
-            margin: 0;
-            padding: 0;
-        }
-
-        .bottom-action-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(248, 249, 250, 0.95);
-            padding: 10px;
-            border-top: 1px solid #dee2e6;
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-        }
-
-        .bottom-action-bar .button-row {
-            max-width: 768px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .ghosted {
-            background: #cccccc;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        /* Adjust file tree height to account for bottom action bar */
-        .file-tree {
-            height: calc(100vh - 320px);
-            margin-bottom: 60px;
-        }
-
-        @media (max-width: 768px) {
-            .file-tree {
-                height: calc(100vh - 340px);
-            }
-
-            .bottom-action-bar .button-row {
-                flex-wrap: wrap;
-                gap: 5px;
-                justify-content: center;
-            }
-        }
     </style>
 </head>
 
 <body>
     <div class="menu-container">
-        <!-- Title directly on background -->
-        <h1 class="editor-title">NetBound Tools: Archive Manager</h1>
-
-        <!-- Status box below title with consistent padding -->
-        <div class="status-box" id="status"></div>
-
-        <!-- Under status box, add title for current list -->
-        <div class="list-title" id="listTitle" style="display: none;">
-            <h2>No Files Selected</h2>
-        </div>
-
-        <!-- Main buttons below status box -->
-        <div class="button-controls">
-            <div class="button-row">
-                <button class="command-button" id="btnVSCodeHistory" title="Display VS Code History">
-                    <i class="fas fa-code"></i> VS Code History
-                </button>
-                <button class="command-button" id="btnNetboundBackups" title="Display Netbound Backups">
-                    <i class="fas fa-archive"></i> Netbound Backups
-                </button>
-                <button class="command-button" id="btnRestart" title="Restart Archive Manager">
-                    <i class="fas fa-sync"></i> Restart
-                </button>
-            </div>
-        </div>
-
         <div class="editor-view">
-            <!-- File tree container -->
-            <div class="file-tree" id="fileTree"></div>
-        </div>
+            <div class="editor" id="editorSection">
+                <!-- Title directly on background -->
+                <h1 class="editor-title">NetBound Tools: Archive Manager</h1>
 
-        <!-- Bottom action bar - fixed at bottom of page -->
-        <div class="bottom-action-bar" id="contextualButtons">
-            <div class="button-row">
-                <button class="command-button ghosted" id="btnSelectAll" title="Select All Files">
-                    <i class="fas fa-check-square"></i> Select All
-                </button>
-                <button class="command-button ghosted" id="btnDeleteSelected" title="Delete selected files">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-                <button class="command-button ghosted" id="btnRetrieveSelected" title="Retrieve selected files">
-                    <i class="fas fa-download"></i> Retrieve
-                </button>
-                <button class="command-button ghosted" id="btnToClipboard" title="Copy selected file to clipboard">
-                    <i class="fas fa-clipboard"></i> TO CLIPBOARD
-                </button>
-                <div class="split-button">
-                    <button class="command-button ghosted zip-main" onclick="zipSelected()" title="Create ZIP archive">
-                        <i class="fas fa-file-archive"></i> ZIP
-                    </button>
-                    <button class="command-button ghosted zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
+                <!-- Status box below title with consistent padding -->
+                <div class="status-box" id="status"></div>
+
+                <!-- Main buttons below status box -->
+                <div class="button-controls">
+                    <div class="button-row">
+                        <button class="command-button" id="btnVSCodeHistory" title="Display VS Code History">
+                            <i class="fas fa-code"></i> VS Code History
+                        </button>
+                        <button class="command-button" id="btnNetboundBackups" title="Display Netbound Backups">
+                            <i class="fas fa-archive"></i> Netbound Backups
+                        </button>
+                        <button class="command-button" id="btnRestart" title="Restart Archive Manager">
+                            <i class="fas fa-sync"></i> Restart
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contextual buttons that appear with lists -->
+                <div class="contextual-controls" id="contextualButtons" style="display: none;">
+                    <div class="button-container">
+                        <button class="command-button" id="btnSelectAll" title="Select All Files">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button class="command-button" id="btnDeleteSelected" title="Delete selected files">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="command-button" id="btnRetrieveSelected" title="Retrieve selected files">
+                            <i class="fas fa-download"></i> Retrieve
+                        </button>
+                        <button class="command-button" id="btnToClipboard" title="Copy selected file to clipboard" disabled>
+                            <i class="fas fa-clipboard"></i> TO CLIPBOARD
+                        </button>
+                        <div class="split-button">
+                            <button class="command-button zip-main" onclick="zipSelected()" title="Create ZIP archive">
+                                <i class="fas fa-file-archive"></i> ZIP
+                            </button>
+                            <button class="command-button zip-extra" onclick="zipSelectedAs()" title="Save ZIP as...">+</button>
+                        </div>
+                    </div>
                 </div>
             </div>
+            <!-- File tree container -->
+            <div class="file-tree" id="fileTree"></div>
         </div>
     </div>
 
@@ -995,11 +830,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             updateStatus(STATUS_MESSAGES.folder.processing, 'info');
             currentView = 'vscode';
 
-            // Update list title
-            const listTitle = document.getElementById('listTitle');
-            listTitle.innerHTML = '<h2>VS Code History Files</h2>';
-            listTitle.style.display = 'block';
-
             // Check if .history directory exists
             if (!await fetch(window.location.href, {
                     method: 'POST',
@@ -1013,11 +843,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
 
-            // Enable the contextual buttons
-            document.querySelectorAll('#contextualButtons .command-button').forEach(button => {
-                button.classList.remove('ghosted');
-            });
-
+            document.getElementById('contextualButtons').style.display = 'flex';
             const fileGroups = await postData('getHistory');
             if (!fileGroups) return;
 
@@ -1028,11 +854,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('fileTree').innerHTML = '';
             updateStatus(STATUS_MESSAGES.folder.processing, 'info');
             currentView = 'netbound';
-
-            // Update list title
-            const listTitle = document.getElementById('listTitle');
-            listTitle.innerHTML = '<h2>Netbound Backup Files</h2>';
-            listTitle.style.display = 'block';
 
             // Check if backups directory exists
             if (!await fetch(window.location.href, {
@@ -1047,11 +868,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
 
-            // Enable the contextual buttons
-            document.querySelectorAll('#contextualButtons .command-button').forEach(button => {
-                button.classList.remove('ghosted');
-            });
-
+            document.getElementById('contextualButtons').style.display = 'flex';
             const backupGroups = await postData('getBackups');
             if (!backupGroups) return;
 
@@ -1153,12 +970,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize with ghosted buttons
-            document.querySelectorAll('#contextualButtons .command-button').forEach(button => {
-                button.classList.add('ghosted');
-            });
-
-            // Rest of the event listeners remain unchanged
             document.getElementById('btnVSCodeHistory').addEventListener('click', () => {
                 clearCheckedItems();
                 closeAllTreeItems();
