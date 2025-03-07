@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>NetBound Tools: Audio Extractor</title>
@@ -8,20 +9,19 @@
         body {
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #e9ecef;
-            height: 100vh;
-            margin: 0;
-            overflow-x: hidden;
+            background: #f4f4f9;
+            width: 550px;
         }
 
         .tool-container {
-            height: 100vh;
-            margin: 0 auto;
+            background: #f4f4f9;
+            height: auto;
+            margin: 0;
+            max-width: 600px;
+            width: 100%;
             padding: 20px;
-            max-width: 768px;
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
         }
 
         .work-area {
@@ -49,78 +49,42 @@
             width: 100%;
             padding: 10px 0;
             display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin: 15px 0;
-        }
-
-        .button-row {
-            display: flex;
-            gap: 8px;
-            align-items: center
-;
+            gap: 10px;
+            flex-wrap: nowrap;
         }
 
         .command-button {
             background: #0056b3;
             color: white;
-            height: 28px;
-            padding: 0 12px;
             border: none;
             border-radius: 3px;
-            font-size: 14px;
-            line-height: 1;
-            white-space: nowrap;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 14px;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .command-button:hover:not(:disabled) {
-            background: #004494;
+            gap: 4px;
         }
 
         .command-button:disabled {
             background: #ccc;
             cursor: not-allowed;
-            opacity: 0.7;
         }
 
         .status-bar {
             width: 100%;
             height: 90px;
+            min-height: 90px;
+            max-height: 90px;
             overflow-y: auto;
             border: 1px solid #ddd;
             background: #fff;
-            padding: 8px;
+            padding: 5px;
             margin: 10px 0;
             border-radius: 4px;
             display: flex;
             flex-direction: column-reverse;
-            position: relative;
-            transition: background 0.2s, border-color 0.2s;
-            cursor: pointer;
-        }
-
-        .status-bar:empty::before {
-            content: 'Drag file(s) here or open a video';
-            color: #666;
-            text-align: center;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            pointer-events: none;
-        }
-
-        .status-bar.drag-over {
-            background: #e3f2fd;
-            border-color: #2196f3;
-            border-style: dashed;
+            /* Reverse the display order */
         }
 
         .status-message {
@@ -180,8 +144,7 @@
 
         #video-preview {
             width: 100%;
-            height: 432px;
- /* 16:9 ratio of 768px width */
+            height: 400px;
             background: #2a2a2a;
             object-fit: contain;
         }
@@ -243,17 +206,16 @@
         <div class="tool-header">
             <h1 class="tool-title">NetBound Tools: Video to Audio Converter</h1>
             <div id="statusBar" class="status-bar"></div>
-            <div class="button-controls" id="mainControls" ${!currentFile ? 'style="display: none;"' : ''}>
-                <div class="button-row">
-                    <button class="command-button" id="btnOpen">
-                        <i class="fas fa-folder-open"></i> Open Video
-                    </button>
-                    <button class="command-button" id="btnBulkWav">
-                        <i class="fas fa-folder-open"></i> Bulk WAV
-                    </button>
-                    <button class="command-button" id="btnBulkMp3">
-                        <i class="fas fa-folder-open"></i> Bulk MP3
-                    </button>
+            <div class="button-controls">
+                <button class="command-button" id="btnOpen">
+                    <i class="fas fa-folder-open"></i> Open Video
+                </button>
+                <button class="command-button" id="btnBulkWav">
+                    <i class="fas fa-folder-open"></i> Bulk WAV
+                </button>
+                <button class="command-button" id="btnBulkMp3">
+                    <i class="fas fa-folder-open"></i> Bulk MP3
+                </button>
                 <button class="command-button" id="btnRestart">
                     <i class="fas fa-redo"></i> Restart
                 </button>
