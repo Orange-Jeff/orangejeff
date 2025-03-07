@@ -107,8 +107,6 @@ function getFileList($dir, $sortBy = 'date')
                 $fileA = basename($a);
                 $fileB = basename($b);
                 return strcasecmp($fileA, $fileB);
-
-
             });
         }
     }
@@ -519,6 +517,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 /*                                HTML Output                                 */
 $currentFilename = isset($_GET['file']) ? basename($_GET['file']) : '';
 $content = '';
+
+// Handle direct app loading
+$appToLoad = '';
+if (isset($_GET['app'])) {
+    $requestedApp = basename($_GET['app']);
+    // Only allow nb- prefixed files
+    if (strpos($requestedApp, 'nb-') === 0 && file_exists($currentDir . '/' . $requestedApp)) {
+        $appToLoad = $requestedApp;
+    }
+}
+
+// Load file content if needed
 if (isset($_GET['file']) && !empty($_GET['file'])) {
     $content = file_get_contents($currentDir . '/' . $_GET['file']);
 }
@@ -905,7 +915,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             flex: 1;
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 240px);
+            height: calc(100vh - var(--header-height) - 180px);
             min-height: 400px;
             margin: 20px 0;
             overflow: hidden;
@@ -1335,6 +1345,18 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 height: calc(100vh - 300px);
             }
         }
+
+        @media (max-height: 600px) {
+            .editor-container {
+                height: calc(100vh - var(--header-height) - 140px);
+            }
+        }
+
+        @media (max-height: 500px) {
+            .editor-container {
+                height: calc(100vh - var(--header-height) - 100px);
+            }
+        }
     </style>
 </head>
 
@@ -1360,10 +1382,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             <button id="menuRefreshBtn" class="header-button" title="Reload Menu">
                 <i class="fas fa-sync-alt"></i>
             </button>
-            <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortBy === 'date' ? 'by date' : 'alphabetical'; ?>)">
+            <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortIcon === 'fa-clock' ? 'sorted by date' : 'sorted alphabetically'; ?>)">
                 <i class="fas <?php echo $sortIcon; ?>"></i>
             </button>
-<!-- sort-button -->
+            <!-- sort-button -->
             <button id="menuDeleteBtn" class="header-button" title="Delete Selected">
                 <i class="fas fa-trash-alt"></i>
             </button>
@@ -1396,7 +1418,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             </div>
         </div>
         <div class="menu-container">
-            <div class="editor-view">
+            <div class="editor-view<?php echo $appToLoad ? ' hidden' : ''; ?>">
                 <div class="editor" id="editorSection">
                     <div class="editor-header">
                         <div class="header-top">
@@ -1466,8 +1488,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     </form>
                 </div>
             </div>
-            <div class="backup-view">
-                <iframe src="" style="width:100%; height:100%; border:none;"></iframe>
+            <div class="backup-view<?php echo $appToLoad ? ' active' : ''; ?>">
+                <iframe src="<?php echo $appToLoad; ?>" style="width:100%; height:100%; border:none;"></iframe>
             </div>
         </div>
     </div>
@@ -1504,6 +1526,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         // Initialize Ace Editor
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
+
         editor.session.setMode("ace/mode/php");
         editor.setOptions({
             enableBasicAutocompletion: true,
@@ -1518,6 +1541,23 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         // State variables
         let editorContent = '';
         let currentLoadedFilename = ''; // Track the original filename when a file is loaded
+
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', function(event) {
+            const params = new URLSearchParams(window.location.search);
+            const appToLoad = params.get('app');
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
+
+            if (appToLoad && appToLoad.startsWith('nb-')) {
+                editorView.classList.add('hidden');
+                backupView.classList.add('active');
+                backupView.querySelector('iframe').src = appToLoad;
+            } else {
+                editorView.classList.remove('hidden');
+                backupView.classList.remove('active');
+            }
+        });
         <?php if (!empty($content)): ?>
             editor.setValue(<?php echo json_encode($content); ?>);
             editorContent = editor.getValue();
@@ -1866,10 +1906,15 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             const editorView = document.querySelector('.editor-view');
             const backupView = document.querySelector('.backup-view');
-
-            // Get the current folder from URL
             const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
             const filePath = currentFolder ? currentFolder + '/' + filename : filename;
+
+            // Only update URL for nb- files
+            if (filename.startsWith('nb-')) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('app', filePath);
+                window.history.pushState({}, '', url);
+            }
 
             // Hide editor view completely with proper class
             editorView.classList.add('hidden');
@@ -2016,10 +2061,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         const refreshFileList = debounce(function() {
             const params = new URLSearchParams(window.location.search);
             const currentFolder = params.get('folder') || '';
-
-            // Show loading indicator - we'll update this message later
-            const statusId = Date.now(); // Create unique ID for this status message
-            updateStatus('Refreshing file list...', 'info');
 
             fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
                 .then(response => {
@@ -2205,33 +2246,28 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         // Update the message event handler
         window.addEventListener('message', function(event) {
-            if (event.data && event.data.action === 'switchToEditor') {
-                const editorView = document.querySelector('.editor-view');
-                const backupView = document.querySelector('.backup-view');
+          if (event.data && event.data.action === 'switchToEditor') {
+              const editorView = document.querySelector('.editor-view');
+              const backupView = document.querySelector('.backup-view');
 
-                editorView.classList.remove('hidden');
-                backupView.classList.remove('active');
+              editorView.classList.remove('hidden');
+              backupView.classList.remove('active');
 
-                // Clear the iframe src after a short delay to stop any running scripts
-                setTimeout(() => {
-                    backupView.querySelector('iframe').src = '';
-                }, 300);
+              // Clear the iframe src after a short delay to stop any running scripts
+              setTimeout(() => {
+                  backupView.querySelector('iframe').src = '';
+              }, 300);
 
-                if (event.data.status) {
-                    updateStatus(event.data.status, 'success');
-                }
-            }
-        });
+              // Clean up URL parameters
+              const url = new URL(window.location.href);
+              url.searchParams.delete('app');
+    window.history.pushState({}, '', url);
 
-        // Listen for Escape key to exit fullscreen
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const container = document.getElementById('editorContainer');
-                if (container.classList.contains('fullwidth')) {
-                    toggleEditorFullWidth();
-                }
-            }
-        });
+                        if (event.data.status) {
+                  updateStatus(event.data.status, 'success');
+               }
+          }
+      });
 
         // Update resize handler to handle mobile menu state
         window.addEventListener('resize', function() {
@@ -2342,14 +2378,18 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             sortBtn.onclick = function() {
                 fetch('main.php?toggleSort=1')
-                    .then(function(response) { return response.json(); })
+                    .then(function(response) {
+                        return response.json();
+                    })
                     .then(function(data) {
                         var sortIcon = sortBtn.querySelector('i');
                         sortIcon.classList.remove(data.sortBy === 'name' ? 'fa-clock' : 'fa-sort-alpha-down');
                         sortIcon.classList.add(data.sortBy === 'name' ? 'fa-sort-alpha-down' : 'fa-clock');
                         refreshFileList();
                     })
-                    .catch(function(error) { updateStatus('Error toggling sort mode: ' + error.message, 'error'); });
+                    .catch(function(error) {
+                        updateStatus('Error toggling sort mode: ' + error.message, 'error');
+                    });
             };
         }
 
