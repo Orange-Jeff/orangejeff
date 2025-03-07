@@ -67,29 +67,48 @@ function getFileList($dir, $sortBy = 'date')
         } else {
             // Custom sorting: nb-files first, then alphabetically
             usort($files, function ($a, $b) {
-                $fileA = basename($a);
-                $fileB = basename($b);
-
                 $aIsDir = is_dir($a);
                 $bIsDir = is_dir($b);
 
-                // Keep folders on top for name sort
+                // Keep folders at top
                 if ($aIsDir !== $bIsDir) {
-                    return $aIsDir ? -1 : 1; // Folders at top for name sort
+                    return $aIsDir ? -1 : 1;
                 }
 
-                // If both are files, check for nb- prefix
+                // If both are not directories
                 if (!$aIsDir && !$bIsDir) {
+                    $fileA = basename($a);
+                    $fileB = basename($b);
+                    $extA = strtolower(pathinfo($fileA, PATHINFO_EXTENSION));
+                    $extB = strtolower(pathinfo($fileB, PATHINFO_EXTENSION));
+
+                    // Check for nb- prefix in PHP files first
                     $isNbA = (strpos($fileA, 'nb-') === 0);
                     $isNbB = (strpos($fileB, 'nb-') === 0);
 
-                    if ($isNbA !== $isNbB) {
-                        return $isNbA ? -1 : 1;  // nb- files come first
+                    // Both are PHP files
+                    if ($extA === 'php' && $extB === 'php') {
+                        if ($isNbA !== $isNbB) {
+                            return $isNbA ? -1 : 1; // nb- PHP files first
+                        }
+                    }
+                    // Only one is PHP
+                    else if ($extA === 'php' || $extB === 'php') {
+                        return $extA === 'php' ? -1 : 1; // PHP files before others
+                    }
+
+                    // Group by extension
+                    if ($extA !== $extB) {
+                        return strcasecmp($extA, $extB);
                     }
                 }
 
                 // Otherwise sort alphabetically
+                $fileA = basename($a);
+                $fileB = basename($b);
                 return strcasecmp($fileA, $fileB);
+
+
             });
         }
     }
@@ -266,9 +285,12 @@ if (isset($_GET['toggleSort'])) {
     $currentSort = $_SESSION['sortBy'] ?? 'date';
     $sortBy = ($currentSort === 'date') ? 'name' : 'date';
     $_SESSION['sortBy'] = $sortBy;
+    // Return JSON response with the new sort mode
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'success', 'sortBy' => $sortBy]);
     exit;
 } else {
-    $sortBy = $_SESSION['sortBy'] ?? 'date';
+    $sortBy = $_SESSION['sortBy'] ?? 'name'; // Default to name-based sort
 }
 
 // Get Folders Handler (combined with getFileList for efficiency)
@@ -1341,6 +1363,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortBy === 'date' ? 'by date' : 'alphabetical'; ?>)">
                 <i class="fas <?php echo $sortIcon; ?>"></i>
             </button>
+<!-- sort-button -->
             <button id="menuDeleteBtn" class="header-button" title="Delete Selected">
                 <i class="fas fa-trash-alt"></i>
             </button>
@@ -1972,6 +1995,13 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         }
 
+        // Add missing updateStatusById function
+        function updateStatusById(id, message, type = 'info') {
+            // Since we don't actually track status messages by ID currently,
+            // we'll just create a new message
+            updateStatus(message, type);
+        }
+
         // Add a debounce function to prevent rapid successive calls
         function debounce(func, wait) {
             let timeout;
@@ -1989,7 +2019,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             // Show loading indicator - we'll update this message later
             const statusId = Date.now(); // Create unique ID for this status message
-            updateStatus('Refreshing file list...', 'info', statusId);
+            updateStatus('Refreshing file list...', 'info');
 
             fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
                 .then(response => {
@@ -2000,8 +2030,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .then(html => {
                     document.querySelector('.file-list').innerHTML = html;
-                    // Update existing status message instead of creating a new one
-                    updateStatusById(statusId, 'File list refreshed', 'success');
+                    // Update with our new function
+                    updateStatus('File list refreshed', 'success');
 
                     // Re-attach event listeners to checkboxes after refresh
                     document.querySelectorAll('.delete-check').forEach(checkbox => {
@@ -2016,8 +2046,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 })
                 .catch(error => {
                     console.error('Error refreshing file list:', error);
-                    // Update the existing status message with error
-                    updateStatusById(statusId, 'Failed to refresh file list: ' + error.message, 'error');
+                    // Update with error message
+                    updateStatus('Failed to refresh file list: ' + error.message, 'error');
                 });
         }, 300); // 300ms debounce time
 
@@ -2263,7 +2293,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     <script>
         // Add this function to your JavaScript
         function toggleMobileView() {
-            // Check if we're on mobile
+            // Check mobile state
             if (window.innerWidth <= 768) {
                 const menuPanel = document.getElementById('menuPanel');
                 const menuToggleIcon = document.querySelector('#menuToggle i');
@@ -2301,127 +2331,29 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         // Add this function before your existing event listeners
         function setupEventListeners() {
-            // Rest of the event listener setup code...
 
-            // Menu sort button
-            document.getElementById('menuSortBtn').addEventListener('click', function() {
+            setupSortButton();
+        }
+
+        // Setup sort button handler
+        function setupSortButton() {
+            var sortBtn = document.getElementById('menuSortBtn');
+            if (!sortBtn) return;
+
+            sortBtn.onclick = function() {
                 fetch('main.php?toggleSort=1')
-                    .then(() => {
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        var sortIcon = sortBtn.querySelector('i');
+                        sortIcon.classList.remove(data.sortBy === 'name' ? 'fa-clock' : 'fa-sort-alpha-down');
+                        sortIcon.classList.add(data.sortBy === 'name' ? 'fa-sort-alpha-down' : 'fa-clock');
                         refreshFileList();
-                        // Toggle the sort button icon
-                        const sortBtn = document.getElementById('menuSortBtn');
-                        const sortIcon = sortBtn.querySelector('i');
-                        if (sortIcon.classList.contains('fa-sort-alpha-down')) {
-                            sortIcon.classList.remove('fa-sort-alpha-down');
-                            sortIcon.classList.add('fa-clock');
-                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: by date)');
-                        } else {
-                            sortIcon.classList.remove('fa-clock');
-                            sortIcon.classList.add('fa-sort-alpha-down');
-                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: alphabetical)');
-                        }
-                    });
-            });
-
-            // Menu delete button
-            document.getElementById('menuDeleteBtn').addEventListener('click', function() {
-                deleteSelected();
-            });
-
-            // Menu refresh button
-            document.getElementById('menuRefreshBtn').addEventListener('click', function() {
-                refreshFileList();
-            });
-
-            // Transfer files button
-            document.getElementById('menuUpdateBtn').addEventListener('click', function() {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.multiple = true;
-                input.onchange = async function(e) {
-                    const formData = new FormData();
-                    for (let file of e.target.files) {
-                        formData.append('files[]', file);
-                    }
-                    formData.append('action', 'transferFiles');
-
-                    fetch('main.php', {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(result => {
-                            updateStatus(result.message, result.status === 'success' ? 'success' : 'error');
-                            if (result.status === 'success' || result.status === 'partial') {
-                                refreshFileList();
-                            }
-                        });
-                };
-                input.click();
-            });
-
-            // Overlay click to close menu on mobile
-            document.getElementById('menuOverlay').addEventListener('click', function() {
-                const menuToggleButton = document.getElementById('mobileMenuToggle');
-                if (menuToggleButton) {
-                    menuToggleButton.click();
-                }
-            });
-
-            // Editor fullscreen toggle function
-            window.toggleEditorFullWidth = function() {
-                const container = document.getElementById('editorContainer');
-                const icon = document.getElementById('fullwidthIcon');
-
-                container.classList.toggle('fullwidth');
-
-                if (container.classList.contains('fullwidth')) {
-                    icon.classList.remove('fa-expand');
-                    icon.classList.add('fa-compress');
-                } else {
-                    icon.classList.remove('fa-compress');
-                    icon.classList.add('fa-expand');
-                }
-
-                editor.resize();
-            };
-
-            // Add navigation functions if they don't exist
-            window.scrollEditorTop = window.scrollEditorTop || function() {
-                editor.gotoLine(1);
-                editor.focus();
-                updateStatus('Scrolled to top', 'info');
-            };
-
-            window.scrollEditorBottom = window.scrollEditorBottom || function() {
-                const lastRow = editor.session.getLength();
-                editor.gotoLine(lastRow, editor.session.getLine(lastRow - 1).length);
-                editor.focus();
-                updateStatus('Scrolled to bottom', 'info');
+                    })
+                    .catch(function(error) { updateStatus('Error toggling sort mode: ' + error.message, 'error'); });
             };
         }
 
-        // Replace the toggleMobileMenu and event listeners with this universal function
-        function toggleMenu() {
-            const menuPanel = document.getElementById('menuPanel');
-            const mainContainer = document.getElementById('mainContainer');
-            const menuToggleIcon = document.querySelector('#menuToggle i');
-
-            // Toggle collapsed state
-            menuPanel.classList.toggle('collapsed');
-            mainContainer.classList.toggle('menu-collapsed');
-
-            // Update icon based on menu state
-            if (menuPanel.classList.contains('collapsed')) {
-                menuToggleIcon.classList.remove('fa-times');
-                menuToggleIcon.classList.add('fa-bars');
-            } else {
-                menuToggleIcon.classList.remove('fa-bars');
-                menuToggleIcon.classList.add('fa-times');
-            }
-
-            // Make sure editor resizes properly
-        }
+        // ...existing code...
     </script>
 </body>
 
