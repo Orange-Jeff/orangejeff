@@ -653,18 +653,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             line-height: 1;
         }
 
-        /* Mobile menu toggle button - now visible on all screens */
-        .mobile-menu-toggle {
-            display: block;
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            margin-right: 10px;
-        }
-
         /* File coloring */
         .nb-file {
             color: #007bff;
@@ -725,7 +713,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             box-shadow: 2px 0 5px rgb(0 0 0 / 10%);
             z-index: 999;
             overflow-y: auto;
-            transition: transform var(--transition-speed) ease;
         }
 
         /* Container Layout */
@@ -734,17 +721,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             margin-left: var(--menu-width);
             width: calc(100% - var(--menu-width));
             height: calc(100vh - var(--header-height));
-            transition: margin-left var(--transition-speed) ease;
             margin-top: var(--header-height);
-        }
-
-        /* Menu collapsed state */
-        .menu.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .container.menu-collapsed {
-            margin-left: 0;
         }
 
         .menu-overlay {
@@ -1100,7 +1077,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         /* Mobile adjustments */
         @media (max-width: 768px) {
-            .mobile-menu-toggle {
+            .menu-toggle {
                 display: block;
             }
 
@@ -1132,34 +1109,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 transform: translateX(-100%);
             }
 
-            .persistent-status-bar {
-                margin: 10px -20px;
-                width: calc(100% + 40px);
-                border-left: none;
-                border-right: none;
-                border-radius: 0;
-            }
-
-            /* Prevent horizontal overflow */
-            body.menu-active {
-                overflow-x: hidden;
-            }
-
-            /* Overlay when menu is active */
-            .menu-overlay {
-                display: none;
-                position: fixed;
-                top: var(--header-height);
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 998;
-            }
-
-            .menu-overlay.active {
-                display: block;
-            }
+            /* Remove any other mobile-specific rules */
         }
 
         /* Editor navigation controls */
@@ -1292,11 +1242,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             /* Ensure it's below everything else */
         }
 
-        .editor-view.hidden .editor-nav-controls {
-            display: none !important;
-            /* Specifically hide the nav controls */
-        }
-
         .backup-view {
             display: flex;
             flex-direction: column;
@@ -1337,15 +1282,46 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 margin-left: var(--menu-width);
             }
         }
+
+        /* Add this to your style section */
+        .menu-toggle {
+            display: none;
+            /* Hidden by default on desktop */
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        /* Show only on mobile */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+        }
+
+        /* Add responsive editor height */
+        @media (max-height: 700px) {
+            .editor {
+                height: calc(100vh - 220px);
+            }
+
+            .editor-container {
+                height: calc(100vh - 300px);
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="header">
+        <button id="menuToggle" class="menu-toggle">
+            <i class="fas fa-bars"></i>
+        </button>
         <div class="left-section">
-            <button id="mobileMenuToggle" class="mobile-menu-toggle">
-                <i class="fas fa-bars"></i>
-            </button>
             <h2 class="menu-title">NetBound Tools</h2>
             <button id="menuUpdateBtn" class="header-button" title="Transfer files to server">
                 <i class="fas fa-paper-plane"></i>
@@ -1423,7 +1399,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                         </div>
                         <div class="split-button">
                             <div class="main-part" onclick="fromBackup()" title="Load content from latest backup">
-                                <i class="fas fa-history"></i> From Backup
+                                <i class="fas fa-history"></i> OOPS
                             </div>
                             <div class="append-part" onclick="fromBackupManager()" title="Open the full backup manager">
                                 <i class="fas fa-plus"></i>
@@ -1433,17 +1409,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
                     <form method="POST" class="edit-form" style="display:flex;flex-direction:column;height:100%;" id="editorForm">
                         <div class="editor-container" id="editorContainer">
-                            <div class="editor-nav-controls">
-                                <button type="button" onclick="scrollEditorTop()" title="Scroll to top">
-                                    <i class="fas fa-arrow-up"></i>
-                                </button>
-                                <button type="button" onclick="scrollEditorBottom()" title="Scroll to bottom">
-                                    <i class="fas fa-arrow-down"></i>
-                                </button>
-                                <button type="button" onclick="toggleEditorFullWidth()" title="Toggle fullscreen">
-                                    <i class="fas fa-expand" id="fullwidthIcon"></i>
-                                </button>
-                            </div>
                             <div id="editor"></div>
                         </div>
 
@@ -2296,12 +2261,47 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         });
     </script>
     <script>
+        // Add this function to your JavaScript
+        function toggleMobileView() {
+            // Check if we're on mobile
+            if (window.innerWidth <= 768) {
+                const menuPanel = document.getElementById('menuPanel');
+                const menuToggleIcon = document.querySelector('#menuToggle i');
+
+                // Toggle menu visibility class
+                menuPanel.classList.toggle('hidden');
+
+                // Update icon
+                if (menuPanel.classList.contains('hidden')) {
+                    menuToggleIcon.classList.remove('fa-bars');
+                    menuToggleIcon.classList.add('fa-times');
+
+                    // Scroll viewport to show editor (right side)
+                    window.scrollTo({
+                        left: document.documentElement.scrollWidth,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    menuToggleIcon.classList.remove('fa-times');
+                    menuToggleIcon.classList.add('fa-bars');
+
+                    // Scroll viewport back to menu (left side)
+                    window.scrollTo({
+                        left: 0,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+
+        // Update the event listener in setupEventListeners()
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            toggleMobileView();
+        });
+
         // Add this function before your existing event listeners
         function setupEventListeners() {
-            // Toggle mobile menu
-            document.getElementById('mobileMenuToggle').addEventListener('click', function() {
-                toggleMobileMenu();
-            });
+            // Rest of the event listener setup code...
 
             // Menu sort button
             document.getElementById('menuSortBtn').addEventListener('click', function() {
@@ -2401,32 +2401,26 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             };
         }
 
-        function toggleMobileMenu() {
+        // Replace the toggleMobileMenu and event listeners with this universal function
+        function toggleMenu() {
             const menuPanel = document.getElementById('menuPanel');
             const mainContainer = document.getElementById('mainContainer');
-            const menuOverlay = document.getElementById('menuOverlay');
-            const body = document.body;
-            const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
-            const editorView = document.querySelector('.editor-view');
-            const backupView = document.querySelector('.backup-view');
+            const menuToggleIcon = document.querySelector('#menuToggle i');
 
-            menuPanel.classList.toggle('active');
-            mainContainer.classList.toggle('menu-active');
-            menuOverlay.classList.toggle('active');
-            body.classList.toggle('menu-active');
-
-            // Also toggle the active class on editor and backup views
-            editorView.classList.toggle('menu-active');
-            backupView.classList.toggle('menu-active');
+            // Toggle collapsed state
+            menuPanel.classList.toggle('collapsed');
+            mainContainer.classList.toggle('menu-collapsed');
 
             // Update icon based on menu state
-            if (menuPanel.classList.contains('active')) {
-                menuToggleIcon.classList.remove('fa-bars');
-                menuToggleIcon.classList.add('fa-times');
-            } else {
+            if (menuPanel.classList.contains('collapsed')) {
                 menuToggleIcon.classList.remove('fa-times');
                 menuToggleIcon.classList.add('fa-bars');
+            } else {
+                menuToggleIcon.classList.remove('fa-bars');
+                menuToggleIcon.classList.add('fa-times');
             }
+
+            // Make sure editor resizes properly
         }
     </script>
 </body>
