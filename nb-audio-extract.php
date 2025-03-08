@@ -10,14 +10,14 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
-            width: 550px;
+            width: 768px;
         }
 
         .tool-container {
             background: #f4f4f9;
             height: auto;
             margin: 0;
-            max-width: 600px;
+            max-width: 768px;
             width: 100%;
             padding: 20px;
             display: flex;
@@ -144,7 +144,7 @@
 
         #video-preview {
             width: 100%;
-            height: 400px;
+            height: 432px;
             background: #2a2a2a;
             object-fit: contain;
         }

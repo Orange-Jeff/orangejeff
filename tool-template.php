@@ -3,7 +3,6 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NetBound Tools: Template</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -11,173 +10,83 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
-            width: 100%;
-            max-width: 768px;
+            width: 768px;
             margin: 0 auto;
-            box-sizing: border-box;
+            /* Center the body in standalone mode */
         }
 
-        /* Layout Components */
+        /* In iframe, use left alignment */
+        body.in-iframe {
+            margin: 0;
+        }
+
         .tool-container {
             background: #f4f4f9;
-            width: 100%;
+            height: auto;
             margin: 0;
-            padding: 0 20px;
+            max-width: 768px;
+            width: 100%;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
-        }
-
-        .tool-header {
-            background: #f4f4f9;
-            padding: 0 0 10px 0;
-            border-bottom: 1px solid #dee2e6;
-            width: 100%;
-            box-sizing: border-box;
         }
 
         .work-area {
-            padding: 0;
-            height: auto;
-            background: #f4f4f9;
-            display: flex;
             width: 100%;
+            display: flex;
             flex-direction: column;
             align-items: flex-start;
-            box-sizing: border-box;
         }
 
         .preview-area {
+            margin-top: 10px;
             width: 100%;
-            min-height: 200px;
-            border: 1px solid #ddd;
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 4px;
-            box-sizing: border-box;
         }
 
         .tool-title {
-            margin: 20px 0 8px 0;
+            margin: 10px 0;
+            padding: 0;
             color: #0056b3;
             line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
         }
 
-        /* Button Controls */
         .button-controls {
             width: 100%;
             padding: 10px 0;
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
-        /* Joint button container */
-        .joint-buttons {
-            display: flex;
-            width: 100%;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        /* Button pair container */
-        .button-pair {
-            display: flex;
-            overflow: hidden;
-            flex: 1 1 calc(50% - 5px);
-        }
-
-        @media (max-width: 576px) {
-            .button-pair {
-                flex: 1 1 100%;
-                margin-bottom: 5px;
-            }
-        }
-
-        /* Main action button */
-        .action-button {
-            flex: 3;
-            background: #0056b3;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            border-top-left-radius: 3px;
-            border-bottom-left-radius: 3px;
-            transition: background-color 0.2s;
-        }
-
-        /* Plus/secondary button */
-        .plus-button {
-            background: #0056b3;
-            color: white;
-            border: none;
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 6px 8px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-top-right-radius: 3px;
-            border-bottom-right-radius: 3px;
-            transition: background-color 0.2s;
-        }
-
-        /* Command buttons */
         .command-button {
             background: #0056b3;
             color: white;
             border: none;
             border-radius: 3px;
-            padding: 6px 12px;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: background-color 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            white-space: nowrap;
+            gap: 4px;
         }
 
-        /* Button states */
-        .action-button:hover,
-        .plus-button:hover,
-        .command-button:hover {
-            background-color: #004494;
-        }
-
-        .action-button:disabled,
-        .plus-button:disabled,
         .command-button:disabled {
-            background-color: #cccccc;
+            background: #ccc;
             cursor: not-allowed;
-            opacity: 0.6;
         }
 
-        /* Make buttons more responsive */
-        @media (max-width: 576px) {
-            .command-button {
-                flex: 1 1 calc(50% - 5px);
-                justify-content: center;
-                white-space: normal;
-            }
+        .command-button:hover:not(:disabled) {
+            background: #004494;
         }
 
-        /* Status bar */
         .status-bar {
             width: 100%;
-            height: 84px;
-            min-height: 84px;
-            max-height: 84px;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
             overflow-y: auto;
             border: 1px solid #ddd;
             background: #fff;
@@ -187,102 +96,192 @@
             display: flex;
             flex-direction: column-reverse;
             box-sizing: border-box;
+            /* Ensure padding is included in width */
         }
 
         .status-message {
-            margin: 0;
-            font-size: 13px;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
             color: #666;
-            padding: 2px 5px;
-            line-height: 24px;
-            height: 24px;
-        }
-
-        .status-message.info {
-            background: transparent;
-        }
-
-        .status-message.success {
-            background: transparent;
-            color: #28a745;
-        }
-
-        .status-message.error {
-            background: transparent;
-            color: #dc3545;
         }
 
         .status-message:first-child {
-            background-color: #0056b3;
             color: white;
+        }
+
+        .status-message.info {
+            border-left: 3px solid #2196f3;
+        }
+
+        .status-message.info:first-child {
+            background: #2196f3;
+        }
+
+        .status-message.success {
+            border-left: 3px solid #4caf50;
         }
 
         .status-message.success:first-child {
-            background-color: #28a745;
-            color: white;
+            background: #4caf50;
+        }
+
+        .status-message.error {
+            border-left: 3px solid #f44336;
         }
 
         .status-message.error:first-child {
-            background-color: #dc3545;
-            color: white;
+            background: #f44336;
         }
 
-        /* Drop zone */
-        .drop-zone {
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s;
-            width: 100%;
-            box-sizing: border-box;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-
-        .drop-zone.drag-over {
-            background: #e3f2fd;
-            border-color: #2196f3;
-        }
-
-        /* Bottom controls */
-        .bottom-controls {
+        .filename-control {
             width: 100%;
             display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
             gap: 10px;
-            flex-wrap: wrap;
+            margin: 10px 0;
         }
 
-        @media (max-width: 576px) {
-            .bottom-controls {
-                flex-direction: column;
-            }
+        .filename-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-family: inherit;
+            font-size: 14px;
         }
 
-        /* Frame-specific adjustments */
-        body.in-frame {
-            max-width: 100% !important;
-            margin-left: 20px !important;
-            margin-right: 0 !important;
+        .status-bar.drag-over {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            border-style: dashed;
         }
 
-        body.standalone {
-            max-width: 768px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
+        .button-pair {
+            display: flex;
+            overflow: hidden;
+            width: fit-content;
         }
 
-        /* Prevent flickering during page load */
-        body {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            max-width: 768px;
+        .action-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-top-left-radius: 3px;
+            border-bottom-left-radius: 3px;
         }
 
-        /* Add this to ensure visibility */
-        body.loaded {
-            opacity: 1;
+        .plus-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+        }
+
+        .action-button:hover,
+        .plus-button:hover {
+            background: #004494;
+        }
+
+        .action-button:disabled,
+        .plus-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Content area styling - aspect ratio for landscape video */
+        .content-area {
+            width: 100%;
+            height: 432px;
+            /* 16:9 aspect ratio (768px * 9/16) */
+            background: #2a2a2a;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            /* Ensure consistent sizing */
+        }
+
+        /* Save button styles */
+        .save-button-container {
+            display: flex;
+            width: fit-content;
+            margin: 10px 0;
+        }
+
+        .save-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-top-left-radius: 3px;
+            border-bottom-left-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .download-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .save-button:hover {
+            background: #004494;
+        }
+
+        .download-button:hover {
+            background: #004494;
+        }
+
+        .save-button:disabled,
+        .download-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Ghosted button example */
+        .ghosted-button {
+            background: rgba(0, 86, 179, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 86, 179, 0.3);
+            border-radius: 3px;
+            padding: 6px 8px;
+            cursor: not-allowed;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Apply consistent box-sizing to all elements */
+        * {
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -290,167 +289,225 @@
 <body>
     <div class="tool-container">
         <div class="tool-header">
-            <h1 class="tool-title">NetBound Tools: Template</h1>
-        </div>
-
-        <div id="statusBar" class="status-bar"></div>
-
-        <div class="button-controls">
-            <div class="button-pair">
-                <button class="command-button" data-tooltip="Open file from computer" id="btnOpen">
-                    <i class="fas fa-folder-open"></i> Open
+            <h1 class="tool-title">NetBound Tools: Tool Template</h1>
+            <div id="statusBar" class="status-bar"></div>
+            <div class="button-controls">
+                <button class="command-button" id="btnOpen">
+                    <i class="fas fa-folder-open"></i> Open File
+                </button>
+                <button class="command-button" id="btnActionOne">
+                    <i class="fas fa-play"></i> Action One
+                </button>
+                <button class="command-button" id="btnActionTwo">
+                    <i class="fas fa-cog"></i> Action Two
+                </button>
+                <button class="command-button" id="btnActionThree">
+                    <i class="fas fa-save"></i> Action Three
+                </button>
+                <button class="command-button" id="btnRestart">
+                    <i class="fas fa-redo"></i> Restart
                 </button>
             </div>
-
-            <div class="button-pair">
-                <button class="action-button" data-tooltip="Load from clipboard">
-                    <i class="fas fa-clipboard"></i> From Clipboard
-                </button>
-                <button class="plus-button" data-tooltip="Append from clipboard">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-
-            <div class="button-pair">
-                <button class="action-button" data-tooltip="Save to server">
-                    <i class="fas fa-save"></i> Save
-                </button>
-                <button class="plus-button" data-tooltip="Save to computer">
-                    <i class="fas fa-download"></i>
-                </button>
-            </div>
-
-            <button class="command-button" data-tooltip="Reset tool" id="btnRestart">
-                <i class="fas fa-redo"></i> Restart
-            </button>
         </div>
 
         <div class="work-area">
-            <div class="drop-zone" id="dropZone">
-                Drag & drop files here or click the Open button
-            </div>
-
-            <!-- Preview Area -->
             <div class="preview-area">
-                Preview Content
-            </div>
-        </div>
+                <!-- Content area with 16:9 aspect ratio -->
+                <div class="content-area" id="contentArea">
+                    <!-- Tool-specific content goes here -->
+                </div>
 
-        <!-- Bottom Controls -->
-        <div class="bottom-controls">
-            <div class="button-pair">
-                <button class="action-button">
-                    <i class="fas fa-save"></i> Save
-                </button>
-                <button class="plus-button">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
+                <!-- Filename control below preview area -->
+                <div class="filename-control">
+                    <input type="text" id="filename" class="filename-input" placeholder="No file selected">
+                    <button class="command-button" id="btnRename">
+                        <i class="fas fa-edit"></i> Rename
+                    </button>
+                </div>
 
-            <button class="command-button">
-                <i class="fas fa-check"></i> Done
-            </button>
+                <!-- Save button pair -->
+                <div class="save-button-container">
+                    <button class="save-button" id="btnSave" disabled>
+                        <i class="fas fa-save"></i> SAVE
+                    </button>
+                    <button class="download-button" id="btnDownload" disabled>
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- Additional button controls -->
+                <div class="button-controls">
+                    <button class="command-button" id="btnProcess" disabled>
+                        <i class="fas fa-check"></i> Process
+                    </button>
+                    <button class="ghosted-button" disabled>
+                        <i class="fas fa-ghost"></i> Disabled
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Add hidden file input -->
     <input type="file" id="fileInput" style="display: none">
 
     <script>
-        const OrangeUI = {
-            initStatusBar(containerId) {
-                const container = document.getElementById(containerId);
-                return {
-                    update(message, type = 'info') {
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = `status-message ${type}`;
-                        messageDiv.textContent = message;
-                        container.insertBefore(messageDiv, container.firstChild);
+        // Check if running in an iframe
+        function inIframe() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
 
-                        // Limit history to prevent excessive DOM nodes
-                        if (container.childElementCount > 20) {
-                            container.removeChild(container.lastChild);
-                        }
-                    }
-                };
-            },
+        // Apply iframe-specific styling if needed
+        if (inIframe()) {
+            document.body.classList.add('in-iframe');
+        }
 
-            initFileDropZone(dropZoneId, fileCallback, acceptTypes = '.wav') {
-                const dropZone = document.getElementById(dropZoneId);
-
-                dropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.add('drag-over');
-                });
-
-                dropZone.addEventListener('dragleave', () => {
-                    dropZone.classList.remove('drag-over');
-                });
-
-                dropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropZone.classList.remove('drag-over');
-                    const files = e.dataTransfer.files;
-                    if (files[0]) fileCallback(files[0]);
-                });
+        // Status message handling
+        const status = {
+            update(message, type = 'info') {
+                const container = document.getElementById('statusBar');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `status-message ${type}`;
+                messageDiv.textContent = message;
+                container.insertBefore(messageDiv, container.firstChild); // Insert at top
+                container.scrollTop = 0; // Keep scrolled to top
             }
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize status bar
-            const status = OrangeUI.initStatusBar('statusBar');
-
-            // Setup buttons
             const fileInput = document.getElementById('fileInput');
+            const btnOpen = document.getElementById('btnOpen');
+            const btnRename = document.getElementById('btnRename');
+            const btnRestart = document.getElementById('btnRestart');
+            const btnActionOne = document.getElementById('btnActionOne');
+            const btnActionTwo = document.getElementById('btnActionTwo');
+            const btnActionThree = document.getElementById('btnActionThree');
+            const btnProcess = document.getElementById('btnProcess');
+            const btnSave = document.getElementById('btnSave');
+            const btnDownload = document.getElementById('btnDownload');
+            const statusBar = document.getElementById('statusBar');
+            const filename = document.getElementById('filename');
 
-            document.getElementById('btnOpen').onclick = () => {
-                fileInput.click();
+            let originalFilename = '';
+            let currentFile = null;
+
+            // Initialize drag and drop functionality
+            function initDragAndDrop(statusBar, fileInput) {
+                // Show initial status message
+                status.update('Tool template ready. Drag files here or use buttons.', 'info');
+
+                statusBar.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.add('drag-over');
+                });
+
+                statusBar.addEventListener('dragleave', () => {
+                    statusBar.classList.remove('drag-over');
+                });
+
+                statusBar.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        handleFile(e.dataTransfer.files[0]);
+                    }
+                });
+            }
+
+            // File handling function
+            function handleFile(file) {
+                if (file) {
+                    currentFile = file;
+                    originalFilename = file.name;
+                    filename.value = file.name;
+                    status.update(`File selected: ${file.name}`, 'success');
+
+                    // Get file extension
+                    const fileExt = originalFilename.split('.').pop();
+
+                    // Enable relevant buttons
+                    btnProcess.disabled = false;
+                    btnSave.disabled = false;
+                    btnDownload.disabled = false;
+                    btnRename.disabled = false;
+                }
+            }
+
+            // Button click handlers
+            btnOpen.onclick = () => fileInput.click();
+            btnRestart.onclick = () => location.reload();
+
+            // Handle rename functionality
+            btnRename.onclick = () => {
+                if (currentFile) {
+                    const newName = filename.value.trim();
+                    if (newName) {
+                        // Ensure file extension is preserved
+                        const fileExt = originalFilename.split('.').pop();
+                        if (!newName.endsWith(`.${fileExt}`)) {
+                            filename.value = `${newName}.${fileExt}`;
+                        }
+                        status.update(`File renamed to: ${filename.value}`, 'info');
+                    } else {
+                        filename.value = originalFilename;
+                        status.update('Filename cannot be empty, reverted to original', 'error');
+                    }
+                }
             };
 
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) {
+            // Example button handlers
+            btnActionOne.onclick = () => {
+                status.update('Action One clicked', 'info');
+            };
+
+            btnActionTwo.onclick = () => {
+                status.update('Action Two clicked', 'info');
+            };
+
+            btnActionThree.onclick = () => {
+                status.update('Action Three clicked', 'info');
+            };
+
+            btnProcess.onclick = () => {
+                status.update('Processing...', 'info');
+                setTimeout(() => {
+                    status.update('Process completed!', 'success');
+                }, 1000);
+            };
+
+            // Save button handlers
+            btnSave.onclick = () => {
+                status.update(`Saving ${filename.value} to program folder...`, 'info');
+                setTimeout(() => {
+                    status.update('File saved to program folder', 'success');
+                }, 500);
+            };
+
+            btnDownload.onclick = () => {
+                status.update(`Saving ${filename.value} to downloads folder...`, 'info');
+                setTimeout(() => {
+                    status.update('File saved to downloads folder', 'success');
+                }, 500);
+            };
+
+            // Set initial button states
+            btnProcess.disabled = true;
+            btnSave.disabled = true;
+            btnDownload.disabled = true;
+            btnRename.disabled = true;
+
+            // File input handler
+            fileInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
                     handleFile(e.target.files[0]);
                 }
-            });
-
-            document.getElementById('btnRestart').onclick = () => {
-                location.reload();
             };
 
-            // Function to detect iframe and adjust positioning
-            function adjustPositioningForFrame() {
-                // Check if we're in an iframe
-                const inFrame = window !== window.top;
-
-                if (inFrame) {
-                    // In iframe: left-justified with 20px margin
-                    document.body.style.maxWidth = '100%';
-                    document.body.style.margin = '0 0 0 20px';
-                } else {
-                    // Not in iframe: left-justified with no margin
-                    document.body.style.maxWidth = '768px';
-                    document.body.style.margin = '0';
-                }
-
-                // Add a class to body for additional CSS targeting
-                document.body.classList.add(inFrame ? 'in-frame' : 'standalone');
-
-                // Ensure the body is visible
-                document.body.classList.add('loaded');
-            }
-
-            // Initialize the drop zone
-            OrangeUI.initFileDropZone('dropZone', handleFile);
-
-            function handleFile(file) {
-                // Add your file handling code here
-                status.update(`File loaded: ${file.name}`, 'success');
-            }
-
-            // Check if we're in an iframe and adjust positioning
-            adjustPositioningForFrame();
-
-            status.update('Open file to begin', 'info');
+            // Initialize drag and drop
+            initDragAndDrop(statusBar, fileInput);
         });
     </script>
 </body>

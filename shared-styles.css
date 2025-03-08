@@ -272,6 +272,7 @@ iframe {
     padding: 0;
 }
 
+/* Update the bottom action bar styles */
 .bottom-action-bar {
     position: fixed;
     bottom: 60px;
@@ -279,8 +280,7 @@ iframe {
     right: 0;
     background: transparent;
     padding: 0;
-    /* Remove padding from the bar itself */
-    border-top: 1px solid #dee2e6;
+    border-top: none;
     z-index: 1000;
 }
 
@@ -290,19 +290,36 @@ iframe {
     display: flex;
     gap: 8px;
     margin: 0 auto;
-    /* Center in normal mode */
     padding: 10px;
-    /* Match the padding with menu-container */
     align-items: center;
     height: 28px;
+    padding-left: 10px; /* Match the menu-container padding exactly */
 }
 
-/* For iframe mode, align left exactly */
+/* For iframe mode */
+.iframe-mode .bottom-action-bar {
+    bottom: 80px;
+}
+
 .iframe-mode .bottom-action-bar .button-row {
     margin: 0;
-    /* Remove auto margin */
-    padding-left: 10px;
-    /* Match the menu container padding */
+    padding: 20px 10px 10px 15px; /* Keep top padding but adjust left */
+}
+
+/* Non-iframe mode left padding adjustment */
+.bottom-action-bar .button-row {
+    padding-left: 20px; /* Align with other left side elements */
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .bottom-action-bar .button-row {
+        padding-left: 10px;
+    }
+
+    .iframe-mode .bottom-action-bar .button-row {
+        padding-left: 10px;
+    }
 }
 
 .ghosted {
@@ -316,7 +333,7 @@ iframe {
 /* Adjust file tree height to account for bottom action bar */
 .file-tree {
     height: calc(100vh - 320px);
-    margin-bottom: 90px;
+    margin-bottom: 100px;
 }
 
 @media (max-width: 768px) {
@@ -329,8 +346,4 @@ iframe {
         gap: 5px;
         justify-content: center;
     }
-}
-
-.iframe-mode .bottom-action-bar {
-    bottom: 80px;
 }
