@@ -1,1 +1,0 @@
-vfffmpeg.exe and vfffmpeg64.exe is a sample FFMPEG.EXE provided with SDK for testing or usage. Any other FFMPEG build can be used. FFMPEG can be build using various software licenses depending from available codecs and so on. You can read more info on FFMPEG official website. VisioForge SDK's do not require this exe files, that's optional.
