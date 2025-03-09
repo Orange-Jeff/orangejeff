@@ -178,146 +178,35 @@
             cursor: not-allowed;
         }
 
-        .progress {
-            width: 100%;
-            height: 4px;
-            background: #eee;
-            border-radius: 2px;
-            overflow: hidden;
-            position: relative;
-            margin-top: 5px;
-        }
+.progress {
+    position: absolute; /* Positioned within audio-waveform */
+    left: 0;
+    top: 0;
+    height: 4px; /* Reduced height for waveform area */
+    width: 100%;
+    background: rgba(204, 204, 204, 0.5); /* Semi-transparent light gray background */
+    border-radius: 0; /* No border radius */
+    overflow: hidden;
+    margin-top: 0; /* Reset margin-top */
+}
 
-        .progress-bar {
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            background: #0056b3;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
+.progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%; /* Back to 100% height of container */
+    background: #0056b3; /* Dark button blue color */
+    width: 0%;
+    transition: width 0.1s linear;
+    border: none; /* Removed red border */
+}
 
-        .progress-text {
-            position: absolute;
-            right: 5px;
-            top: -18px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .content-area {
-            width: 100%;
-            height: 432px;
-            background: #2a2a2a;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin: 10px 0;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-        }
-
-        canvas {
-            max-width: 100%;
-            max-height: 100%;
-        }
-
-        .audio-container {
-            width: 100%;
-            margin: 10px 0 5px 0;
-            background: #f8f8f8;
-            border-radius: 4px;
-        }
-
-        .audio-waveform {
-            width: 100%;
-            height: 60px;
-            background: #f0f0f0;
-            /* Light background to match the canvas */
-            position: relative;
-            display: none;
-        }
-
-        .playhead {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 2px;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: none;
-        }
-
-        .filename-control {
-            width: 100%;
-            display: flex;
-            gap: 10px;
-            margin: 5px 0;
-        }
-
-        .output-control {
-            width: 100%;
-            display: flex;
-            gap: 10px;
-            margin: 5px 0;
-            align-items: center;
-        }
-
-        .output-info {
-            flex: 1;
-            font-size: 14px;
-            color: #555;
-        }
-
-        .filename-input {
-            flex: 1;
-            padding: 6px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .duration-input {
-            width: 80px;
-            padding: 6px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-align: center;
-            font-family: monospace;
-        }
-
-        .timer {
-            color: #666;
-            margin-left: 10px;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .status-bar.drag-over {
-            background: #e3f2fd;
-            border-color: #2196f3;
-            border-style: dashed;
-        }
-
-        .status-message.processing {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .processing-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: #4caf50;
-            transition: width 0.1s linear;
-            z-index: 1;
-        }
+.audio-waveform .progress-text {
+    top: -20px; /* Adjust position of progress text above progress bar */
+    right: 10px; /* Adjust position of progress text */
+    color: #fff; /* White progress text color for contrast on waveform */
+    font-size: 11px; /* Slightly smaller progress text */
+}
     </style>
 </head>
 
@@ -326,12 +215,8 @@
         <div class="tool-header">
             <h1 class="tool-title">NetBound Tools: Image Sync</h1>
 
-            <!-- Status bar now includes progress -->
+            <!-- Status bar now includes status -->
             <div id="statusBar" class="status-bar">
-                <div class="progress">
-                    <div class="progress-bar" id="progress"></div>
-                    <div class="progress-text" id="progressText">0%</div>
-                </div>
                 <div id="status" class="status-message info">Ready</div>
             </div>
 
@@ -375,6 +260,10 @@
                 <!-- Audio waveform -->
                 <div class="audio-container">
                     <div class="audio-waveform" id="waveform">
+                        <div class="progress">
+                            <div class="progress-bar" id="progress"></div>
+                            <div class="progress-text" id="progressText">0%</div>
+                        </div>
                         <canvas id="audioCanvas"></canvas>
                         <div class="playhead"></div>
                     </div>
@@ -636,14 +525,15 @@
                 els.timer.textContent = formatTime(duration - elapsed) + ' remaining';
 
                 // Update our new progress bar in the status message
-                progressBar.style.width = percent + '%';
+                if (state.statusProgressBar) {
+                    state.statusProgressBar.style.width = percent + '%';
+                }
 
                 if (elapsed < duration && state.recording) {
                     drawImage();
                     requestAnimationFrame(updateProgress);
                 } else if (state.recording) {
                     // When complete, update our status message
-                    status.updateMessage(statusMsg, 'Video processing complete!', 'success');
                     finishRecording(); // Use finishRecording instead of stopRecording
                 }
             }
@@ -689,15 +579,8 @@
                         return;
                     }
 
-                    // Create processing status with progress bar
+                    // Create processing status without progress bar
                     const statusMsg = status.update('Processing video...', 'info');
-                    statusMsg.className = 'status-message processing';
-
-                    // Add progress indicator to status message
-                    const progressBar = document.createElement('div');
-                    progressBar.className = 'processing-progress';
-                    progressBar.style.width = '0%';
-                    statusMsg.appendChild(progressBar);
 
                     const duration = validateDuration(els.duration.value);
                     if (duration === '00:00') {
@@ -740,7 +623,10 @@
                         audioSource.connect(monitorGainNode);
                         monitorGainNode.connect(audioCtx.destination);
                         monitorGainNode.gain.value = 1; // Start unmuted
-                        audioMonitor = { monitorGainNode, audioCtx };
+                        audioMonitor = {
+                            monitorGainNode,
+                            audioCtx
+                        };
 
                         // Store for mute toggling
                         state.audioMonitor = audioMonitor;
