@@ -235,7 +235,8 @@
         .audio-waveform {
             width: 100%;
             height: 60px;
-            background: #2a2a2a;
+            background: #f0f0f0;
+            /* Light background to match the canvas */
             position: relative;
             display: none;
         }
@@ -301,6 +302,21 @@
             background: #e3f2fd;
             border-color: #2196f3;
             border-style: dashed;
+        }
+
+        .status-message.processing {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .processing-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: #4caf50;
+            transition: width 0.1s linear;
+            z-index: 1;
         }
     </style>
 </head>
@@ -375,14 +391,6 @@
                     <button class="command-button" id="previewBtn" disabled>
                         <i class="fas fa-play"></i> Preview Audio
                     </button>
-                    <div class="save-button-container">
-                        <button class="save-button" id="btnSave" disabled>
-                            <i class="fas fa-save"></i> SAVE MP4
-                        </button>
-                        <button class="download-button" id="btnDownload" disabled>
-                            <i class="fas fa-save"></i> WEBM
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -404,6 +412,7 @@
             document.body.classList.add('in-iframe');
         }
 
+        // Update the status object by removing the fancy processing method
         const status = {
             update(message, type = 'info') {
                 const container = document.getElementById('statusBar');
@@ -412,6 +421,16 @@
                 messageDiv.textContent = message;
                 container.insertBefore(messageDiv, container.firstChild);
                 container.scrollTop = 0;
+                return messageDiv; // Return the message div for potential updates later
+            },
+
+            // We can still update messages when needed
+            updateMessage(element, message, type) {
+                if (!element) return;
+                element.textContent = message;
+                if (type) {
+                    element.className = `status-message ${type}`;
+                }
             }
         };
 
@@ -545,18 +564,25 @@
                 const step = Math.ceil(data.length / els.audioCanvas.width);
                 const amp = els.audioCanvas.height / 2;
 
-                actx.fillStyle = '#2a2a2a';
+                // Use a lighter background color
+                actx.fillStyle = '#f0f0f0';
                 actx.fillRect(0, 0, els.audioCanvas.width, els.audioCanvas.height);
-                actx.strokeStyle = '#2196f3';
-                actx.lineWidth = 2;
-                actx.beginPath();
 
+                // Draw center line
+                actx.strokeStyle = '#cccccc';
+                actx.lineWidth = 1;
+                actx.beginPath();
                 actx.moveTo(0, amp);
                 actx.lineTo(els.audioCanvas.width, amp);
                 actx.stroke();
 
+                // Draw waveform
                 actx.beginPath();
-                actx.moveTo(0, amp);
+
+                // Draw filled waveform for better visibility
+                let lastX = 0;
+                let lastMax = amp;
+                let lastMin = amp;
 
                 for (let i = 0; i < els.audioCanvas.width; i++) {
                     let min = 0,
@@ -569,14 +595,32 @@
                             if (datum > max) max = datum;
                         }
                     }
-                    const y1 = amp + (min * amp);
-                    const y2 = amp + (max * amp);
-                    actx.moveTo(i, y1);
-                    actx.lineTo(i, y2);
+
+                    const y1 = amp + (min * amp * 0.8); // Scale by 0.8 to make waveform more visible
+                    const y2 = amp + (max * amp * 0.8);
+
+                    if (i > 0) {
+                        // Create a connected waveform
+                        actx.moveTo(lastX, lastMax);
+                        actx.lineTo(i, y2);
+                        actx.lineTo(i, y1);
+                        actx.lineTo(lastX, lastMin);
+                    }
+
+                    lastX = i;
+                    lastMin = y1;
+                    lastMax = y2;
                 }
 
-                actx.strokeStyle = '#4caf50';
+                // Use blue for the waveform to match your other tools
+                actx.strokeStyle = '#2196f3';
+                actx.lineWidth = 2;
                 actx.stroke();
+
+                // Add a subtle fill to the waveform
+                actx.fillStyle = 'rgba(33, 150, 243, 0.2)';
+                actx.fill();
+
                 els.waveform.style.display = 'block';
             }
 
@@ -586,15 +630,21 @@
                 const duration = parseTime(els.duration.value);
                 const percent = Math.min(100, (elapsed / duration) * 100);
 
+                // Update both the progress bar and our status message
                 els.progress.style.width = percent + '%';
                 els.progressText.textContent = Math.round(percent) + '%';
                 els.timer.textContent = formatTime(duration - elapsed) + ' remaining';
+
+                // Update our new progress bar in the status message
+                progressBar.style.width = percent + '%';
 
                 if (elapsed < duration && state.recording) {
                     drawImage();
                     requestAnimationFrame(updateProgress);
                 } else if (state.recording) {
-                    stopRecording();
+                    // When complete, update our status message
+                    status.updateMessage(statusMsg, 'Video processing complete!', 'success');
+                    finishRecording(); // Use finishRecording instead of stopRecording
                 }
             }
 
@@ -604,7 +654,14 @@
                 if (state.imageFile) {
                     const img = new Image();
                     img.onload = () => {
+                        // Add resolution
                         info += `${img.width}x${img.height}px`;
+
+                        // Add audio status directly in the format information
+                        const audioStatus = state.audioBuffer ? 'with audio' : 'without audio';
+                        info += ` (${audioStatus})`;
+
+                        // Add duration
                         if (state.audioBuffer) {
                             const duration = formatTime(state.audioBuffer.duration * 1000);
                             info += `, ${duration} duration`;
@@ -632,6 +689,16 @@
                         return;
                     }
 
+                    // Create processing status with progress bar
+                    const statusMsg = status.update('Processing video...', 'info');
+                    statusMsg.className = 'status-message processing';
+
+                    // Add progress indicator to status message
+                    const progressBar = document.createElement('div');
+                    progressBar.className = 'processing-progress';
+                    progressBar.style.width = '0%';
+                    statusMsg.appendChild(progressBar);
+
                     const duration = validateDuration(els.duration.value);
                     if (duration === '00:00') {
                         status.update('Duration cannot be zero', 'error');
@@ -639,14 +706,25 @@
                     }
 
                     els.duration.value = duration;
-
                     state.recording = true;
                     state.startTime = 0;
                     els.startBtn.disabled = true;
                     els.stopBtn.disabled = false;
-                    status.update('Starting video processing...', 'info');
 
+                    // With this conditional message:
+                    if (state.audioBuffer) {
+                        status.update('Creating video with audio track...', 'info');
+                    } else {
+                        status.update('Creating silent video...', 'info');
+                    }
+
+                    // Rest of the recording setup...
                     state.stream = els.canvas.captureStream();
+
+                    // Set up audio monitoring
+                    let monitorGainNode = null;
+                    let audioMonitor = null;
+
                     if (state.audioBuffer) {
                         const audioCtx = new AudioContext();
                         const source = audioCtx.createMediaStreamDestination();
@@ -655,9 +733,28 @@
                         audioSource.buffer = state.audioBuffer;
                         audioSource.connect(gainNode);
                         gainNode.connect(source);
-                        gainNode.gain.value = 1;
+                        gainNode.gain.value = 1; // Full volume for recording
+
+                        // Add monitoring path
+                        monitorGainNode = audioCtx.createGain();
+                        audioSource.connect(monitorGainNode);
+                        monitorGainNode.connect(audioCtx.destination);
+                        monitorGainNode.gain.value = 1; // Start unmuted
+                        audioMonitor = { monitorGainNode, audioCtx };
+
+                        // Store for mute toggling
+                        state.audioMonitor = audioMonitor;
+
+                        // Change preview button to mute button during recording
+                        els.previewBtn.disabled = false;
+                        els.previewBtn.innerHTML = '<i class="fas fa-volume-up"></i> Mute';
+                        els.previewBtn.title = "Mute monitoring only - final video will still include audio";
+
                         audioSource.start();
                         state.stream.addTrack(source.stream.getAudioTracks()[0]);
+                    } else {
+                        // If no audio, disable the button during recording
+                        els.previewBtn.disabled = true;
                     }
 
                     state.recorder = new MediaRecorder(state.stream, {
@@ -667,23 +764,67 @@
 
                     const chunks = [];
                     state.recorder.ondataavailable = e => chunks.push(e.data);
-                    state.recorder.onstop = () => {
-                        const blob = new Blob(chunks, {
-                            type: 'video/webm'
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = els.filename.value || 'recording.webm';
-                        a.click();
-                        URL.revokeObjectURL(url);
 
-                        status.update('Video processing complete!', 'success');
+                    // Update what happens when recording stops
+                    const originalStopFn = state.recorder.onstop;
+                    state.recorder.onstop = () => {
+                        // Reset preview button to normal state
+                        if (state.audioBuffer) {
+                            els.previewBtn.innerHTML = '<i class="fas fa-play"></i> Preview Audio';
+                            els.previewBtn.title = "";
+                            els.previewBtn.disabled = false;
+                        }
+
+                        // Clean up audio monitoring
+                        if (audioMonitor && audioMonitor.audioCtx) {
+                            if (audioMonitor.audioCtx.state !== 'closed') {
+                                audioMonitor.audioCtx.close();
+                            }
+                        }
+                        state.audioMonitor = null;
+
+                        // Call original onstop handler
+                        originalStopFn();
+                    };
+
+                    state.recorder.onstop = () => {
+                        // Check if this was an abort or a normal completion
+                        if (!state.aborted) {
+                            const blob = new Blob(chunks, {
+                                type: 'video/webm'
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = els.filename.value || 'recording.webm';
+                            a.click();
+
+                            // Calculate size in KB or MB
+                            const size = blob.size;
+                            const sizeStr = size > 1024 * 1024 ?
+                                (size / (1024 * 1024)).toFixed(2) + ' MB' :
+                                (size / 1024).toFixed(2) + ' KB';
+
+                            // Get resolution from canvas
+                            const resolution = `${els.canvas.width}x${els.canvas.height}px`;
+
+                            // Check if audio was included
+                            const audioStatus = state.audioBuffer ? 'with audio' : 'without audio';
+
+                            status.update(`Video processed successfully: ${sizeStr} WebM file (${resolution}) ${audioStatus}`, 'success');
+
+                            URL.revokeObjectURL(url);
+                        }
+                        // Don't show success message or download if aborted
+
                         els.timer.textContent = '';
                         els.progress.style.width = '0%';
                         els.progressText.textContent = '0%';
                         els.startBtn.disabled = false;
                         els.stopBtn.disabled = true;
+
+                        // Reset abort flag
+                        state.aborted = false;
                     };
 
                     state.recorder.start(100);
@@ -700,18 +841,50 @@
                 }
             }
 
-            function stopRecording() {
+            // Add this new function for normal completion
+            function finishRecording() {
                 if (state.recorder?.state === 'recording') {
                     state.recording = false;
                     state.recorder.stop();
+
                     if (state.stream) {
                         state.stream.getTracks().forEach(track => track.stop());
                     }
-                    status.update('Recording stopped', 'info');
+                }
+            }
+
+            // Keep the abort function separate
+            function stopRecording() {
+                if (state.recorder?.state === 'recording') {
+                    // Set aborted flag before stopping recorder
+                    state.aborted = true;
+                    state.recording = false;
+                    state.recorder.stop();
+
+                    status.update('Recording aborted by user. No file was saved.', 'error');
+
+                    if (state.stream) {
+                        state.stream.getTracks().forEach(track => track.stop());
+                    }
                 }
             }
 
             function previewAudio() {
+                // If we're recording, toggle mute instead of preview
+                if (state.recording && state.audioMonitor) {
+                    if (state.audioMonitor.monitorGainNode.gain.value > 0) {
+                        // Mute
+                        state.audioMonitor.monitorGainNode.gain.value = 0;
+                        els.previewBtn.innerHTML = '<i class="fas fa-volume-mute"></i> Unmute';
+                    } else {
+                        // Unmute
+                        state.audioMonitor.monitorGainNode.gain.value = 1;
+                        els.previewBtn.innerHTML = '<i class="fas fa-volume-up"></i> Mute';
+                    }
+                    return;
+                }
+
+                // Original preview functionality when not recording
                 if (!state.audioBuffer) {
                     status.update('No audio loaded to preview', 'error');
                     return;
@@ -783,6 +956,11 @@
                         els.startBtn.disabled = false;
                         els.btnSave.disabled = false;
                         els.btnDownload.disabled = false;
+
+                        // Add status message when no audio is present
+                        if (!state.audioBuffer) {
+                            status.update('No audio added. Video will be silent unless audio is added.', 'info');
+                        }
                     };
                     img.src = URL.createObjectURL(state.imageFile);
 
@@ -802,7 +980,15 @@
 
                         els.duration.disabled = true;
 
+                        // Force waveform display
+                        els.waveform.style.display = 'block';
                         drawAudioWaveform();
+
+                        // Force a small delay to ensure rendering happens
+                        setTimeout(() => {
+                            drawAudioWaveform(); // Draw again after a slight delay
+                        }, 100);
+
                         els.previewBtn.disabled = false;
 
                         status.update(`Audio loaded: ${formatTime(state.audioBuffer.duration * 1000)} duration, ${Math.round(e.target.files[0].size/1024)}KB`, 'success');
@@ -833,13 +1019,25 @@
             els.startBtn.addEventListener('click', startRecording);
             els.stopBtn.addEventListener('click', stopRecording);
             els.previewBtn.addEventListener('click', previewAudio);
-            els.btnSave.addEventListener('click', () => {
-                // Handle save functionality
-                status.update('Save MP4 functionality not implemented', 'error');
+
+            // Ensure waveform resizes properly
+            window.addEventListener('resize', () => {
+                if (state.audioBuffer) {
+                    drawAudioWaveform();
+                }
             });
-            els.btnDownload.addEventListener('click', () => {
-                // Handle download as WEBM
-                status.update('Direct WEBM download not implemented', 'error');
+
+            // Initialize UI
+            drawImage();
+
+            // Add event listener for the rename button
+            els.btnRename.addEventListener('click', () => {
+                const newName = els.filename.value.trim();
+                if (newName) {
+                    status.update(`File renamed to "${newName}"`, 'info');
+                } else {
+                    status.update('Please enter a valid filename', 'error');
+                }
             });
         });
     </script>
