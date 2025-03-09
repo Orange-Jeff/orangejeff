@@ -55,7 +55,7 @@
             padding: 10px 0;
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             align-items: center;
         }
 
@@ -70,6 +70,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            white-space: nowrap;
         }
 
         .command-button:disabled {
@@ -81,7 +82,6 @@
             background: #004494;
         }
 
-        /* Status bar with less space below */
         .status-bar {
             width: 100%;
             height: 90px;
@@ -91,8 +91,7 @@
             border: 1px solid #ddd;
             background: #fff;
             padding: 5px;
-            margin: 10px 0 5px 0;
-            /* Reduced bottom margin */
+            margin: 10px 0;
             border-radius: 4px;
             display: flex;
             flex-direction: column-reverse;
@@ -106,7 +105,6 @@
             color: #666;
         }
 
-        /* Only the first/latest message has background color */
         .status-message:first-child {
             color: white;
         }
@@ -135,13 +133,11 @@
             background: #f44336;
         }
 
-        /* Reduced file info spacing */
         .file-info {
             color: #666;
             font-size: 12px;
             margin: 2px 0;
             display: none;
-            /* Hide this as we're moving info to status area */
         }
 
         .save-button-container {
@@ -183,12 +179,13 @@
         }
 
         .progress {
-            margin: 5px 0;
-            height: 20px;
+            width: 100%;
+            height: 4px;
             background: #eee;
-            border-radius: 10px;
+            border-radius: 2px;
             overflow: hidden;
             position: relative;
+            margin-top: 5px;
         }
 
         .progress-bar {
@@ -203,20 +200,15 @@
 
         .progress-text {
             position: absolute;
-            width: 100%;
-            text-align: center;
-            line-height: 20px;
-            color: #fff;
+            right: 5px;
+            top: -18px;
             font-size: 12px;
-            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
-            z-index: 1;
+            color: #666;
         }
 
-        /* Content area */
         .content-area {
             width: 100%;
             height: 432px;
-            /* 16:9 aspect ratio */
             background: #2a2a2a;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -233,7 +225,6 @@
             max-height: 100%;
         }
 
-        /* Audio section */
         .audio-container {
             width: 100%;
             margin: 10px 0 5px 0;
@@ -259,7 +250,6 @@
             display: none;
         }
 
-        /* Controls */
         .filename-control {
             width: 100%;
             display: flex;
@@ -320,19 +310,16 @@
         <div class="tool-header">
             <h1 class="tool-title">NetBound Tools: Image Sync</h1>
 
-            <!-- Status bar that doubles as drag zone -->
+            <!-- Status bar now includes progress -->
             <div id="statusBar" class="status-bar">
+                <div class="progress">
+                    <div class="progress-bar" id="progress"></div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
                 <div id="status" class="status-message info">Ready</div>
             </div>
 
-            <!-- Progress indicator -->
-            <div class="progress">
-                <div class="progress-bar" id="progress"></div>
-                <div class="progress-text" id="progressText">0%</div>
-            </div>
-            <span class="timer" id="timer"></span>
-
-            <!-- Button controls in top row - consistent with template -->
+            <!-- Top row buttons -->
             <div class="button-controls">
                 <button class="command-button" onclick="document.getElementById('imageInput').click()">
                     <i class="fas fa-image"></i> Open Image
@@ -346,25 +333,14 @@
             </div>
         </div>
 
-        <!-- Content preview area -->
         <div class="work-area">
             <div class="preview-area">
+                <!-- Content preview area -->
                 <div class="content-area">
                     <canvas id="canvas"></canvas>
                 </div>
 
-                <!-- Move fileInfo to status messages -->
-                <div id="fileInfo" class="file-info"></div>
-
-                <!-- Audio waveform visualization -->
-                <div class="audio-container">
-                    <div class="audio-waveform" id="waveform">
-                        <canvas id="audioCanvas"></canvas>
-                        <div class="playhead"></div>
-                    </div>
-                </div>
-
-                <!-- Filename control on its own line -->
+                <!-- Filename control -->
                 <div class="filename-control">
                     <input type="text" class="filename-input" id="filename" placeholder="Output filename">
                     <button class="command-button" id="btnRename">
@@ -372,14 +348,23 @@
                     </button>
                 </div>
 
-                <!-- Output format info on its own line -->
+                <!-- Stats and duration -->
                 <div class="output-control">
                     <div class="output-info" id="outputInfo">Output format: No media loaded</div>
                     <label for="duration">Duration:</label>
                     <input type="text" class="duration-input" id="duration" value="00:05" pattern="[0-9]{2}:[0-9]{2}">
+                    <span class="timer" id="timer"></span>
                 </div>
 
-                <!-- Action buttons -->
+                <!-- Audio waveform -->
+                <div class="audio-container">
+                    <div class="audio-waveform" id="waveform">
+                        <canvas id="audioCanvas"></canvas>
+                        <div class="playhead"></div>
+                    </div>
+                </div>
+
+                <!-- Process and save controls -->
                 <div class="button-controls">
                     <button class="command-button" id="startBtn">
                         <i class="fas fa-record-vinyl"></i> Process Video
@@ -390,7 +375,6 @@
                     <button class="command-button" id="previewBtn" disabled>
                         <i class="fas fa-play"></i> Preview Audio
                     </button>
-                    <!-- Save buttons -->
                     <div class="save-button-container">
                         <button class="save-button" id="btnSave" disabled>
                             <i class="fas fa-save"></i> SAVE MP4
@@ -407,9 +391,7 @@
     <input type="file" id="imageInput" accept="image/*" style="display: none">
     <input type="file" id="audioInput" accept="audio/*" style="display: none">
 
-    <!-- Main JavaScript -->
     <script>
-        // Check if running in an iframe
         function inIframe() {
             try {
                 return window.self !== window.top;
@@ -418,25 +400,22 @@
             }
         }
 
-        // Apply iframe-specific styling if needed
         if (inIframe()) {
             document.body.classList.add('in-iframe');
         }
 
-        // Status message handling
         const status = {
             update(message, type = 'info') {
                 const container = document.getElementById('statusBar');
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `status-message ${type}`;
                 messageDiv.textContent = message;
-                container.insertBefore(messageDiv, container.firstChild); // Insert at top
-                container.scrollTop = 0; // Keep scrolled to top
+                container.insertBefore(messageDiv, container.firstChild);
+                container.scrollTop = 0;
             }
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Elements
             const statusBar = document.getElementById('statusBar');
             const els = {
                 canvas: document.getElementById('canvas'),
@@ -460,7 +439,6 @@
                 btnRename: document.getElementById('btnRename')
             };
 
-            // Initialize drag and drop functionality
             function initDragAndDrop(statusBar, fileInput) {
                 status.update('Image Sync tool ready. Drag image files here or use buttons.', 'info');
 
@@ -484,14 +462,11 @@
                 });
             }
 
-            // Initialize drag and drop
             initDragAndDrop(statusBar, els.imageInput);
 
-            // Canvas context
             const ctx = els.canvas.getContext('2d');
             const actx = els.audioCanvas.getContext('2d');
 
-            // State
             let state = {
                 recording: false,
                 startTime: 0,
@@ -504,22 +479,18 @@
                 audioIsPlaying: false
             };
 
-            // Set canvas sizes
             els.canvas.width = 1280;
             els.canvas.height = 720;
-            els.audioCanvas.width = 100; // Will be adjusted on resize
+            els.audioCanvas.width = 100;
             els.audioCanvas.height = 60;
 
-            // Function to validate and format duration
             function validateDuration(timeStr) {
-                // If it's just a number, convert to MM:SS format
                 if (/^\d+$/.test(timeStr)) {
                     const seconds = parseInt(timeStr, 10);
                     const mins = Math.floor(seconds / 60);
                     const secs = seconds % 60;
                     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
                 }
-                // Already in MM:SS format
                 return timeStr;
             }
 
@@ -535,7 +506,6 @@
                 return `${mins.toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
             }
 
-            // Improved drawImage function to properly fit any image aspect ratio
             function drawImage() {
                 if (!state.imageFile) {
                     ctx.fillStyle = '#2196f3';
@@ -549,7 +519,6 @@
 
                 const img = new Image();
                 img.onload = () => {
-                    // Calculate scale to fit image properly within canvas
                     const scale = Math.min(
                         els.canvas.width / img.width,
                         els.canvas.height / img.height
@@ -559,21 +528,17 @@
                     const x = (els.canvas.width - w) / 2;
                     const y = (els.canvas.height - h) / 2;
 
-                    // Clear canvas with black background
                     ctx.fillStyle = '#000';
                     ctx.fillRect(0, 0, els.canvas.width, els.canvas.height);
 
-                    // Draw image centered
                     ctx.drawImage(img, x, y, w, h);
                 };
                 img.src = URL.createObjectURL(state.imageFile);
             }
 
-            // Improved audio waveform drawing
             function drawAudioWaveform() {
                 if (!state.audioBuffer) return;
 
-                // Update canvas width to match container
                 els.audioCanvas.width = els.waveform.clientWidth;
 
                 const data = state.audioBuffer.getChannelData(0);
@@ -586,12 +551,10 @@
                 actx.lineWidth = 2;
                 actx.beginPath();
 
-                // Draw centerline
                 actx.moveTo(0, amp);
                 actx.lineTo(els.audioCanvas.width, amp);
                 actx.stroke();
 
-                // Draw waveform
                 actx.beginPath();
                 actx.moveTo(0, amp);
 
@@ -606,7 +569,6 @@
                             if (datum > max) max = datum;
                         }
                     }
-                    // Draw from min to max to show complete waveform range
                     const y1 = amp + (min * amp);
                     const y2 = amp + (max * amp);
                     actx.moveTo(i, y1);
@@ -636,7 +598,6 @@
                 }
             }
 
-            // Update output format information
             function updateOutputInfo() {
                 let info = "Output format: ";
 
@@ -671,14 +632,13 @@
                         return;
                     }
 
-                    // Check if duration is valid
                     const duration = validateDuration(els.duration.value);
                     if (duration === '00:00') {
                         status.update('Duration cannot be zero', 'error');
                         return;
                     }
 
-                    els.duration.value = duration; // Update with formatted value
+                    els.duration.value = duration;
 
                     state.recording = true;
                     state.startTime = 0;
@@ -686,7 +646,6 @@
                     els.stopBtn.disabled = false;
                     status.update('Starting video processing...', 'info');
 
-                    // Setup stream
                     state.stream = els.canvas.captureStream();
                     if (state.audioBuffer) {
                         const audioCtx = new AudioContext();
@@ -752,14 +711,12 @@
                 }
             }
 
-            // Fixed previewAudio function
             function previewAudio() {
                 if (!state.audioBuffer) {
                     status.update('No audio loaded to preview', 'error');
                     return;
                 }
 
-                // If already playing, stop it
                 if (state.audioIsPlaying) {
                     if (state.audioSource) {
                         state.audioSource.stop();
@@ -770,26 +727,21 @@
                     }
                 }
 
-                // Create new audio context and buffer source
                 const audioCtx = new AudioContext();
                 const source = audioCtx.createBufferSource();
                 source.buffer = state.audioBuffer;
                 source.connect(audioCtx.destination);
 
-                // Store references to stop later
                 state.audioCtx = audioCtx;
                 state.audioSource = source;
                 state.audioIsPlaying = true;
 
-                // Update button
                 els.previewBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Preview';
 
-                // Start playback
                 source.start(0);
                 const startTime = audioCtx.currentTime;
                 const duration = state.audioBuffer.duration;
 
-                // Show and animate playhead
                 els.playhead.style.display = 'block';
 
                 function updatePlayhead() {
@@ -809,7 +761,6 @@
                     }
                 }
 
-                // Handle completion
                 source.onended = () => {
                     els.playhead.style.display = 'none';
                     els.previewBtn.innerHTML = '<i class="fas fa-play"></i> Preview Audio';
@@ -819,19 +770,16 @@
                 requestAnimationFrame(updatePlayhead);
             }
 
-            // File inputs
             els.imageInput.onchange = async e => {
                 if (e.target.files.length > 0) {
                     state.imageFile = e.target.files[0];
                     els.filename.value = state.imageFile.name.replace(/\.[^/.]+$/, '.webm');
 
-                    // Update file info in status area
                     const img = new Image();
                     img.onload = () => {
                         status.update(`Image loaded: ${img.width}x${img.height}px, ${Math.round(state.imageFile.size/1024)}KB`, 'success');
                         updateOutputInfo();
 
-                        // Enable relevant buttons
                         els.startBtn.disabled = false;
                         els.btnSave.disabled = false;
                         els.btnDownload.disabled = false;
@@ -850,16 +798,13 @@
                         state.audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                         state.audioFile = e.target.files[0];
 
-                        // Update duration field with actual audio duration
                         els.duration.value = formatTime(state.audioBuffer.duration * 1000);
 
-                        // Lock duration field when audio is loaded
                         els.duration.disabled = true;
 
                         drawAudioWaveform();
                         els.previewBtn.disabled = false;
 
-                        // Update file info with audio details
                         status.update(`Audio loaded: ${formatTime(state.audioBuffer.duration * 1000)} duration, ${Math.round(e.target.files[0].size/1024)}KB`, 'success');
                         updateOutputInfo();
                     } catch (err) {
@@ -868,7 +813,6 @@
                 }
             };
 
-            // Duration change handler
             els.duration.onchange = () => {
                 if (!state.audioBuffer) {
                     const duration = validateDuration(els.duration.value);
@@ -883,8 +827,20 @@
                 }
             };
 
-            // Initial setup
             drawImage();
+
+            // Connect buttons to their functions
+            els.startBtn.addEventListener('click', startRecording);
+            els.stopBtn.addEventListener('click', stopRecording);
+            els.previewBtn.addEventListener('click', previewAudio);
+            els.btnSave.addEventListener('click', () => {
+                // Handle save functionality
+                status.update('Save MP4 functionality not implemented', 'error');
+            });
+            els.btnDownload.addEventListener('click', () => {
+                // Handle download as WEBM
+                status.update('Direct WEBM download not implemented', 'error');
+            });
         });
     </script>
 </body>

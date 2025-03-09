@@ -1,4 +1,0 @@
-[2025-03-06 22:47:06] Script started - basic test version
-[2025-03-06 22:47:07] POST data: []
-[2025-03-06 22:47:07] FILES data: []
-[2025-03-06 22:47:07] Created temporary output files
