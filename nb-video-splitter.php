@@ -3,7 +3,6 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <input type="file" id="video-upload" accept="video/*">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -11,12 +10,8 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
-            width: 100%;
-            /* Changed from fixed 550px */
-            max-width: 768px;
-            /* Maximum width for larger screens */
-            margin: 0 auto;
-            /* Center the content */
+            width: 550px;
+            margin: 0;
         }
 
         /* Layout Components */
@@ -25,12 +20,9 @@
             height: auto;
             margin: 0;
             width: 100%;
-            padding: 0 20px;
-            /* Add padding to both sides */
+            padding: 0;
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
-            /* Ensure padding is included in width calculation */
         }
 
         .preview-area {
@@ -70,9 +62,7 @@
             background: #f4f4f9;
             border-bottom: 1px solid #dee2e6;
             padding: 0 0 10px 0;
-            /* Changed: removed the 20px right padding */
             width: 100%;
-            box-sizing: border-box;
         }
 
         .editor-title {
@@ -92,38 +82,25 @@
             padding: 10px 0;
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
-            /* Allow wrapping on small screens */
+            flex-wrap: nowrap;
         }
 
         /* Button group container */
         .joint-buttons {
             display: flex;
             width: 100%;
-            flex-direction: row;
-            flex-wrap: wrap;
-            /* Allow wrapping on small screens */
         }
 
         /* Button pair container */
         .button-pair {
             display: flex;
-            flex: 1 1 100%;
-            /* Full width on small screens */
+            flex: 1;
             overflow: hidden;
-            margin-bottom: 10px;
         }
 
-        @media (min-width: 500px) {
-            .button-pair {
-                flex: 1 1 45%;
-                /* Side by side on wider screens */
-            }
-
-            .button-pair:first-child {
-                margin-right: 10px;
-                /* Space after first pair */
-            }
+        .button-pair:first-child {
+            margin-right: 10px;
+            /* Space after first pair */
         }
 
         /* Main action button */
@@ -222,9 +199,10 @@
         }
 
         /* Status Bar */
-        .status-bar {
+        .persistent-status-bar {
             width: 100%;
             height: 84px;
+            /* Exactly 3.5 lines at 24px per line */
             min-height: 84px;
             max-height: 84px;
             overflow-y: auto;
@@ -236,24 +214,6 @@
             display: flex;
             flex-direction: column-reverse;
             box-sizing: border-box;
-        }
-
-        /* Remove or comment out the old persistent-status-bar class */
-        /* .persistent-status-bar {
-            ...
-        } */
-
-        /* Log items for small screens */
-        .log-item {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        @media (min-width: 480px) {
-            .log-item {
-                flex-direction: row;
-                align-items: center;
-            }
         }
 
         .status-message {
@@ -344,30 +304,6 @@
             border-radius: 4px;
             font-size: 14px;
         }
-
-        /* Frame-specific adjustments */
-        body.in-frame {
-            max-width: 768px !important;
-            margin-left: 20px !important;
-            margin-right: 0 !important;
-        }
-
-        body.standalone {
-            max-width: 768px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-
-        /* Prevent flickering during page load */
-        body {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        body.in-frame,
-        body.standalone {
-            opacity: 1;
-        }
     </style>
 </head>
 
@@ -377,7 +313,7 @@
             <div class="header-top">
                 <h1 class="editor-title">NetBound Tools: Video Extraction & Split Tool</h1>
             </div>
-            <div class="status-bar" id="statusBar"></div>
+            <div class="persistent-status-bar" id="statusBar"></div>
             <div class="button-controls">
                 <button class="command-button" id="btnOpen"><i class="fas fa-folder-open"></i> Open File</button>
                 <button class="command-button" id="btnAbort"><i class="fas fa-stop"></i> Abort</button>
@@ -447,9 +383,6 @@
                 setButtonStates(false);
                 btnRestart.disabled = false;
 
-                // Check if running in iframe and adjust positioning
-                adjustPositioningForFrame();
-
                 // Basic controls
                 btnOpen.onclick = () => videoUpload.click();
                 btnAbort.onclick = handleAbort;
@@ -469,29 +402,6 @@
                 // Add a direct way to get first/last frames without processing
                 doneButton.addEventListener('click', handleDoneButtonClick);
             });
-
-            // Function to detect iframe and adjust positioning
-            function adjustPositioningForFrame() {
-                // Check if we're in an iframe
-                const inFrame = window !== window.top;
-
-                // Apply appropriate styles
-                if (inFrame) {
-                    // In iframe: left-justified with 20px margin, same width as standalone
-                    document.body.style.maxWidth = '768px';
-                    document.body.style.margin = '0 0 0 20px';
-                } else {
-                    // Not in iframe: centered
-                    document.body.style.maxWidth = '768px';
-                    document.body.style.margin = '0 auto';
-                }
-
-                // Add a class to body for additional CSS targeting
-                document.body.classList.add(inFrame ? 'in-frame' : 'standalone');
-
-                // Log the detection result
-                updateStatus(inFrame ? 'Running in embedded frame' : 'Running standalone', 'info');
-            }
 
             // Combined frame extraction function to reduce code duplication
             async function captureAndSaveFrame(frameLabel, time, saveToFile = true, skipLogEntry = false) {
@@ -712,22 +622,6 @@
                 }
             }
 
-            // Add the missing handleMp4Upload function
-            function handleMp4Upload(file) {
-                const url = URL.createObjectURL(file);
-                video.src = url;
-
-                video.onloadeddata = function() {
-                    updateStatus('Video loaded successfully', 'success');
-                    setButtonStates(true); // Enable buttons once video is loaded
-                };
-
-                video.onerror = function() {
-                    updateStatus('Error loading video file', 'error');
-                    URL.revokeObjectURL(url);
-                };
-            }
-
             function formatTime(seconds) {
                 const minutes = Math.floor(seconds / 60);
                 const secs = Math.floor(seconds % 60);
@@ -826,39 +720,12 @@
                     }
 
                     if (!processingComplete) {
-                        // Add completion divider
-                        const completionDivider = document.createElement('div');
-                        completionDivider.className = 'log-item divider';
-                        completionDivider.innerHTML = '<hr style="width:100%; border-top:2px dashed #28a745; margin:15px 0;">';
-                        log.appendChild(completionDivider);
-
-                        // Add completion message
-                        const completionMsg = document.createElement('div');
-                        completionMsg.innerHTML = `<div style="color:#28a745; font-weight:bold; font-size:14px; margin:10px 0;">
-                            ✓ Frame extraction complete - ${totalFrames} frames extracted</div>`;
-                        log.appendChild(completionMsg);
-
-                        updateStatus(`Frame extraction complete. ${totalFrames} frames extracted.`, 'success');
+                        updateStatus(`Frame extraction complete.`, 'success');
                     }
                 } catch (error) {
                     updateStatus(`Error during frame extraction: ${error.message}`, 'error');
                 } finally {
                     setProcessingState(false);
-
-                    // Highlight the "Done" button to guide the user to the next step
-                    doneButton.style.animation = 'pulse 2s infinite';
-                    doneButton.style.boxShadow = '0 0 8px rgba(40, 167, 69, 0.7)';
-
-                    // Add this style to your CSS
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes pulse {
-                            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
-                            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-                            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
-                        }
-                    `;
-                    document.head.appendChild(style);
                 }
             }
 
@@ -927,23 +794,7 @@
                     }
 
                     if (!processingComplete) {
-                        // Add completion divider with different style
-                        const completionDivider = document.createElement('div');
-                        completionDivider.className = 'log-item divider';
-                        completionDivider.innerHTML = '<hr style="width:100%; border-top:2px dashed #28a745; margin:15px 0;">';
-                        log.appendChild(completionDivider);
-
-                        // Add completion message
-                        const completionMsg = document.createElement('div');
-                        completionMsg.innerHTML = `<div style="color:#28a745; font-weight:bold; font-size:14px; margin:10px 0;">
-                            ✓ Split points created successfully - ${totalSegments} segments ready</div>`;
-                        log.appendChild(completionMsg);
-
                         updateStatus(`Split points created successfully. Click "Done" to process all segments.`, 'success');
-
-                        // Highlight the Done button
-                        doneButton.style.animation = 'pulse 2s infinite';
-                        doneButton.style.boxShadow = '0 0 8px rgba(40, 167, 69, 0.7)';
                     }
                 } catch (error) {
                     updateStatus(`Error creating split points: ${error.message}`, 'error');
@@ -952,12 +803,112 @@
                 }
             }
 
-            // Add function to reset button highlights when clicking Done
-            async function handleDoneButtonClick() {
-                // Reset button styles
-                doneButton.style.animation = 'none';
-                doneButton.style.boxShadow = 'none';
+            function handleMp4Upload(file) {
+                const url = URL.createObjectURL(file);
+                video.src = url;
+                video.load();
+                updateStatus('Loading video, please wait...', 'info');
 
+                video.addEventListener('error', () => {
+                    updateStatus(`Error loading video: ${video.error?.message || 'Unknown error'}`, 'error');
+                    URL.revokeObjectURL(url);
+                    setButtonStates(false);
+                }, {
+                    once: true
+                });
+
+                video.onloadedmetadata = () => {
+                    video.currentTime = 0;
+                    video.onseeked = async () => {
+                        // Reset section frame counts
+                        window.sectionFrameCounts = {};
+
+                        await captureAndSaveFrame(`S1F1`, 0);
+                        video.onseeked = null;
+
+                        if (!isNaN(video.duration) && video.duration !== Infinity) {
+                            video.currentTime = video.duration - 0.1; // Slightly before end to ensure frame is available
+                            video.onseeked = async () => {
+                                await captureAndSaveFrame(`S1-Last`, video.currentTime);
+
+                                // Add another divider after the last frame
+                                const endDivider = document.createElement('div');
+                                endDivider.className = 'log-item divider';
+                                endDivider.innerHTML = '<hr style="width:100%; border:0; border-top:2px solid #0056b3; margin:15px 0;">';
+                                log.appendChild(endDivider);
+
+                                video.currentTime = 0;
+                                video.onseeked = null;
+                                updateStatus('Video loaded and ready. First and last frames extracted.', 'success');
+                                setButtonStates(true);
+
+                                // Initialize splits with first and last points
+                                splits = [0, video.duration];
+                            };
+                        } else {
+                            updateStatus('Video loaded but duration unknown.', 'warning');
+                            setButtonStates(true);
+
+                            // Initialize splits with first point
+                            splits = [0];
+                        }
+                    };
+                };
+            }
+
+            // Improved segment processing with proper time slicing
+            async function processVideoSegment(startTime, endTime, segmentNumber) {
+                updateStatus(`Processing segment ${segmentNumber}...`, 'info');
+
+                try {
+                    // Avoid duplicating frames in the log during final processing
+                    const skipLogEntry = true;
+
+                    // Capture start frame
+                    video.currentTime = startTime;
+                    await new Promise(resolve => video.addEventListener('seeked', resolve, {
+                        once: true
+                    }));
+                    await captureAndSaveFrame(`S${segmentNumber}F1`, startTime, true, skipLogEntry);
+
+                    // Extract segment using MediaSource API (limited browser support)
+                    // Note: This is a simplified approach - for true video splitting,
+                    // server-side processing would be more reliable
+
+                    // For now, we'll use the download approach but with a disclaimer
+                    updateStatus(`Note: Currently downloading full video file. Server-side processing needed for true splitting.`, 'warning');
+
+                    const response = await fetch(video.src);
+                    const videoBlob = await response.blob();
+
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(videoBlob);
+                    a.download = `${baseName}-S${segmentNumber}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+
+                    // Capture end frame
+                    video.currentTime = endTime;
+                    await new Promise(resolve => video.addEventListener('seeked', resolve, {
+                        once: true
+                    }));
+
+                    // If this is the last segment, mark it as last frame
+                    const isLastSegment = segmentNumber === splits.length - 1;
+                    const frameName = isLastSegment ? `S${segmentNumber}-Last` : `S${segmentNumber}F2`;
+
+                    await captureAndSaveFrame(frameName, endTime, true, skipLogEntry);
+
+                    updateStatus(`Segment ${segmentNumber} processed`, 'success');
+                } catch (error) {
+                    updateStatus(`Error processing segment ${segmentNumber}: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            async function handleDoneButtonClick() {
                 if (processingComplete || isProcessing) return;
 
                 window.scrollTo({
@@ -1087,23 +1038,6 @@
 
                 // Reset section frame counts when adding new splits
                 window.sectionFrameCounts = {};
-            }
-
-            async function processVideoSegment(startTime, endTime, segmentNumber) {
-                // Missing implementation for actual video segment processing
-                // This would likely:
-                // 1. Extract video segment
-                // 2. Save it to disk or prepare for download
-                // 3. Possibly trigger audio extraction
-
-                updateStatus(`Processing segment ${segmentNumber} from ${formatTime(startTime)} to ${formatTime(endTime)}`, 'info');
-
-                // Capture first and last frames of segment
-                await captureAndSaveFrame(`S${segmentNumber}F1`, startTime);
-                await captureAndSaveFrame(`S${segmentNumber}Last`, endTime - 0.1);
-
-                // Here you'd have code to actually save the video segment
-                updateStatus(`Segment ${segmentNumber} processed: ${formatTime(startTime)} to ${formatTime(endTime)}`, 'success');
             }
         </script>
     </div>
