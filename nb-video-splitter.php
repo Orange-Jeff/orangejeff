@@ -712,6 +712,22 @@
                 }
             }
 
+            // Add the missing handleMp4Upload function
+            function handleMp4Upload(file) {
+                const url = URL.createObjectURL(file);
+                video.src = url;
+
+                video.onloadeddata = function() {
+                    updateStatus('Video loaded successfully', 'success');
+                    setButtonStates(true); // Enable buttons once video is loaded
+                };
+
+                video.onerror = function() {
+                    updateStatus('Error loading video file', 'error');
+                    URL.revokeObjectURL(url);
+                };
+            }
+
             function formatTime(seconds) {
                 const minutes = Math.floor(seconds / 60);
                 const secs = Math.floor(seconds % 60);
@@ -1071,6 +1087,23 @@
 
                 // Reset section frame counts when adding new splits
                 window.sectionFrameCounts = {};
+            }
+
+            async function processVideoSegment(startTime, endTime, segmentNumber) {
+                // Missing implementation for actual video segment processing
+                // This would likely:
+                // 1. Extract video segment
+                // 2. Save it to disk or prepare for download
+                // 3. Possibly trigger audio extraction
+
+                updateStatus(`Processing segment ${segmentNumber} from ${formatTime(startTime)} to ${formatTime(endTime)}`, 'info');
+
+                // Capture first and last frames of segment
+                await captureAndSaveFrame(`S${segmentNumber}F1`, startTime);
+                await captureAndSaveFrame(`S${segmentNumber}Last`, endTime - 0.1);
+
+                // Here you'd have code to actually save the video segment
+                updateStatus(`Segment ${segmentNumber} processed: ${formatTime(startTime)} to ${formatTime(endTime)}`, 'success');
             }
         </script>
     </div>
