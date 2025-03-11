@@ -2328,44 +2328,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     </script>
     <script>
         // Add this function to your JavaScript
-        function toggleMobileView() {
-            // Check mobile state
-            if (window.innerWidth <= 768) {
-                const menuPanel = document.getElementById('menuPanel');
-                const menuToggleIcon = document.querySelector('#menuToggle i');
-
-                // Toggle menu visibility class
-                menuPanel.classList.toggle('hidden');
-
-                // Update icon
-                if (menuPanel.classList.contains('hidden')) {
-                    menuToggleIcon.classList.remove('fa-bars');
-                    menuToggleIcon.classList.add('fa-times');
-
-                    // Scroll viewport to show editor (right side)
-                    window.scrollTo({
-                        left: document.documentElement.scrollWidth,
-                        behavior: 'smooth'
-                    });
-                } else {
-                    menuToggleIcon.classList.remove('fa-times');
-                    menuToggleIcon.classList.add('fa-bars');
-
-                    // Scroll viewport back to menu (left side)
-                    window.scrollTo({
-                        left: 0,
-                        behavior: 'smooth'
-                    });
-                }
-            }
-        }
-
-        // Update the event listener in setupEventListeners()
-        document.getElementById('menuToggle').addEventListener('click', function() {
-            toggleMobileView();
-        });
-
-        // Add this function before your existing event listeners
         function setupEventListeners() {
 
             setupSortButton();

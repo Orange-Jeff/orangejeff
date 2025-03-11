@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <input type="file" id="video-upload" accept="video/*">
+    <title>NetBound Tools: Audio Splitter</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -12,217 +12,213 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
             width: 100%;
-            /* Changed from fixed 550px */
             max-width: 768px;
-            /* Maximum width for larger screens */
             margin: 0 auto;
-            /* Center the content */
+            box-sizing: border-box;
         }
 
         /* Layout Components */
-        .editor-view {
+        .container {
             background: #f4f4f9;
-            height: auto;
-            margin: 0;
             width: 100%;
-            padding: 0 20px;
-            /* Add padding to both sides */
-            display: flex;
-            flex-direction: column;
+            margin: 0;
             box-sizing: border-box;
-            /* Ensure padding is included in width calculation */
+            padding: 15px;
         }
 
-        .preview-area {
-            padding: 0;
-            height: auto;
-            background: #f4f4f9;
-            display: flex;
-            width: 100%;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        /* Video Container */
-        #video-container {
-            position: relative;
-            width: 100%;
-            height: 300px;
-            margin: 0;
-            padding: 0;
-            background: #f4f4f9;
-            display: block;
-        }
-
-        #video {
-            width: 100%;
-            height: 300px;
-            background: #f4f4f9;
-            object-fit: contain;
-        }
-
-        #video-upload {
-            display: none;
-        }
-
-        /* Header Elements */
         .editor-header {
             background: #f4f4f9;
-            border-bottom: 1px solid #dee2e6;
-            padding: 0 0 10px 0;
-            /* Changed: removed the 20px right padding */
+            padding: 0;
+            border-bottom: none;
             width: 100%;
             box-sizing: border-box;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
         }
 
         .editor-title {
-            margin: 0 0 8px 0;
+            margin: 10px 0 8px 0;
             color: #0056b3;
-            margin-top: 20px;
             line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
-            padding-left: 0;
         }
 
-        /* Controls and Buttons */
+        /* Waveform container with responsive design */
+        #waveform-container {
+            position: relative;
+            margin: 5px 0;
+            padding: 5px;
+            background: #f4f4f9;
+            border-radius: 4px;
+            box-shadow: none;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .waveform-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 150px;
+            background: #f4f4f9;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 5px;
+            transition: min-height 0.3s ease;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        #waveform {
+            width: 100%;
+            height: 150px;
+            background-color: #e0f0ff;
+            border: 2px solid #0056b3;
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        #waveform.stereo {
+            height: 180px;
+        }
+
+        .waveform-wrapper.stereo {
+            min-height: 180px;
+        }
+
+        /* Channel labels */
+        .channel-label {
+            position: absolute;
+            left: 5px;
+            font-size: 12px;
+            color: #666;
+            z-index: 2;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        #waveform.stereo .channel-label {
+            opacity: 1;
+        }
+
+        .channel-label.left {
+            top: 5px;
+        }
+
+        .channel-label.right {
+            bottom: 5px;
+        }
+
+        /* Button and controls styling */
         .button-controls,
         .button-group {
-            width: 100%;
-            padding: 10px 0;
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            /* Allow wrapping on small screens */
+            gap: 2px;
+            flex-shrink: 0;
         }
 
-        /* Button group container */
-        .joint-buttons {
-            display: flex;
-            width: 100%;
-            flex-direction: row;
-            flex-wrap: wrap;
-            /* Allow wrapping on small screens */
-        }
-
-        /* Button pair container */
-        .button-pair {
-            display: flex;
-            flex: 1 1 100%;
-            /* Full width on small screens */
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        @media (min-width: 500px) {
-            .button-pair {
-                flex: 1 1 45%;
-                /* Side by side on wider screens */
-            }
-
-            .button-pair:first-child {
-                margin-right: 10px;
-                /* Space after first pair */
-            }
-        }
-
-        /* Main action button */
-        .action-button {
-            flex: 3;
-            /* Takes more space than clock button */
-            background: #0056b3;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            position: relative;
-            /* For connecting to clock button */
-            z-index: 1;
-            /* Ensure borders are over clock button */
-        }
-
-        /* Clock button */
-        .clock-button {
-            flex: 1;
-            background: #0056b3;
-            color: white;
-            border: none;
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Button group borders */
-        .button-pair .action-button {
-            border-top-left-radius: 3px;
-            border-bottom-left-radius: 3px;
-        }
-
-        .button-pair .clock-button {
-            border-top-right-radius: 3px;
-            border-bottom-right-radius: 3px;
-        }
-
-        /* Hover states */
-        .action-button:hover,
-        .clock-button:hover {
-            background: #004494;
-        }
-
-        /* Disabled states */
-        .action-button:disabled,
-        .clock-button:disabled {
-            background: #cccccc;
-            cursor: not-allowed;
-        }
-
-        .command-button {
-            background: #0056b3;
+        .button-blue {
+            background-color: #0056b3;
             color: white;
             border: none;
             border-radius: 3px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 8px;
-            white-space: nowrap;
-        }
-
-        .command-button i {
-            margin-right: 6px;
-        }
-
-        .command-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        /* New styles for the done button container */
-        .done-button-container {
-            width: 100%;
-            padding: 10px 0;
+            min-width: 30px;
+            height: 30px;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            padding: 0 8px;
+            font-size: 14px;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        #btnDone {
+        .button-blue:hover {
+            background-color: #004494;
+        }
+
+        .button-blue:active,
+        .button-blue.playing {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            background-color: #004494;
+        }
+
+        .button-blue.warning {
+            background-color: #6c757d;
+        }
+
+        .button-blue.warning:hover {
+            background-color: #5a6268;
+        }
+
+        /* Play button special styling */
+        #playPause {
+            width: 40px;
+        }
+
+        #playPause i.fas {
+            transition: all 0.2s ease;
+        }
+
+        #playPause.playing i.fas {
+            transform: scale(1.1);
+        }
+
+        /* Controls responsive layout */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
             width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
         }
 
-        /* Status Bar */
-        .status-bar {
+        /* Make controls wrap better on mobile */
+        @media (max-width: 576px) {
+            .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+            .button-blue {
+                min-width: calc(25% - 10px);
+                flex-grow: 1;
+            }
+        }
+
+        .zoom.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Status bar and logs */
+        .persistent-status-bar {
             width: 100%;
             height: 84px;
             min-height: 84px;
@@ -231,29 +227,11 @@
             border: 1px solid #ddd;
             background: #fff;
             padding: 5px;
-            margin: 10px 0;
+            margin: 5px 0;
             border-radius: 4px;
             display: flex;
             flex-direction: column-reverse;
             box-sizing: border-box;
-        }
-
-        /* Remove or comment out the old persistent-status-bar class */
-        /* .persistent-status-bar {
-            ...
-        } */
-
-        /* Log items for small screens */
-        .log-item {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        @media (min-width: 480px) {
-            .log-item {
-                flex-direction: row;
-                align-items: center;
-            }
         }
 
         .status-message {
@@ -262,87 +240,160 @@
             color: #666;
             padding: 2px 5px;
             line-height: 24px;
-            /* Fixed line height */
             height: 24px;
-            /* Fixed height per message */
         }
 
         .status-message:first-child {
-            background: #0056b3;
+            background-color: #0056b3;
             color: white;
         }
 
-        .status-message.error:first-child {
-            background: #dc3545;
+        .status-message:first-child.error {
+            background-color: #dc3545;
             color: white;
         }
 
-        .status-message.success:first-child {
-            background: #28a745;
+        .status-message:first-child.success {
+            background-color: #28a745;
             color: white;
         }
 
-        .status-message.error:not(:first-child) {
-            color: #dc3545;
-            background: transparent;
-        }
-
-        .status-message.success:not(:first-child) {
-            color: #28a745;
-            background: transparent;
-        }
-
-        /* Log Area */
-        #log {
+        /* Region entries */
+        .regions-log {
             margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            font-family: monospace;
+            max-height: 200px;
             overflow-y: auto;
             width: 100%;
-            margin-left: 0;
+            box-sizing: border-box;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
         }
 
-        .log-item {
+        .region-entry {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .region-entry.speaker1 {
+            color: #ff8c00;
+        }
+
+        .region-entry.speaker2 {
+            color: #28a745;
+        }
+
+        .region-entry.trash {
+            color: #6c757d;
+        }
+
+        /* Processed files */
+        .processed-files {
+            margin-top: 20px;
+            width: 100%;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
+        }
+
+        .processed-files a {
+            display: block;
+            margin: 10px 0;
+            color: #0056b3;
+            text-decoration: none;
+        }
+
+        .command-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+
+        .command-button:hover {
+            background-color: #004494;
+        }
+
+        .command-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Make buttons more responsive */
+        @media (max-width: 576px) {
+            .command-button {
+                flex: 1 1 calc(50% - 5px);
+                justify-content: center;
+                white-space: normal;
+            }
+        }
+
+        /* Waveform header */
+        .waveform-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0;
-            background-color: #f4f4f9;
-            margin-bottom: 10px;
-        }
-
-        .log-item img {
-            height: 60px;
-            width: 150px;
-            margin-right: 15px;
-            object-fit: contain;
-        }
-
-        .log-item .frame-info {
-            flex-grow: 1;
-            text-align: left;
-        }
-
-        .log-item.divider hr {
+            background-color: transparent;
             width: 100%;
-            border: 0;
-            border-top: 2px solid #0056b3;
-            margin: 10px 0;
-            padding: 0;
         }
 
-        /* Filename Input */
-        .filename-container {
-            width: 100%;
-            padding: 10px 0;
+        /* Responsive layout for waveform header */
+        @media (max-width: 576px) {
+            .waveform-header {
             display: flex;
-            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
+            width: 100%;
         }
 
-        #filename-input {
+            .waveform-header > * {
             flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
+        }
+
+        .waveform-header span {
+            white-space: nowrap;
+        }
+
+            .zoom.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+        }
+
+        .waveform-header > * {
+            flex: 1;
+        }
+
+        .waveform-header span {
+            white-space: nowrap;
+        }
+
+        /* Add margin to processing button for better spacing */
+        #processAudio {
+            margin-top: 20px;
+            width: 100%;
         }
 
         /* Frame-specific adjustments */
@@ -368,745 +419,1040 @@
         body.standalone {
             opacity: 1;
         }
+
+        /* Add CSS in the <style> section */
+        .status-bar {
+            width: 100%;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 5px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column-reverse;
+            box-sizing: border-box;
+        }
+
+        .status-message {
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+            color: #666;
+        }
+
+        .status-message:first-child {
+            color: white;
+        }
+
+        .status-message.info {
+            border-left: 3px solid #2196f3;
+        }
+
+        .status-message.info:first-child {
+            background: #2196f3;
+        }
+
+        .status-message.success {
+            border-left: 3px solid #4caf50;
+        }
+
+        .status-message.success:first-child {
+            background: #4caf50;
+        }
+
+        .status-message.error {
+            border-left: 3px solid #f44336;
+        }
+
+        .status-message.error:first-child {
+            background: #f44336;
+        }
+
+        .status-bar.drag-over {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            border-style: dashed;
+        }
+
+        /* Add this to your style section */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add these styles to your CSS section */
+        .button.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .container {
+            padding: 0 20px;
+            /* Equal padding on left and right */
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Fix button group spacing */
+        .button-group[style="margin-left: 10px;"] {
+            margin-left: 5px !important;
+        }
+
+        /* Ensure equal padding on all elements */
+        .editor-header,
+        .waveform-container,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        /* Fix controls layout to keep all buttons inside */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Increase button spacing within groups */
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add extra space before speaker buttons */
+        .button-group+.button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add a visual separator */
+        .button-group+.button-group::before {
+            display: none;
+        }
+
+        /* 1. Consistent element alignment and padding */
+        .container {
+            padding: 15px;
+        }
+
+        .editor-header,
+        .waveform-container,
+        .process-controls,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
+        }
+
+        /* 2. Fix waveform header to keep duration and viewable on same line as zoom controls */
+        .waveform-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
+            width: 100%;
+        }
+
+        .zoom.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* 3. Fix bottom row buttons to be one cohesive set */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .button-group:not(:last-child) {
+            margin-right: 10px;
+        }
+
+        /* Remove the separator */
+        .button-group+.button-group::before {
+            display: none;
+        }
+
+        /* 4. Process and Save buttons side by side */
+        .process.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .process-controls .command-button {
+            width: auto !important;
+        }
+
+        /* Override the full-width setting */
+        #processAudio {
+            margin-top: 0;
+            width: auto !important;
+        }
+
+        /* 5. Log scrolling */
+        .regions-log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        /* Container and layout */
+        .container {
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .editor-header,
+        .waveform-container,
+        .process-controls,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
+            width: 100%;
+        }
+
+        /* Waveform header - single definition */
+        .waveform-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
+            width: 100%;
+        }
+
+        .zoom.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Controls - single definition */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Button groups - single definition */
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .button-group:not(:last-child) {
+            margin-right: 10px;
+        }
+
+        /* Process controls - fixed layout */
+        .process.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        #processAudio,
+        .process-controls .command-button {
+            width: auto;
+            margin-top: 0;
+        }
+
+        /* Regions log */
+        .regions-log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+
     </style>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
+    <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
 </head>
 
 <body>
-    <div class="editor-view">
+    <div class="container">
         <div class="editor-header">
-            <div class="header-top">
-                <h1 class="editor-title">NetBound Tools: Video Extraction & Split Tool</h1>
+            <h1 class="editor-title">NetBound Tools: Speaker Splitter</h1>
+            <div class="persistent-status-bar status-bar" id="status-messages">
+                <div class="status-message info">Waiting for audio...</div>
             </div>
-            <div class="status-bar" id="statusBar"></div>
             <div class="button-controls">
-                <button class="command-button" id="btnOpen"><i class="fas fa-folder-open"></i> Open File</button>
-                <button class="command-button" id="btnAbort"><i class="fas fa-stop"></i> Abort</button>
-                <button class="command-button" id="btnRestart"><i class="fas fa-redo"></i> Restart</button>
-            </div>
-        </div>
-        <div class="preview-area" id="previewArea">
-            <input type="file" id="video-upload" accept="video/*">
-            <div id="video-container">
-                <video id="video" controls preload="metadata"></video>
-            </div>
-            <div class="filename-container">
-                <input type="text" id="filename-input">
-                <button class="command-button" id="rename-video"><i class="fas fa-edit"></i> Rename</button>
-            </div>
-            <div class="button-group">
-                <div class="joint-buttons">
-                    <div class="button-pair">
-                        <button class="action-button" id="extract-frame-btn">
-                            <i class="fas fa-image"></i>
-                            Extract Frame
-                        </button>
-                        <button class="clock-button" id="extract-interval-btn">
-                            <i class="fas fa-clock"></i>
-                        </button>
-                    </div>
-                    <div class="button-pair">
-                        <button class="action-button" id="split-video-btn">
-                            <i class="fas fa-cut"></i>
-                            Split Video
-                        </button>
-                        <button class="clock-button" id="split-interval-btn">
-                            <i class="fas fa-clock"></i>
-                        </button>
-                    </div>
+                <div class="button-group">
+                    <button class="command-button" id="btnOpen">
+                        <i class="fas fa-microphone"></i> Open Wav
+                    </button>
+                    <button class="command-button" id="btnRestart">
+                        <i class="fas fa-redo"></i> Restart
+                    </button>
                 </div>
             </div>
-            <div class="done-button-container">
-                <button class="command-button" id="btnDone" style="justify-content: center;">Done <i class="fas fa-hourglass"></i> Begin Processing</button>
-            </div>
-            <div class="video-controls"></div>
-            <div id="log"></div>
         </div>
-        <script>
-            const video = document.getElementById('video');
-            const videoUpload = document.getElementById('video-upload');
-            const log = document.getElementById('log');
-            const extractFrameBtn = document.getElementById('extract-frame-btn');
-            const extractIntervalBtn = document.getElementById('extract-interval-btn');
-            const splitVideoBtn = document.getElementById('split-video-btn');
-            const splitIntervalBtn = document.getElementById('split-interval-btn');
-            const doneButton = document.getElementById('btnDone');
-            const renameButton = document.getElementById('rename-video');
-            const btnAbort = document.getElementById('btnAbort');
+
+        <input type="file" id="fileInput" accept=".wav" style="display: none;">
+
+        <div id="waveform-container">
+            <div class="waveform-header">
+                <span id="duration-display">Duration: 0:00</span>
+                <span id="window-display">Viewable: 0:00 - 0:00</span>
+                <div class="zoom-buttons">
+                    <button type="button" id="zoomIn" class="button-blue" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                    <button type="button" id="zoomOut" class="button-blue" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                    <button type="button" id="zoomFit" class="button-blue" title="Fit to Window"><i class="fas fa-expand"></i></button>
+                    <button type="button" id="clearRegions" class="button-blue warning" title="Clear All Segments"><i class="fas fa-eraser"></i></button>
+                </div>
+            </div>
+            <div class="waveform-wrapper">
+                <div id="waveform">
+                    <div class="channel-label left">Left Channel</div>
+                    <div class="channel-label right">Right Channel</div>
+                </div>
+            </div>
+            <div class="controls">
+                <div class="button-group">
+                    <button id="jumpStart" class="button-blue" title="Jump to start"><i class="fas fa-step-backward"></i></button>
+                    <button id="jumpBack" class="button-blue" title="Jump back"><i class="fas fa-backward"></i></button>
+                    <button id="playPause" class="button-blue" title="Play/Pause"><i class="fas fa-play"></i></button>
+                    <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
+                    <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
+                </div>
+
+                <div class="button-group" >
+                    <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
+                        <i class="fas fa-user-circle"></i> 1
+                    </button>
+                    <button id="speaker2Region" class="button-blue speaker2-btn" title="Mark Speaker 2 Region">
+                        <i class="fas fa-user-circle"></i> 2
+                    </button>
+                    <button id="trashRegion" class="button-blue trash-btn" title="Mark Trash Region">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button id="undoRegion" class="button-blue" title="Undo Last Region">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process and Save buttons section -->
+        <div class="process-controls">
+            <button type="button" id="processAudio" class="command-button">
+                <i class="fas fa-cogs"></i> Process Audio
+            </button>
+            <button type="button" id="saveRegions" class="command-button">
+                <i class="fas fa-save"></i> Save Regions
+            </button>
+        </div>
+
+        <!-- Log section -->
+        <div id="regions-log" class="regions-log"></div>
+
+        <div class="processed-files" id="processedFiles" style="display:none;">
+            <h3>Processed Files:</h3>
+            <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
+            <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
+            <a href="#" id="stereoFile" target="_blank" style="display:none;">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+        </div>
+
+        <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
+            <input type="hidden" name="regions" id="regions">
+            <input type="hidden" name="fileName" id="fileName">
+            <input type="file" name="audioFile" id="audioFileUpload">
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize elements
             const statusBar = document.getElementById('statusBar');
             const btnOpen = document.getElementById('btnOpen');
-            const btnRestart = document.getElementById('btnRestart');
-            const filenameInput = document.getElementById('filename-input');
+            const fileInput = document.getElementById('fileInput');
+            const regionsInput = document.getElementById('regions');
+            const fileNameInput = document.getElementById('fileName');
+            const processedFiles = document.getElementById('processedFiles');
+            const speaker1File = document.getElementById('speaker1File');
+            const speaker2File = document.getElementById('speaker2File');
+            const stereoFile = document.getElementById('stereoFile');
+            const durationDisplay = document.getElementById('duration-display');
+            const windowDisplay = document.getElementById('window-display');
+            const playPauseButton = document.getElementById('playPause');
+            const playPauseIcon = playPauseButton.querySelector('i.fas');
+            const waveformContainer = document.getElementById('waveform-container');
+            const waveformWrapper = document.querySelector('.waveform-wrapper');
 
-            // Global state variables
-            let splits = [];
-            let baseName = '';
-            let processingComplete = false;
-            let isProcessing = false;
+            // Initialize data
+            let currentFileName = '',
+                lastEndPoint = 0,
+                lastRegion = null,
+                isPlaying = false;
+            let regionsData = {
+                speaker1: [],
+                speaker2: [],
+                trash: []
+            };
+            let sequentialRegions = [];
 
-            document.addEventListener('DOMContentLoaded', () => {
-                setButtonStates(false);
-                btnRestart.disabled = false;
+            // Keep track of the original file
+            let originalAudioFile = null;
 
-                // Check if running in iframe and adjust positioning
-                adjustPositioningForFrame();
-
-                // Basic controls
-                btnOpen.onclick = () => videoUpload.click();
-                btnAbort.onclick = handleAbort;
-                btnAbort.disabled = true;
-                videoUpload.addEventListener('change', handleFileChange);
-                btnRestart.onclick = handleRestart;
-                renameButton.addEventListener('click', handleRename);
-
-                // Frame extraction controls
-                extractFrameBtn.addEventListener('click', handleSingleFrameExtract);
-                extractIntervalBtn.addEventListener('click', handleIntervalFrameExtract);
-
-                // Video split controls
-                splitVideoBtn.addEventListener('click', handleSingleSplit);
-                splitIntervalBtn.addEventListener('click', handleIntervalSplit);
-
-                // Add a direct way to get first/last frames without processing
-                doneButton.addEventListener('click', handleDoneButtonClick);
+            // Initialize WaveSurfer with optimized stereo support
+            const wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: 'blue',
+                progressColor: 'darkblue',
+                responsive: true,
+                height: 150,
+                scrollParent: true,
+                minPxPerSec: 50,
+                fillParent: true, // Ensure the waveform fits the container initially
+                normalize: true,
+                splitChannels: true,
+                splitChannelsOptions: {
+                    channels: [{
+                            waveColor: 'blue',
+                            progressColor: 'darkblue',
+                            height: 65, // Adjusted for better fit
+                            label: 'Left'
+                        },
+                        {
+                            waveColor: '#4488cc',
+                            progressColor: '#2266aa',
+                            height: 65,
+                            label: 'Right'
+                        }
+                    ]
+                },
+                plugins: [
+                    WaveSurfer.regions.create({
+                        dragSelection: true,
+                        slop: 5
+                    })
+                ]
             });
 
-            // Function to detect iframe and adjust positioning
+            // Functions
+            function formatTime(seconds) {
+                if (!seconds || isNaN(seconds)) return '0:00';
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+
+            function updateStatus(message, type = 'info') {
+                const statusBar = document.getElementById('status-messages');
+
+                if (!statusBar) {
+                    console.error('Status bar element not found');
+                    return;
+                }
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `status-message ${type}`;
+                messageDiv.textContent = message;
+
+                // Insert at top (newest messages appear at top)
+                statusBar.insertBefore(messageDiv, statusBar.firstChild);
+
+                // Keep scrolled to top to see newest messages
+                statusBar.scrollTop = 0;
+            }
+
+            function updateDisplays() {
+                try {
+                    if (!wavesurfer.drawer?.wrapper) return;
+                    const duration = wavesurfer.getDuration() || 0;
+                    const wrapper = wavesurfer.drawer.wrapper;
+                    const scrollLeft = wrapper.scrollLeft;
+                    const viewWidth = wrapper.clientWidth;
+                    const pixelsPerSecond = wavesurfer.params.minPxPerSec;
+
+                    const startTime = scrollLeft / pixelsPerSecond;
+                    const viewDuration = viewWidth / pixelsPerSecond;
+                    const endTime = Math.min(startTime + viewDuration, duration);
+
+                    durationDisplay.textContent = `Duration: ${formatTime(duration)}  `;
+                    windowDisplay.textContent = `Viewable: ${formatTime(startTime)} - ${formatTime(endTime)}`;
+                } catch (err) {
+                    console.error('Display update error:', err);
+                }
+            }
+
+            function handleFile(file) {
+                if (!file || !(file.name.toLowerCase().endsWith('.wav'))) {
+                    updateStatus('Please select a valid WAV file', 'error');
+                    return;
+                }
+
+                // Store the original file for later processing
+                originalAudioFile = file;
+
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
+                currentFileName = file.name;
+                fileNameInput.value = file.name;
+
+                const audioUrl = URL.createObjectURL(file);
+                wavesurfer.load(audioUrl);
+                lastEndPoint = 0;
+
+                // Clear previous regions
+                wavesurfer.clearRegions();
+                regionsData = {
+                    speaker1: [],
+                    speaker2: [],
+                    trash: []
+                };
+                sequentialRegions = [];
+                document.getElementById('regions-log').innerHTML = '';
+
+                wavesurfer.once('ready', () => {
+                    URL.revokeObjectURL(audioUrl);
+                });
+            }
+
+            function createSpeakerRegion(speakerType) {
+                const currentTime = wavesurfer.getCurrentTime();
+                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
+
+                if (currentTime <= startTime) {
+                    updateStatus('Please move playhead forward to create region', 'error');
+                    return;
+                }
+
+                // Fill gaps with trash regions automatically
+                if (sequentialRegions.length > 0) {
+                    const lastRegionEnd = sequentialRegions[sequentialRegions.length - 1].end;
+                    if (startTime > lastRegionEnd) {
+                        const trashRegion = wavesurfer.addRegion({
+                            start: lastRegionEnd,
+                            end: startTime,
+                            color: 'rgba(108, 117, 125, 0.3)',
+                            drag: false,
+                            resize: false
+                        });
+
+                        const trashData = {
+                            start: lastRegionEnd,
+                            end: startTime,
+                            type: 'trash',
+                            region: trashRegion
+                        };
+
+                        regionsData.trash.push(trashData);
+                        sequentialRegions.push(trashData);
+                    }
+                }
+
+                // Create region
+                const color = speakerType === 1 ? 'rgba(255, 165, 0, 0.3)' :
+                    speakerType === 2 ? 'rgba(0, 255, 0, 0.3)' :
+                    'rgba(108, 117, 125, 0.3)';
+                const label = speakerType === 'trash' ? 'Unlabeled' : `Speaker ${speakerType}`;
+
+                const region = wavesurfer.addRegion({
+                    start: startTime,
+                    end: currentTime,
+                    color: color,
+                    drag: false,
+                    resize: false
+                });
+
+                const regionData = {
+                    start: startTime,
+                    end: currentTime,
+                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`,
+                    region: region
+                };
+
+                if (speakerType === 'trash') {
+                    regionsData.trash.push(regionData);
+                } else {
+                    regionsData[`speaker${speakerType}`].push(regionData);
+                }
+
+                sequentialRegions.push(regionData);
+
+                const logEntry = document.createElement('div');
+                logEntry.className = `region-entry ${speakerType === 'trash' ? 'trash' : 'speaker' + speakerType}`;
+                logEntry.textContent = `${label}: ${formatTime(startTime)} - ${formatTime(currentTime)}`;
+                document.getElementById('regions-log').appendChild(logEntry);
+                document.getElementById('regions-log').scrollTop = document.getElementById('regions-log').scrollHeight;
+
+                lastEndPoint = currentTime;
+                lastRegion = region;
+                updateStatus(`${label} region created`, 'success');
+                updateDisplays();
+
+                if (isPlaying) {
+                    wavesurfer.pause();
+                }
+            }
+
+            // Handle stereo/mono switching
+            wavesurfer.on('ready', () => {
+                const audioInfo = wavesurfer.backend.buffer;
+                const isStereo = audioInfo.numberOfChannels === 2;
+
+                // Toggle stereo mode and adjust container
+                if (isStereo) {
+                    waveformContainer.classList.add('stereo');
+                    waveformWrapper.classList.add('stereo');
+                    wavesurfer.setHeight(180);
+                    wavesurfer.drawer.params.height = 180;
+                    wavesurfer.drawBuffer();
+                } else {
+                    waveformContainer.classList.remove('stereo');
+                    waveformWrapper.classList.remove('stereo');
+                    wavesurfer.setHeight(150);
+                    wavesurfer.drawer.params.height = 150;
+                    wavesurfer.drawBuffer();
+                }
+
+                // Calculate proper zoom level to fit entire audio in view
+                const duration = wavesurfer.getDuration();
+                const containerWidth = waveformContainer.clientWidth - 20; // Subtract padding
+                const pixelsPerSecond = containerWidth / duration;
+
+                // Set zoom level to fit entire audio
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Setup scroll handler and update displays
+                const wrapper = wavesurfer.drawer.wrapper;
+                if (wrapper) {
+                    wrapper.addEventListener('scroll', () => requestAnimationFrame(updateDisplays));
+                }
+
+                updateDisplays();
+                const durationText = wavesurfer.getDuration().toFixed(2);
+                updateStatus(`Loaded ${isStereo ? 'stereo' : 'mono'} audio: ${durationText}s`, 'success');
+            });
+
+            // Event listeners for display updates
+            ['audioprocess', 'seek', 'zoom', 'interaction'].forEach(event => {
+                wavesurfer.on(event, () => requestAnimationFrame(updateDisplays));
+            });
+
+            // Play/Pause handling
+            playPauseButton.addEventListener('click', () => wavesurfer.playPause());
+
+            wavesurfer.on('play', () => {
+                playPauseButton.classList.add('playing');
+                playPauseIcon.classList.remove('play');
+                playPauseIcon.classList.add('fa-pause');
+                isPlaying = true;
+                updateDisplays();
+            });
+
+            wavesurfer.on('pause', () => {
+                playPauseButton.classList.remove('playing');
+                playPauseIcon.classList.remove('fa-pause');
+                playPauseIcon.classList.add('fa-play');
+                isPlaying = false;
+                updateDisplays();
+            });
+
+            // File handling
+            btnOpen.addEventListener('click', e => {
+                e.preventDefault();
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', e => {
+                if (e.target.files && e.target.files[0]) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // Clear regions with confirmation
+            document.getElementById('clearRegions').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all segments?')) {
+                    wavesurfer.clearRegions();
+                    regionsData = {
+                        speaker1: [],
+                        speaker2: [],
+                        trash: []
+                    };
+                    sequentialRegions = [];
+                    lastEndPoint = 0;
+                    lastRegion = null;
+                    document.getElementById('regions-log').innerHTML = '';
+                    updateStatus('All segments cleared', 'info');
+                }
+            });
+
+            // Navigation controls
+            document.getElementById('jumpBack').addEventListener('click', () => wavesurfer.skip(-0.5));
+            document.getElementById('jumpForward').addEventListener('click', () => wavesurfer.skip(0.5));
+            document.getElementById('jumpStart').addEventListener('click', () => {
+                wavesurfer.seekTo(0); // Use seekTo(0) instead of setTime(0)
+                updateDisplays();
+            });
+            document.getElementById('jumpEnd').addEventListener('click', () => {
+                // Get the total duration
+                const duration = wavesurfer.getDuration();
+
+                // Zoom out to fit entire waveform first
+                const containerWidth = waveformContainer.clientWidth - 20;
+                const pixelsPerSecond = containerWidth / duration;
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Allow zoom to complete and then scroll to end and set cursor
+                setTimeout(() => {
+                    // Calculate the position to scroll to (all the way to the right)
+                    const wrapper = wavesurfer.drawer.wrapper;
+                    const scrollWidth = wrapper.scrollWidth;
+                    const clientWidth = wrapper.clientWidth;
+
+                    // Scroll to the end
+                    wrapper.scrollLeft = scrollWidth - clientWidth;
+
+                    // Set the cursor position to the end (use seekTo(1) to go to end)
+                    wavesurfer.seekTo(1);
+
+                    updateDisplays();
+                }, 100);
+            });
+
+            // Zoom controls
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                wavesurfer.zoom(wavesurfer.params.minPxPerSec + 10);
+            });
+
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                wavesurfer.zoom(Math.max(wavesurfer.params.minPxPerSec - 10, 1));
+            });
+
+            document.getElementById('zoomFit').addEventListener('click', () => {
+                // Calculate proper zoom level based on audio duration
+                const duration = wavesurfer.getDuration();
+                const containerWidth = waveformContainer.clientWidth - 20;
+                const pixelsPerSecond = containerWidth / duration;
+
+                // Apply calculated zoom level
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Reset scroll position
+                requestAnimationFrame(() => {
+                    wavesurfer.drawer.wrapper.scrollLeft = 0;
+                    updateDisplays();
+                });
+            });
+
+            document.getElementById('btnRestart').addEventListener('click', () => {
+                location.href = location.pathname;
+            });
+
+            // Region buttons
+            document.getElementById('speaker1Region').addEventListener('click', () => createSpeakerRegion(1));
+            document.getElementById('speaker2Region').addEventListener('click', () => createSpeakerRegion(2));
+            document.getElementById('trashRegion').addEventListener('click', () => createSpeakerRegion('trash'));
+
+            // Fix the processing function to handle zoom state properly
+            document.getElementById('processAudio').addEventListener('click', function() {
+                // Check if we need to zoom out first
+                const currentZoom = wavesurfer.params.minPxPerSec;
+                const duration = wavesurfer.getDuration();
+                const containerWidth = waveformContainer.clientWidth;
+                const visibleDuration = containerWidth / currentZoom;
+
+                // More generous threshold - if at least 90% is visible, consider it zoomed out enough
+                if (visibleDuration < duration * 0.9) {
+                    const confirmProcess = confirm(
+                        "The waveform is currently zoomed in and you may not see all regions. " +
+                        "Would you like to zoom out to see the entire audio before processing, or proceed anyway?\n\n" +
+                        "Click 'OK' to zoom out first, or 'Cancel' to process with current view."
+                    );
+
+                    if (confirmProcess) {
+                        // Zoom out to fit the entire audio - with a slight adjustment factor
+                        const fitZoom = (containerWidth / duration) * 0.95; // Slightly less than full width
+                        wavesurfer.zoom(fitZoom);
+                        wavesurfer.drawer.wrapper.scrollLeft = 0;
+                        updateDisplays();
+                        return; // Don't process yet, let the user see the full waveform first
+                    }
+                    // Otherwise continue with processing
+                }
+
+                // Process the audio
+                processAudioRegions();
+            });
+
+            // Revised processing function to ensure all regions are included
+            function processAudioRegions() {
+                // Check if we have an audio file loaded
+                if (!originalAudioFile) {
+                    updateStatus("Please load an audio file first.", "error");
+                    return;
+                }
+
+                // Update status
+                updateStatus("Processing audio regions...", "info");
+
+                // Collect all regions from sequentialRegions array instead of wavesurfer.regions.list
+                const allRegions = {
+                    speaker1: [],
+                    speaker2: [],
+                    trash: []
+                };
+
+                // Use the sequentialRegions array which has all regions regardless of view
+                sequentialRegions.forEach(region => {
+                    const type = region.type;
+                    if (type === 'speaker1' || type === 'speaker2' || type === 'trash') {
+                        allRegions[type].push({
+                            start: region.start,
+                            end: region.end
+                        });
+                    }
+                });
+
+                // Create form data for submission
+                const formData = new FormData();
+                formData.append('regions', JSON.stringify(allRegions));
+                formData.append('fileName', currentFileName);
+                formData.append('audioFile', originalAudioFile);
+
+                // Rest of the processing function remains the same
+                fetch('process_audio.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            updateStatus("Audio processing complete!", "success");
+
+                            // Update download links
+                            if (data.speaker1) {
+                                speaker1File.href = data.speaker1;
+                                speaker1File.download = `${currentFileName}_speaker1.wav`;
+                            }
+
+                            if (data.speaker2) {
+                                speaker2File.href = data.speaker2;
+                                speaker2File.download = `${currentFileName}_speaker2.wav`;
+                            }
+
+                            if (data.stereo) {
+                                stereoFile.href = data.stereo;
+                                stereoFile.style.display = 'block';
+                                stereoFile.download = `${currentFileName}_stereo.wav`;
+                            } else {
+                                stereoFile.style.display = 'none';
+                            }
+
+                            // Show the processed files section
+                            processedFiles.style.display = 'block';
+                        } else {
+                            updateStatus(`Processing error: ${data.message}`, "error");
+                        }
+                    })
+                    .catch(error => {
+                        updateStatus(`Error: ${error.message}`, "error");
+                        console.error("Processing error:", error);
+                    });
+            }
+
+            // Add undo region functionality
+            document.getElementById('undoRegion').addEventListener('click', () => {
+                // Make sure we have regions to undo
+                if (sequentialRegions.length === 0) {
+                    updateStatus('Nothing to undo', 'info');
+                    return;
+                }
+
+                // Get the last region
+                const lastRegion = sequentialRegions.pop();
+                // Remove from the appropriate category in regionsData
+                const regionType = lastRegion.type;
+
+                if (regionType === 'speaker1' || regionType === 'speaker2' || regionType === 'trash') {
+                    // Find and remove the region from the appropriate array
+                    const regionIndex = regionsData[regionType].findIndex(r =>
+                        r.start === lastRegion.start && r.end === lastRegion.end);
+
+                    if (regionIndex !== -1) {
+                        regionsData[regionType].splice(regionIndex, 1);
+                    }
+
+                    // Remove the visual region from the waveform
+                    if (lastRegion.region) {
+                        lastRegion.region.remove();
+                    }
+
+                    // Update the regions log
+                    updateRegionsLog();
+
+                    // Set the last end point to the previous region's end, or 0
+                    if (sequentialRegions.length > 0) {
+                        lastEndPoint = sequentialRegions[sequentialRegions.length - 1].end;
+                    } else {
+                        lastEndPoint = 0;
+                    }
+
+                    updateStatus(`Removed ${regionType} region`, 'info');
+                }
+            });
+
+            // Helper function to update the regions log
+            function updateRegionsLog() {
+                const regionsLogElement = document.getElementById('regions-log');
+                regionsLogElement.innerHTML = '';
+
+                sequentialRegions.forEach((region, index) => {
+                    const regionElement = document.createElement('div');
+                    regionElement.className = `region-entry ${region.type}`;
+                    regionElement.innerHTML = `<span>${index + 1}: ${region.type} (${region.start.toFixed(2)}s - ${region.end.toFixed(2)}s)</span>`;
+                    regionsLogElement.appendChild(regionElement);
+                });
+            }
+
+            // Add this to detect iframe and adjust positioning
             function adjustPositioningForFrame() {
                 // Check if we're in an iframe
                 const inFrame = window !== window.top;
 
-                // Apply appropriate styles
+                // Apply appropriate styles - maintain same width but adjust margins
+                document.body.style.maxWidth = '768px'; // Same width in both cases
+
                 if (inFrame) {
-                    // In iframe: left-justified with 20px margin, same width as standalone
-                    document.body.style.maxWidth = '768px';
-                    document.body.style.margin = '0 0 0 20px';
+                    document.body.style.margin = '0 0 0 20px'; // In iframe: left-justified with 20px margin
                 } else {
-                    // Not in iframe: centered
-                    document.body.style.maxWidth = '768px';
-                    document.body.style.margin = '0 auto';
+                    document.body.style.margin = '0 auto'; // Not in iframe: centered
                 }
 
                 // Add a class to body for additional CSS targeting
                 document.body.classList.add(inFrame ? 'in-frame' : 'standalone');
-
-                // Log the detection result
-                updateStatus(inFrame ? 'Running in embedded frame' : 'Running standalone', 'info');
             }
 
-            // Combined frame extraction function to reduce code duplication
-            async function captureAndSaveFrame(frameLabel, time, saveToFile = true, skipLogEntry = false) {
-                // Ensure video is at the correct position
-                if (video.currentTime !== time) {
-                    video.currentTime = time;
-                    await new Promise(resolve => {
-                        video.addEventListener('seeked', resolve, {
-                            once: true
-                        });
-                    });
-                }
+            // Call this function to adjust layout when the page loads
+            adjustPositioningForFrame();
 
-                // Create main canvas for full resolution capture
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Add after your DOMContentLoaded event listener setup:
+            function initDragAndDrop() {
+                const statusBar = document.getElementById('status-messages');
 
-                // Create smaller preview canvas
-                const previewCanvas = document.createElement('canvas');
-                const previewCtx = previewCanvas.getContext('2d');
-                previewCanvas.width = 150;
-                previewCanvas.height = 60;
-                previewCtx.drawImage(canvas, 0, 0, previewCanvas.width, previewCanvas.height);
-
-                // Determine label for display
-                let displayLabel = 'Extracted Frame';
-
-                // Updated label interpretation for S#F# format
-                if (typeof frameLabel === 'string') {
-                    if (frameLabel.includes('S') && frameLabel.includes('F')) {
-                        // Extract section and frame numbers
-                        const sectionMatch = frameLabel.match(/S(\d+)/i);
-                        const frameMatch = frameLabel.match(/F(\d+)/i);
-
-                        if (sectionMatch && sectionMatch[1]) {
-                            const sectionNum = sectionMatch[1];
-                            const frameNum = frameMatch && frameMatch[1] ? frameMatch[1] : '';
-
-                            if (frameLabel.toLowerCase().includes('last')) {
-                                displayLabel = `Section ${sectionNum}: Last Frame`;
-                            } else if (frameNum) {
-                                displayLabel = `Section ${sectionNum}: Frame ${frameNum}`;
-                            } else {
-                                displayLabel = `Section ${sectionNum} Frame`;
-                            }
-                        }
-                    } else if (frameLabel.toLowerCase().includes('last')) {
-                        displayLabel = 'Last Frame';
-                    }
-                }
-
-                // Save file if requested
-                if (saveToFile) {
-                    canvas.toBlob(blob => {
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `${frameLabel}.jpg`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(a.href);
-                    }, 'image/jpeg', 0.95);
-                }
-
-                // Add to log display only if not skipping log entry
-                if (!skipLogEntry) {
-                    const frameItem = document.createElement('div');
-                    frameItem.className = 'log-item';
-                    frameItem.style.display = 'flex';
-                    frameItem.style.alignItems = 'center';
-                    frameItem.innerHTML = `
-                        <img src="${previewCanvas.toDataURL('image/jpeg', 0.9)}" alt="${displayLabel}" style="margin-right: 15px;">
-                        <div class="frame-info">
-                            <strong>${displayLabel}</strong><br>
-                            Time: ${formatTime(time)}
-                        </div>`;
-                    log.appendChild(frameItem);
-                }
-
-                updateStatus(`${displayLabel} at ${formatTime(time)}`, 'success');
-                return canvas; // Return the canvas in case it's needed
-            }
-
-            // Handle single frame extraction
-            async function handleSingleFrameExtract() {
-                if (!video.src) {
-                    updateStatus('No video loaded', 'error');
+                if (!statusBar) {
+                    console.error('Status bar element not found for drag-and-drop');
                     return;
                 }
 
-                // Get the nearest section number based on time
-                const currentTime = video.currentTime;
-                let sectionNumber = 1; // Default
-
-                if (splits.length > 0) {
-                    // Find which section we're in
-                    for (let i = 0; i < splits.length; i++) {
-                        if (currentTime >= splits[i] && (i === splits.length - 1 || currentTime < splits[i + 1])) {
-                            sectionNumber = i + 1;
-                            break;
-                        }
-                    }
-                }
-
-                // Determine frame number within this section
-                // For manual extractions, use incrementing numbers
-                if (!window.sectionFrameCounts) {
-                    window.sectionFrameCounts = {};
-                }
-
-                if (!window.sectionFrameCounts[sectionNumber]) {
-                    window.sectionFrameCounts[sectionNumber] = 1;
-                } else {
-                    window.sectionFrameCounts[sectionNumber]++;
-                }
-
-                const frameNumber = window.sectionFrameCounts[sectionNumber];
-
-                await captureAndSaveFrame(`S${sectionNumber}F${frameNumber}`, currentTime);
-            }
-
-            function handleFileChange(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const existingFrames = document.querySelectorAll('.log-item');
-                    if (existingFrames.length > 0) {
-                        if (confirm('You have unsaved media. Do you wish to clear and load the new file?')) {
-                            loadFile(file);
-                        }
-                    } else {
-                        loadFile(file);
-                    }
-                }
-            }
-
-            function setProcessingState(isActive) {
-                isProcessing = isActive;
-                doneButton.innerHTML = isActive ? '<i class="fas fa-spinner fa-spin"></i> Processing...' : '<i class="fas fa-hourglass"></i> Begin Processing';
-                btnAbort.disabled = !isActive;
-
-                // Disable other controls during processing
-                extractFrameBtn.disabled = isActive;
-                extractIntervalBtn.disabled = isActive;
-                splitVideoBtn.disabled = isActive;
-                splitIntervalBtn.disabled = isActive;
-                renameButton.disabled = isActive;
-                btnOpen.disabled = isActive;
-            }
-
-            function handleAbort() {
-                if (!isProcessing) return;
-                processingComplete = true;
-                updateStatus('Processing aborted by user', 'error');
-                setProcessingState(false);
-                setButtonStates(true);
-            }
-
-            function handleReset() {
-                log.innerHTML = '';
-                splits = [];
-                video.pause();
-                video.src = '';
-                video.currentTime = 0;
-                filenameInput.value = '';
-                processingComplete = false;
-                isProcessing = false;
-            }
-
-            function handleRestart() {
-                handleReset();
-                baseName = '';
-                setButtonStates(false);
-                btnOpen.disabled = false;
-                btnRestart.disabled = false;
-                updateStatus('Program restarted', 'info');
-                location.reload();
-            }
-
-            function setButtonStates(isEnabled) {
-                [
-                    extractFrameBtn,
-                    extractIntervalBtn,
-                    splitVideoBtn,
-                    splitIntervalBtn,
-                    renameButton,
-                    doneButton
-                ].forEach(btn => {
-                    if (btn) btn.disabled = !isEnabled;
+                statusBar.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.add('drag-over');
                 });
-                btnOpen.disabled = isEnabled;
-            }
 
-            function loadFile(file) {
-                handleReset();
-                baseName = file.name.split('.')[0];
-                filenameInput.value = file.name;
-                updateStatus('Loading File: ' + file.name, 'info');
+                statusBar.addEventListener('dragleave', () => {
+                    statusBar.classList.remove('drag-over');
+                });
 
-                if (file.type.startsWith('video/')) {
-                    if (file.type === 'video/mp4') {
-                        handleMp4Upload(file);
-                    } else {
-                        updateStatus('Unsupported file type. Only MP4 is currently supported.', 'error');
-                    }
-
-                    video.addEventListener('loadedmetadata', () => {
-                        if (isNaN(video.duration) || video.duration === Infinity) {
-                            updateStatus('Video duration unknown. Full playback may be required.', 'warning');
+                statusBar.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        const file = e.dataTransfer.files[0];
+                        if (file.name.toLowerCase().endsWith('.wav')) {
+                            handleFile(file);
                         } else {
-                            updateStatus(`Video duration detected: ${formatTime(video.duration)}`, 'success');
-                        }
-                    });
-                } else {
-                    updateStatus('Unsupported file type. Please select a video file.', 'error');
-                }
-            }
-
-            // Add the missing handleMp4Upload function
-            function handleMp4Upload(file) {
-                const url = URL.createObjectURL(file);
-                video.src = url;
-
-                video.onloadeddata = function() {
-                    updateStatus('Video loaded successfully', 'success');
-                    setButtonStates(true); // Enable buttons once video is loaded
-                };
-
-                video.onerror = function() {
-                    updateStatus('Error loading video file', 'error');
-                    URL.revokeObjectURL(url);
-                };
-            }
-
-            function formatTime(seconds) {
-                const minutes = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                const tenths = Math.floor((seconds % 1) * 10);
-                return `${minutes}:${String(secs).padStart(2, '0')}.${tenths}`;
-            }
-
-            function updateStatus(message, type = 'info') {
-                const statusMessage = document.createElement('div');
-                statusMessage.className = 'status-message' + (type !== 'info' ? ` ${type}` : '');
-                statusMessage.textContent = message;
-                statusBar.insertBefore(statusMessage, statusBar.firstChild);
-
-                // Limit history to prevent excessive DOM nodes
-                if (statusBar.childElementCount > 20) {
-                    statusBar.removeChild(statusBar.lastChild);
-                }
-            }
-
-            function normalizeTimeInput(input) {
-                try {
-                    if (input.includes(':')) {
-                        return validateAndConvertTime(input);
-                    }
-                    const seconds = parseInt(input);
-                    if (isNaN(seconds) || seconds < 0) {
-                        throw new Error('Invalid time value');
-                    }
-                    return seconds;
-                } catch (error) {
-                    throw new Error(`Invalid time format: ${error.message}`);
-                }
-            }
-
-            function validateAndConvertTime(timeStr) {
-                const timeRegex = /^(?:(\d+):)?([0-5]?\d)$/;
-                const match = timeStr.trim().match(timeRegex);
-
-                if (!match) {
-                    throw new Error('Invalid time format. Use MM:SS or seconds');
-                }
-
-                const minutes = parseInt(match[1] || '0');
-                const seconds = parseInt(match[2]);
-
-                return (minutes * 60) + seconds;
-            }
-
-            async function handleIntervalFrameExtract() {
-                if (!video.src) {
-                    updateStatus('No video loaded', 'error');
-                    return;
-                }
-
-                const input = prompt('Enter extraction interval (MM:SS or seconds):', '1:00');
-                if (!input) return;
-
-                let intervalSeconds;
-                try {
-                    intervalSeconds = normalizeTimeInput(input);
-                    if (intervalSeconds <= 0) {
-                        throw new Error('Interval must be greater than 0');
-                    }
-                } catch (error) {
-                    updateStatus(error.message, 'error');
-                    return;
-                }
-
-                setProcessingState(true);
-                const totalFrames = Math.ceil(video.duration / intervalSeconds);
-                processingComplete = false;
-
-                // Reset section frame counts
-                window.sectionFrameCounts = {};
-
-                try {
-                    // If no splits exist, consider the whole video as section 1
-                    if (splits.length < 2) {
-                        splits = [0, video.duration];
-                    }
-
-                    // Go through each section
-                    for (let sectionIdx = 0; sectionIdx < splits.length - 1 && !processingComplete; sectionIdx++) {
-                        const sectionStart = splits[sectionIdx];
-                        const sectionEnd = splits[sectionIdx + 1];
-                        const sectionNumber = sectionIdx + 1;
-
-                        let frameCount = 1;
-
-                        // Extract frames within this section at regular intervals
-                        for (let t = sectionStart; t < sectionEnd && !processingComplete; t += intervalSeconds) {
-                            await captureAndSaveFrame(`S${sectionNumber}F${frameCount}`, t);
-                            updateStatus(`Extracted S${sectionNumber}F${frameCount} at ${formatTime(t)}`, 'info');
-                            frameCount++;
+                            updateStatus('Please drop a WAV file', 'error');
                         }
                     }
-
-                    if (!processingComplete) {
-                        // Add completion divider
-                        const completionDivider = document.createElement('div');
-                        completionDivider.className = 'log-item divider';
-                        completionDivider.innerHTML = '<hr style="width:100%; border-top:2px dashed #28a745; margin:15px 0;">';
-                        log.appendChild(completionDivider);
-
-                        // Add completion message
-                        const completionMsg = document.createElement('div');
-                        completionMsg.innerHTML = `<div style="color:#28a745; font-weight:bold; font-size:14px; margin:10px 0;">
-                            ✓ Frame extraction complete - ${totalFrames} frames extracted</div>`;
-                        log.appendChild(completionMsg);
-
-                        updateStatus(`Frame extraction complete. ${totalFrames} frames extracted.`, 'success');
-                    }
-                } catch (error) {
-                    updateStatus(`Error during frame extraction: ${error.message}`, 'error');
-                } finally {
-                    setProcessingState(false);
-
-                    // Highlight the "Done" button to guide the user to the next step
-                    doneButton.style.animation = 'pulse 2s infinite';
-                    doneButton.style.boxShadow = '0 0 8px rgba(40, 167, 69, 0.7)';
-
-                    // Add this style to your CSS
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes pulse {
-                            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
-                            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-                            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-            }
-
-            async function handleIntervalSplit() {
-                if (!video.src) {
-                    updateStatus('No video loaded', 'error');
-                    return;
-                }
-
-                const input = prompt('Enter segment interval (MM:SS or seconds):', '1:00');
-                if (!input) return;
-
-                let intervalSeconds;
-                try {
-                    intervalSeconds = normalizeTimeInput(input);
-                    if (intervalSeconds <= 0) {
-                        throw new Error('Interval must be greater than 0');
-                    }
-                } catch (error) {
-                    updateStatus(error.message, 'error');
-                    return;
-                }
-
-                setProcessingState(true);
-                processingComplete = false;
-
-                try {
-                    // Generate split points at regular intervals
-                    splits = [0]; // Start with 0
-                    for (let t = intervalSeconds; t < video.duration; t += intervalSeconds) {
-                        splits.push(t);
-                    }
-                    if (splits[splits.length - 1] < video.duration - 1) {
-                        splits.push(video.duration); // Add end point if needed
-                    }
-
-                    const totalSegments = splits.length - 1;
-                    updateStatus(`Created ${totalSegments} split points`, 'info');
-
-                    // Reset section frame counts
-                    window.sectionFrameCounts = {};
-
-                    // Visualize split points
-                    for (let i = 0; i < splits.length && !processingComplete; i++) {
-                        const splitTime = splits[i];
-                        const sectionNumber = i + 1;
-
-                        // Add visual divider for each split
-                        const divider = document.createElement('div');
-                        divider.className = 'log-item divider';
-                        divider.innerHTML = '<hr style="width:100%; border:0; border-top:2px solid #0056b3; margin:15px 0;">';
-                        log.appendChild(divider);
-
-                        // Add split header
-                        const segmentHeader = document.createElement('div');
-                        segmentHeader.innerHTML = `<div style="color:#0056b3; font-weight:bold; font-size:14px; margin:10px 0; letter-spacing:0.5px;">
-                            Split Point: Section ${sectionNumber} at ${formatTime(splitTime)}</div>`;
-                        log.appendChild(segmentHeader);
-
-                        // Use appropriate frame naming
-                        const isLast = i === splits.length - 1;
-                        const frameName = isLast ? `S${i}-Last` : `S${sectionNumber}F1`;
-
-                        // Capture frame at split point
-                        await captureAndSaveFrame(frameName, splitTime);
-                    }
-
-                    if (!processingComplete) {
-                        // Add completion divider with different style
-                        const completionDivider = document.createElement('div');
-                        completionDivider.className = 'log-item divider';
-                        completionDivider.innerHTML = '<hr style="width:100%; border-top:2px dashed #28a745; margin:15px 0;">';
-                        log.appendChild(completionDivider);
-
-                        // Add completion message
-                        const completionMsg = document.createElement('div');
-                        completionMsg.innerHTML = `<div style="color:#28a745; font-weight:bold; font-size:14px; margin:10px 0;">
-                            ✓ Split points created successfully - ${totalSegments} segments ready</div>`;
-                        log.appendChild(completionMsg);
-
-                        updateStatus(`Split points created successfully. Click "Done" to process all segments.`, 'success');
-
-                        // Highlight the Done button
-                        doneButton.style.animation = 'pulse 2s infinite';
-                        doneButton.style.boxShadow = '0 0 8px rgba(40, 167, 69, 0.7)';
-                    }
-                } catch (error) {
-                    updateStatus(`Error creating split points: ${error.message}`, 'error');
-                } finally {
-                    setProcessingState(false);
-                }
-            }
-
-            // Add function to reset button highlights when clicking Done
-            async function handleDoneButtonClick() {
-                // Reset button styles
-                doneButton.style.animation = 'none';
-                doneButton.style.boxShadow = 'none';
-
-                if (processingComplete || isProcessing) return;
-
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
                 });
-                video.pause();
-
-                if (!video.src) {
-                    updateStatus('No video loaded', 'error');
-                    return;
-                }
-
-                // Check if we have any split points beyond the initial capture
-                const hasSplitPoints = splits.length >= 2;
-
-                if (!hasSplitPoints) {
-                    // Just finish with the first and last frames that are already captured
-                    updateStatus('Processing complete with first and last frames only.', 'success');
-                    processingComplete = true;
-                    setFinalState();
-                    return;
-                }
-
-                setProcessingState(true);
-                processingComplete = false;
-                updateStatus('Starting video processing with split points...', 'info');
-
-                try {
-                    // Make sure we have the end point
-                    if (splits[splits.length - 1] !== video.duration) {
-                        splits.push(video.duration);
-                        splits.sort((a, b) => a - b); // Re-sort to ensure order
-                    }
-
-                    // Process all segments
-                    const totalSegments = splits.length - 1;
-                    for (let i = 0; i < totalSegments && !processingComplete; i++) {
-                        const startTime = splits[i];
-                        const endTime = splits[i + 1];
-                        await processVideoSegment(startTime, endTime, i + 1);
-                        updateStatus(`Completed segment ${i + 1} of ${totalSegments}`, 'info');
-                    }
-
-                    if (!processingComplete) {
-                        updateStatus('Processing Complete! All segments have been downloaded.', 'success');
-                    }
-                } catch (error) {
-                    console.error("An error occurred:", error);
-                    updateStatus(`Error: ${error.message}`, 'error');
-                } finally {
-                    video.pause();
-                    processingComplete = true;
-                    video.currentTime = 0;
-                    setProcessingState(false);
-                    setFinalState();
-                }
             }
 
-            function setFinalState() {
-                [
-                    extractFrameBtn,
-                    extractIntervalBtn,
-                    splitVideoBtn,
-                    splitIntervalBtn,
-                    renameButton,
-                    doneButton,
-                    btnOpen,
-                ].forEach(btn => {
-                    if (btn) btn.disabled = true;
-                });
-
-                filenameInput.disabled = true;
-                btnRestart.disabled = false;
-                updateStatus('Processing completed. Click "Restart" to process another video.', 'success');
-            }
-
-            function handleRename() {
-                if (!baseName) {
-                    updateStatus('No file loaded', 'error');
-                    return;
-                }
-
-                const newName = filenameInput.value.trim();
-                if (!newName) {
-                    updateStatus('Please enter a new filename', 'error');
-                    return;
-                }
-
-                const currentExt = video.currentSrc.toLowerCase().includes('webm') ? 'webm' :
-                    video.currentSrc.toLowerCase().includes('mp4') ? 'mp4' : 'mp4';
-
-                const newBaseName = newName.includes('.') ? newName.split('.')[0] : newName;
-                baseName = newBaseName;
-                filenameInput.value = `${newBaseName}.${currentExt}`;
-                updateStatus(`Filename updated to: ${filenameInput.value}`, 'success');
-            }
-
-            // Handle single split
-            async function handleSingleSplit() {
-                if (!video.src) {
-                    updateStatus('No video loaded', 'error');
-                    return;
-                }
-
-                const currentTime = video.currentTime;
-                if (!splits.includes(0)) splits.unshift(0); // Ensure first split is at 0
-                splits.push(currentTime);
-                splits.sort((a, b) => a - b); // Keep splits in order
-                const splitIndex = splits.indexOf(currentTime);
-                const sectionNumber = splitIndex + 1;
-
-                // Add divider line for visual separation
-                const divider = document.createElement('div');
-                divider.className = 'log-item divider';
-                divider.innerHTML = '<hr style="width:100%; border:0; border-top:2px solid #0056b3; margin:15px 0;">';
-                log.appendChild(divider);
-
-                // Add segment header
-                const segmentHeader = document.createElement('div');
-                segmentHeader.innerHTML = `<div style="color:#0056b3; font-weight:bold; font-size:14px; margin:10px 0; letter-spacing:0.5px;">
-                    Split Point: Section ${sectionNumber} at ${formatTime(currentTime)}</div>`;
-                log.appendChild(segmentHeader);
-
-                // Capture frame at split point - use section number in the name
-                await captureAndSaveFrame(`S${sectionNumber}F1`, currentTime);
-
-                // Reset section frame counts when adding new splits
-                window.sectionFrameCounts = {};
-            }
-
-            async function processVideoSegment(startTime, endTime, segmentNumber) {
-                // Missing implementation for actual video segment processing
-                // This would likely:
-                // 1. Extract video segment
-                // 2. Save it to disk or prepare for download
-                // 3. Possibly trigger audio extraction
-
-                updateStatus(`Processing segment ${segmentNumber} from ${formatTime(startTime)} to ${formatTime(endTime)}`, 'info');
-
-                // Capture first and last frames of segment
-                await captureAndSaveFrame(`S${segmentNumber}F1`, startTime);
-                await captureAndSaveFrame(`S${segmentNumber}Last`, endTime - 0.1);
-
-                // Here you'd have code to actually save the video segment
-                updateStatus(`Segment ${segmentNumber} processed: ${formatTime(startTime)} to ${formatTime(endTime)}`, 'success');
-            }
-        </script>
-    </div>
+            initDragAndDrop(); // Call this function to initialize drag and drop
+        });
+    </script>
 </body>
 
 </html>

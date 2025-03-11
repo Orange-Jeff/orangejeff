@@ -1,0 +1,18 @@
+[2025-03-11 02:50:54] Script started - basic test version
+[2025-03-11 02:50:55] POST data: {"regions":"{\"speaker1\":[{\"start\":0,\"end\":4.189333333333333},{\"start\":12.88933333333333,\"end\":15.819999999999997}],\"speaker2\":[{\"start\":4.189333333333333,\"end\":11.808},{\"start\":15.819999999999997,\"end\":18.86799999999999}],\"trash\":[{\"start\":11.808,\"end\":12.88933333333333},{\"start\":18.86799999999999,\"end\":39.46666666666667}]}","fileName":"58cb7561-9422-458f-9825-9311e5f798bd (1).wav"}
+[2025-03-11 02:50:55] FILES data: {"audioFile":{"name":"58cb7561-9422-458f-9825-9311e5f798bd (1).wav","full_path":"58cb7561-9422-458f-9825-9311e5f798bd (1).wav","type":"","tmp_name":"","error":1,"size":0}}
+[2025-03-11 02:50:55] Created temporary output files
+[2025-03-11 05:04:07] Script started - processing audio file
+[2025-03-11 05:04:07] POST data: {"regions":"{\"speaker1\":[{\"start\":0,\"end\":11.174953959484348}],\"speaker2\":[],\"trash\":[]}","fileName":"58cb7561-9422-458f-9825-9311e5f798bd.wav"}
+[2025-03-11 05:04:07] FILES data: {"audioFile":{"name":"58cb7561-9422-458f-9825-9311e5f798bd.wav","full_path":"58cb7561-9422-458f-9825-9311e5f798bd.wav","type":"","tmp_name":"","error":1,"size":0}}
+[2025-03-11 05:04:07] ERROR: File upload failed: 1
+[2025-03-11 05:04:07] Stack trace: #0 {main}
+[2025-03-11 05:06:52] Script started - processing audio file
+[2025-03-11 05:06:52] POST data: {"regions":"{\"speaker1\":[{\"start\":0,\"end\":1.2462222222222221}],\"speaker2\":[],\"trash\":[{\"start\":1.2462222222222221,\"end\":14.954666666666666}]}","fileName":"ef9a4f89-8614-433b-a7f3-bfdcc0806d16.wav"}
+[2025-03-11 05:06:52] FILES data: {"audioFile":{"name":"ef9a4f89-8614-433b-a7f3-bfdcc0806d16.wav","full_path":"ef9a4f89-8614-433b-a7f3-bfdcc0806d16.wav","type":"audio\/wav","tmp_name":"C:\\Users\\info\\AppData\\Local\\Temp\\php3941.tmp","error":0,"size":1435692}}
+[2025-03-11 05:06:53] File saved to: uploads/ef9a4f89-8614-433b-a7f3-bfdcc0806d16_original.wav
+[2025-03-11 05:06:53] Regions data: {"speaker1":[{"start":0,"end":1.2462222222222221}],"speaker2":[],"trash":[{"start":1.2462222222222221,"end":14.954666666666666}]}
+[2025-03-11 05:06:53] Extracting regions from uploads/ef9a4f89-8614-433b-a7f3-bfdcc0806d16_original.wav to processed_audio/ef9a4f89-8614-433b-a7f3-bfdcc0806d16_speaker1.wav
+[2025-03-11 05:06:53] WAV Info: Channels=1, Rate=48000, Bits=16
+[2025-03-11 05:06:53] Extracted region: 0 - 1.2462222222222 (1.2462222222222 sec)
+[2025-03-11 05:06:53] Finished extracting to processed_audio/ef9a4f89-8614-433b-a7f3-bfdcc0806d16_speaker1.wav, size: 119637 bytes

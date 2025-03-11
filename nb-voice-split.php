@@ -1,8 +1,33 @@
 <?php
-// filepath: /e:/orangejeff/Speaker-split.php
-// filename: audio_waveform_editor.php
-// Version 1.4
-// Created by: NetBound Team
+
+/**
+ * NetBound Tools: Speaker Audio Splitter
+ * Version: 1.4
+ * Created by: NetBound Team
+ *
+ * DEPENDENCIES:
+ * - Frontend:
+ *   - WaveSurfer.js v6.6.4 (https://unpkg.com/wavesurfer.js@6.6.4)
+ *   - WaveSurfer Regions Plugin (https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js)
+ *   - Font Awesome 6.4.0 (https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)
+ *
+ * - Backend:
+ *   - process_audio.php - Handles server-side audio processing
+ *   - PHP 7.0+ with file handling capabilities
+ *
+ * DESCRIPTION:
+ * This tool provides a browser-based interface for splitting audio recordings into
+ * separate tracks based on speaker segments. Users can mark regions for Speaker 1,
+ * Speaker 2, or mark sections as trash. The tool then processes these regions and
+ * generates separate audio files for each speaker.
+ *
+ * FEATURES:
+ * - Audio visualization with waveform display
+ * - Speaker region marking and management
+ * - Audio playback controls with zoom functionality
+ * - Drag and drop file upload
+ * - Responsive design for desktop and mobile use
+ */
 ?>
 
 <!DOCTYPE html>
@@ -30,19 +55,22 @@
             width: 100%;
             margin: 0;
             box-sizing: border-box;
-            padding: 0 20px;
+            padding: 15px;
         }
 
         .editor-header {
             background: #f4f4f9;
-            padding: 0 0 10px 0;
-            border-bottom: 1px solid #dee2e6;
+            padding: 0;
+            border-bottom: none;
             width: 100%;
             box-sizing: border-box;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
         }
 
         .editor-title {
-            margin: 20px 0 8px 0;
+            margin: 10px 0 8px 0;
             color: #0056b3;
             line-height: 1.2;
             font-weight: bold;
@@ -52,11 +80,11 @@
         /* Waveform container with responsive design */
         #waveform-container {
             position: relative;
-            margin: 20px 0;
-            padding: 10px;
-            background: #fff;
+            margin: 5px 0;
+            padding: 5px;
+            background: #f4f4f9;
             border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: none;
             transition: all 0.3s ease;
             width: 100%;
             box-sizing: border-box;
@@ -66,12 +94,12 @@
             position: relative;
             width: 100%;
             min-height: 150px;
-            background: #fff;
+            background: #f4f4f9;
             border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             transition: min-height 0.3s ease;
-            padding: 5px;
+            padding: 0;
             box-sizing: border-box;
         }
 
@@ -124,11 +152,9 @@
         /* Button and controls styling */
         .button-controls,
         .button-group {
-            width: 100%;
-            padding: 10px 0;
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+            gap: 2px;
+            flex-shrink: 0;
         }
 
         .button-blue {
@@ -184,17 +210,27 @@
         /* Controls responsive layout */
         .controls {
             display: flex;
-            justify-content: center;
-            margin: 10px 0;
-            gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
         }
 
         /* Make controls wrap better on mobile */
         @media (max-width: 576px) {
             .controls {
-                justify-content: flex-start;
-            }
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
 
             .button-blue {
                 min-width: calc(25% - 10px);
@@ -202,12 +238,7 @@
             }
         }
 
-        .zoom-controls {
-            margin: 0;
-            gap: 10px;
-            display: flex;
-            flex-wrap: nowrap;
-        }
+
 
         /* Status bar and logs */
         .persistent-status-bar {
@@ -219,7 +250,7 @@
             border: 1px solid #ddd;
             background: #fff;
             padding: 5px;
-            margin: 10px 0;
+            margin: 5px 0;
             border-radius: 4px;
             display: flex;
             flex-direction: column-reverse;
@@ -260,6 +291,9 @@
             overflow-y: auto;
             width: 100%;
             box-sizing: border-box;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
         }
 
         .region-entry {
@@ -283,6 +317,9 @@
         .processed-files {
             margin-top: 20px;
             width: 100%;
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
         }
 
         .processed-files a {
@@ -330,40 +367,70 @@
         /* Waveform header */
         .waveform-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            font-family: monospace;
-            background-color: #f8f9fa;
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            gap: 5px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
             width: 100%;
-            box-sizing: border-box;
         }
 
-        /* Responsive layout for waveform header */
+        .waveform-header span {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        .waveform-header .zoom-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 5px;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: fit-content;
+        }
+
+        /*/* Responsive layout for waveform header */
         @media (max-width: 576px) {
             .waveform-header {
                 flex-direction: column;
                 align-items: flex-start;
+                gap: 10px;
             }
 
-            .waveform-header span {
-                margin-bottom: 5px;
-            }
-
-            .zoom-controls {
+            .waveform-header > * {
                 width: 100%;
-                justify-content: space-between;
             }
+        }
+
+        .waveform-header .zoom-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 5px;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: fit-content;
+        }
+
+            .waveform-header > * {
+            flex: 1;
+            display: flex;
+            align-items: center;
         }
 
         .waveform-header span {
             white-space: nowrap;
-            flex-shrink: 0;
+        }
+
+
+        
+
+        .waveform-header > * {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .waveform-header span {
+            white-space: nowrap;
         }
 
         /* Add margin to processing button for better spacing */
@@ -395,6 +462,351 @@
         body.standalone {
             opacity: 1;
         }
+
+        /* Add CSS in the <style> section */
+        .status-bar {
+            width: 100%;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 5px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column-reverse;
+            box-sizing: border-box;
+        }
+
+        .status-message {
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+            color: #666;
+        }
+
+        .status-message:first-child {
+            color: white;
+        }
+
+        .status-message.info {
+            border-left: 3px solid #2196f3;
+        }
+
+        .status-message.info:first-child {
+            background: #2196f3;
+        }
+
+        .status-message.success {
+            border-left: 3px solid #4caf50;
+        }
+
+        .status-message.success:first-child {
+            background: #4caf50;
+        }
+
+        .status-message.error {
+            border-left: 3px solid #f44336;
+        }
+
+        .status-message.error:first-child {
+            background: #f44336;
+        }
+
+        .status-bar.drag-over {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            border-style: dashed;
+        }
+
+        /* Add this to your style section */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add these styles to your CSS section */
+        .button.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .container {
+            padding: 0 20px;
+            /* Equal padding on left and right */
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Fix button group spacing */
+        .button-group[style="margin-left: 10px;"] {
+            margin-left: 5px !important;
+        }
+
+        /* Ensure equal padding on all elements */
+        .editor-header,
+        .waveform-container,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        /* Fix controls layout to keep all buttons inside */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Increase button spacing within groups */
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add extra space before speaker buttons */
+        .button-group+.button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Add a visual separator */
+        .button-group+.button-group::before {
+            display: none;
+        }
+
+        /* 1. Consistent element alignment and padding */
+        .container {
+            padding: 15px;
+        }
+
+        .editor-header,
+        .waveform-container,
+        .process-controls,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
+        }
+
+        /* 2. Fix waveform header to keep duration and viewable on same line as zoom controls */
+        .waveform-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
+            width: 100%;
+        }
+
+        .waveform-header span {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        .waveform-header .zoom-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 5px;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: fit-content;
+        }
+
+
+
+        /* 3. Fix bottom row buttons to be one cohesive set */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .button-group:not(:last-child) {
+            margin-right: 10px;
+        }
+
+        /* Remove the separator */
+        .button-group+.button-group::before {
+            display: none;
+        }
+
+        /* 4. Process and Save buttons side by side */
+        .process.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        .process-controls .command-button {
+            width: auto !important;
+        }
+
+        /* Override the full-width setting */
+        #processAudio {
+            margin-top: 0;
+            width: auto !important;
+        }
+
+        /* 5. Log scrolling */
+        .regions-log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        /* Container and layout */
+        .container {
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .editor-header,
+        .waveform-container,
+        .process-controls,
+        .regions-log,
+        .processed-files {
+            padding-left: 0;
+            padding-right: 0;
+            margin-bottom: 0;
+            width: 100%;
+        }
+
+        /* Waveform header - single definition */
+        .waveform-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            background-color: transparent;
+            width: 100%;
+        }
+
+        .waveform-header span {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        .waveform-header .zoom-controls {
+            display: flex;
+            flex-direction: row;
+            gap: 5px;
+            justify-content: flex-end;
+            flex: 1;
+            min-width: fit-content;
+        }
+
+
+
+        /* Controls - single definition */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        /* Button groups - single definition */
+        .button-group {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .button-group:not(:last-child) {
+            margin-right: 10px;
+        }
+
+        /* Process controls - fixed layout */
+        .process.controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 0;
+            gap: 5px;
+            border-bottom: none;
+        }
+
+        #processAudio,
+        .process-controls .command-button {
+            width: auto;
+            margin-top: 0;
+        }
+
+        /* Regions log */
+        .regions-log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        /*
     </style>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
@@ -404,7 +816,9 @@
     <div class="container">
         <div class="editor-header">
             <h1 class="editor-title">NetBound Tools: Speaker Splitter</h1>
-            <div class="persistent-status-bar" id="statusBar">Waiting for audio...</div>
+            <div class="persistent-status-bar status-bar" id="status-messages">
+                <div class="status-message info">Waiting for audio...</div>
+            </div>
             <div class="button-controls">
                 <div class="button-group">
                     <button class="command-button" id="btnOpen">
@@ -423,7 +837,7 @@
             <div class="waveform-header">
                 <span id="duration-display">Duration: 0:00</span>
                 <span id="window-display">Viewable: 0:00 - 0:00</span>
-                <div class="controls zoom-controls">
+                <div class="zoom-buttons">
                     <button type="button" id="zoomIn" class="button-blue" title="Zoom In"><i class="fas fa-search-plus"></i></button>
                     <button type="button" id="zoomOut" class="button-blue" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
                     <button type="button" id="zoomFit" class="button-blue" title="Fit to Window"><i class="fas fa-expand"></i></button>
@@ -437,25 +851,43 @@
                 </div>
             </div>
             <div class="controls">
-                <button type="button" id="jumpStart" class="button-blue" title="Jump to Start"><i class="fas fa-fast-backward"></i></button>
-                <button type="button" id="playPause" class="button-blue" title="Play/Pause">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button type="button" id="backward" class="button-blue" title="Skip Backward"><i class="fas fa-backward"></i></button>
-                <button type="button" id="forward" class="button-blue" title="Skip Forward"><i class="fas fa-forward"></i></button>
-                <button type="button" id="jumpEnd" class="button-blue" title="Jump to End"><i class="fas fa-fast-forward"></i></button>
-                <button type="button" id="speaker1Region" class="button-blue" title="Mark Speaker 1"><i class="fas fa-user"></i>1</button>
-                <button type="button" id="speaker2Region" class="button-blue" title="Mark Speaker 2"><i class="fas fa-user"></i>2</button>
-                <button type="button" id="trashRegion" class="button-blue warning" title="Mark for Deletion"><i class="fas fa-ban"></i></button>
-                <button id="undoRegion" class="button-blue" title="Undo last region">
-                    <i class="fas fa-undo"></i>
-                </button>
+                <div class="button-group">
+                    <button id="jumpStart" class="button-blue" title="Jump to start"><i class="fas fa-step-backward"></i></button>
+                    <button id="jumpBack" class="button-blue" title="Jump back"><i class="fas fa-backward"></i></button>
+                    <button id="playPause" class="button-blue" title="Play/Pause"><i class="fas fa-play"></i></button>
+                    <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
+                    <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
+                </div>
+
+                <div class="button-group" >
+                    <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
+                        <i class="fas fa-user-circle"></i> 1
+                    </button>
+                    <button id="speaker2Region" class="button-blue speaker2-btn" title="Mark Speaker 2 Region">
+                        <i class="fas fa-user-circle"></i> 2
+                    </button>
+                    <button id="trashRegion" class="button-blue trash-btn" title="Mark Trash Region">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button id="undoRegion" class="button-blue" title="Undo Last Region">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div id="regions-log" class="regions-log"></div>
+        <!-- Process and Save buttons section -->
+        <div class="process-controls">
+            <button type="button" id="processAudio" class="command-button">
+                <i class="fas fa-cogs"></i> Process Audio
+            </button>
+            <button type="button" id="saveRegions" class="command-button">
+                <i class="fas fa-save"></i> Save Regions
+            </button>
+        </div>
 
-        <button type="button" id="processAudio" class="command-button">Process Audio</button>
+        <!-- Log section -->
+        <div id="regions-log" class="regions-log"></div>
 
         <div class="processed-files" id="processedFiles" style="display:none;">
             <h3>Processed Files:</h3>
@@ -487,7 +919,7 @@
             const windowDisplay = document.getElementById('window-display');
             const playPauseButton = document.getElementById('playPause');
             const playPauseIcon = playPauseButton.querySelector('i.fas');
-            const waveformContainer = document.getElementById('waveform');
+            const waveformContainer = document.getElementById('waveform-container');
             const waveformWrapper = document.querySelector('.waveform-wrapper');
 
             // Initialize data
@@ -549,11 +981,22 @@
             }
 
             function updateStatus(message, type = 'info') {
+                const statusBar = document.getElementById('status-messages');
+
+                if (!statusBar) {
+                    console.error('Status bar element not found');
+                    return;
+                }
+
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `status-message ${type}`;
                 messageDiv.textContent = message;
-                statusBar.appendChild(messageDiv);
-                statusBar.scrollTop = statusBar.scrollHeight;
+
+                // Insert at top (newest messages appear at top)
+                statusBar.insertBefore(messageDiv, statusBar.firstChild);
+
+                // Keep scrolled to top to see newest messages
+                statusBar.scrollTop = 0;
             }
 
             function updateDisplays() {
@@ -569,7 +1012,7 @@
                     const viewDuration = viewWidth / pixelsPerSecond;
                     const endTime = Math.min(startTime + viewDuration, duration);
 
-                    durationDisplay.textContent = `Duration: ${formatTime(duration)}`;
+                    durationDisplay.textContent = `Duration: ${formatTime(duration)}  `;
                     windowDisplay.textContent = `Viewable: ${formatTime(startTime)} - ${formatTime(endTime)}`;
                 } catch (err) {
                     console.error('Display update error:', err);
@@ -736,7 +1179,7 @@
 
             wavesurfer.on('play', () => {
                 playPauseButton.classList.add('playing');
-                playPauseIcon.classList.remove('fa-play');
+                playPauseIcon.classList.remove('play');
                 playPauseIcon.classList.add('fa-pause');
                 isPlaying = true;
                 updateDisplays();
@@ -780,8 +1223,8 @@
             });
 
             // Navigation controls
-            document.getElementById('backward').addEventListener('click', () => wavesurfer.skip(-0.5));
-            document.getElementById('forward').addEventListener('click', () => wavesurfer.skip(0.5));
+            document.getElementById('jumpBack').addEventListener('click', () => wavesurfer.skip(-0.5));
+            document.getElementById('jumpForward').addEventListener('click', () => wavesurfer.skip(0.5));
             document.getElementById('jumpStart').addEventListener('click', () => {
                 wavesurfer.seekTo(0); // Use seekTo(0) instead of setTime(0)
                 updateDisplays();
@@ -822,7 +1265,15 @@
             });
 
             document.getElementById('zoomFit').addEventListener('click', () => {
-                wavesurfer.zoom(wavesurfer.params.minPxPerSec);
+                // Calculate proper zoom level based on audio duration
+                const duration = wavesurfer.getDuration();
+                const containerWidth = waveformContainer.clientWidth - 20;
+                const pixelsPerSecond = containerWidth / duration;
+
+                // Apply calculated zoom level
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Reset scroll position
                 requestAnimationFrame(() => {
                     wavesurfer.drawer.wrapper.scrollLeft = 0;
                     updateDisplays();
@@ -838,134 +1289,112 @@
             document.getElementById('speaker2Region').addEventListener('click', () => createSpeakerRegion(2));
             document.getElementById('trashRegion').addEventListener('click', () => createSpeakerRegion('trash'));
 
-            // Process audio
-            document.getElementById('processAudio').addEventListener('click', () => {
+            // Fix the processing function to handle zoom state properly
+            document.getElementById('processAudio').addEventListener('click', function() {
+                // Check if we need to zoom out first
+                const currentZoom = wavesurfer.params.minPxPerSec;
                 const duration = wavesurfer.getDuration();
-                const lastRegion = sequentialRegions[sequentialRegions.length - 1];
+                const containerWidth = waveformContainer.clientWidth;
+                const visibleDuration = containerWidth / currentZoom;
 
-                // Check if file is loaded
+                // More generous threshold - if at least 90% is visible, consider it zoomed out enough
+                if (visibleDuration < duration * 0.9) {
+                    const confirmProcess = confirm(
+                        "The waveform is currently zoomed in and you may not see all regions. " +
+                        "Would you like to zoom out to see the entire audio before processing, or proceed anyway?\n\n" +
+                        "Click 'OK' to zoom out first, or 'Cancel' to process with current view."
+                    );
+
+                    if (confirmProcess) {
+                        // Zoom out to fit the entire audio - with a slight adjustment factor
+                        const fitZoom = (containerWidth / duration) * 0.95; // Slightly less than full width
+                        wavesurfer.zoom(fitZoom);
+                        wavesurfer.drawer.wrapper.scrollLeft = 0;
+                        updateDisplays();
+                        return; // Don't process yet, let the user see the full waveform first
+                    }
+                    // Otherwise continue with processing
+                }
+
+                // Process the audio
+                processAudioRegions();
+            });
+
+            // Revised processing function to ensure all regions are included
+            function processAudioRegions() {
+                // Check if we have an audio file loaded
                 if (!originalAudioFile) {
-                    updateStatus('No audio file loaded for processing', 'error');
+                    updateStatus("Please load an audio file first.", "error");
                     return;
                 }
 
-                // Check if the waveform is zoomed in and the end is not selected
-                const wrapper = wavesurfer.drawer.wrapper;
-                const scrollLeft = wrapper.scrollLeft;
-                const viewWidth = wrapper.clientWidth;
-                const pixelsPerSecond = wavesurfer.params.minPxPerSec;
-                const startTime = scrollLeft / pixelsPerSecond;
-                const viewDuration = viewWidth / pixelsPerSecond;
-                const endTime = startTime + viewDuration;
+                // Update status
+                updateStatus("Processing audio regions...", "info");
 
-                if (endTime < duration) {
-                    updateStatus('Warning: The waveform is zoomed in and the end is not selected. Please zoom out or select the end of the waveform.', 'error');
-                    return;
-                }
-
-                if (sequentialRegions.length === 0) {
-                    updateStatus('No regions marked for processing', 'error');
-                    return;
-                }
-
-                if (lastRegion.end < duration) {
-                    const trashRegion = wavesurfer.addRegion({
-                        start: lastRegion.end,
-                        end: duration,
-                        color: 'rgba(108, 117, 125, 0.3)',
-                        drag: false,
-                        resize: false
-                    });
-
-                    const trashData = {
-                        start: lastRegion.end,
-                        end: duration,
-                        type: 'trash',
-                        region: trashRegion
-                    };
-
-                    regionsData.trash.push(trashData);
-                    sequentialRegions.push(trashData);
-                }
-
-                const processData = {
-                    speaker1: sequentialRegions
-                        .filter(r => r.type === 'speaker1')
-                        .map(r => ({
-                            start: r.start,
-                            end: r.end
-                        })),
-                    speaker2: sequentialRegions
-                        .filter(r => r.type === 'speaker2')
-                        .map(r => ({
-                            start: r.start,
-                            end: r.end
-                        })),
-                    trash: sequentialRegions
-                        .filter(r => r.type === 'trash')
-                        .map(r => ({
-                            start: r.start,
-                            end: r.end
-                        }))
+                // Collect all regions from sequentialRegions array instead of wavesurfer.regions.list
+                const allRegions = {
+                    speaker1: [],
+                    speaker2: [],
+                    trash: []
                 };
 
-                regionsInput.value = JSON.stringify(processData);
-                fileNameInput.value = currentFileName;
-                updateStatus('Processing audio regions...', 'info');
+                // Use the sequentialRegions array which has all regions regardless of view
+                sequentialRegions.forEach(region => {
+                    const type = region.type;
+                    if (type === 'speaker1' || type === 'speaker2' || type === 'trash') {
+                        allRegions[type].push({
+                            start: region.start,
+                            end: region.end
+                        });
+                    }
+                });
 
-                // Create a FormData object manually instead of using the form
+                // Create form data for submission
                 const formData = new FormData();
-                formData.append('regions', JSON.stringify(processData));
+                formData.append('regions', JSON.stringify(allRegions));
                 formData.append('fileName', currentFileName);
                 formData.append('audioFile', originalAudioFile);
 
-                // Debug info
-                console.log("File to upload:", originalAudioFile);
-                console.log("File name:", currentFileName);
-                console.log("Number of regions:", sequentialRegions.length);
-
-                // Log form data entries
-                for (let pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + (pair[0] === 'audioFile' ? 'File object' : pair[1]));
-                }
-
+                // Rest of the processing function remains the same
                 fetch('process_audio.php', {
                         method: 'POST',
                         body: formData
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
-                        if (data.status === 'error') {
-                            throw new Error(data.message);
-                        }
-                        speaker1File.href = data.speaker1;
-                        speaker1File.download = data.speaker1.split('/').pop();
-                        speaker2File.href = data.speaker2;
-                        speaker2File.download = data.speaker2.split('/').pop();
+                        if (data.status === 'success') {
+                            updateStatus("Audio processing complete!", "success");
 
-                        // Handle stereo file if available
-                        if (data.stereo) {
-                            stereoFile.href = data.stereo;
-                            stereoFile.download = data.stereo.split('/').pop();
-                            stereoFile.style.display = 'block';
-                            updateStatus('Stereo file created with Speaker 1 in left channel, Speaker 2 in right', 'success');
+                            // Update download links
+                            if (data.speaker1) {
+                                speaker1File.href = data.speaker1;
+                                speaker1File.download = `${currentFileName}_speaker1.wav`;
+                            }
+
+                            if (data.speaker2) {
+                                speaker2File.href = data.speaker2;
+                                speaker2File.download = `${currentFileName}_speaker2.wav`;
+                            }
+
+                            if (data.stereo) {
+                                stereoFile.href = data.stereo;
+                                stereoFile.style.display = 'block';
+                                stereoFile.download = `${currentFileName}_stereo.wav`;
+                            } else {
+                                stereoFile.style.display = 'none';
+                            }
+
+                            // Show the processed files section
+                            processedFiles.style.display = 'block';
                         } else {
-                            stereoFile.style.display = 'none';
+                            updateStatus(`Processing error: ${data.message}`, "error");
                         }
-
-                        processedFiles.style.display = 'block';
-                        updateStatus('Processing complete! Files ready for download.', 'success');
                     })
                     .catch(error => {
-                        console.error('Processing error:', error);
-                        updateStatus('Error processing audio: ' + error.message, 'error');
+                        updateStatus(`Error: ${error.message}`, "error");
+                        console.error("Processing error:", error);
                     });
-            });
+            }
 
             // Add undo region functionality
             document.getElementById('undoRegion').addEventListener('click', () => {
@@ -1041,6 +1470,40 @@
 
             // Call this function to adjust layout when the page loads
             adjustPositioningForFrame();
+
+            // Add after your DOMContentLoaded event listener setup:
+            function initDragAndDrop() {
+                const statusBar = document.getElementById('status-messages');
+
+                if (!statusBar) {
+                    console.error('Status bar element not found for drag-and-drop');
+                    return;
+                }
+
+                statusBar.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.add('drag-over');
+                });
+
+                statusBar.addEventListener('dragleave', () => {
+                    statusBar.classList.remove('drag-over');
+                });
+
+                statusBar.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    statusBar.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        const file = e.dataTransfer.files[0];
+                        if (file.name.toLowerCase().endsWith('.wav')) {
+                            handleFile(file);
+                        } else {
+                            updateStatus('Please drop a WAV file', 'error');
+                        }
+                    }
+                });
+            }
+
+            initDragAndDrop(); // Call this function to initialize drag and drop
         });
     </script>
 </body>
