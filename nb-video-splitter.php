@@ -10,7 +10,13 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
-            width: 550px;
+            width: 768px;
+            margin: 0 auto;
+            /* Center the body in standalone mode */
+        }
+
+        /* In iframe, use left alignment */
+        body.in-iframe {
             margin: 0;
         }
 
@@ -19,18 +25,17 @@
             background: #f4f4f9;
             height: auto;
             margin: 0;
+            max-width: 768px;
             width: 100%;
-            padding: 0;
+            padding: 20px;
             display: flex;
             flex-direction: column;
         }
 
         .preview-area {
-            padding: 0;
-            height: auto;
-            background: #f4f4f9;
-            display: flex;
+            margin-top: 10px;
             width: 100%;
+            display: flex;
             flex-direction: column;
             align-items: flex-start;
         }
@@ -39,17 +44,21 @@
         #video-container {
             position: relative;
             width: 100%;
-            height: 300px;
+            height: 432px;
+            /* 16:9 aspect ratio for 768px width */
             margin: 0;
-            padding: 0;
-            background: #f4f4f9;
-            display: block;
+            background: #2a2a2a;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #video {
             width: 100%;
-            height: 300px;
-            background: #f4f4f9;
+            height: 100%;
             object-fit: contain;
         }
 
@@ -66,13 +75,11 @@
         }
 
         .editor-title {
-            margin: 0 0 8px 0;
+            margin: 10px 0;
             color: #0056b3;
-            margin-top: 20px;
             line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
-            padding-left: 0;
         }
 
         /* Controls and Buttons */
@@ -100,27 +107,23 @@
 
         .button-pair:first-child {
             margin-right: 10px;
-            /* Space after first pair */
         }
 
         /* Main action button */
         .action-button {
             flex: 3;
-            /* Takes more space than clock button */
             background: #0056b3;
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            position: relative;
-            /* For connecting to clock button */
-            z-index: 1;
-            /* Ensure borders are over clock button */
+            border-top-left-radius: 3px;
+            border-bottom-left-radius: 3px;
         }
 
         /* Clock button */
@@ -130,21 +133,12 @@
             color: white;
             border: none;
             border-left: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 8px;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        /* Button group borders */
-        .button-pair .action-button {
-            border-top-left-radius: 3px;
-            border-bottom-left-radius: 3px;
-        }
-
-        .button-pair .clock-button {
             border-top-right-radius: 3px;
             border-bottom-right-radius: 3px;
         }
@@ -187,7 +181,7 @@
             opacity: 0.6;
         }
 
-        /* New styles for the done button container */
+        /* Done button container */
         .done-button-container {
             width: 100%;
             padding: 10px 0;
@@ -196,15 +190,15 @@
 
         #btnDone {
             width: 100%;
+            justify-content: center;
         }
 
         /* Status Bar */
         .persistent-status-bar {
             width: 100%;
-            height: 84px;
-            /* Exactly 3.5 lines at 24px per line */
-            min-height: 84px;
-            max-height: 84px;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
             overflow-y: auto;
             border: 1px solid #ddd;
             background: #fff;
@@ -217,39 +211,38 @@
         }
 
         .status-message {
-            margin: 0;
-            font-size: 13px;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
             color: #666;
-            padding: 2px 5px;
-            line-height: 24px;
-            /* Fixed line height */
-            height: 24px;
-            /* Fixed height per message */
         }
 
         .status-message:first-child {
-            background: #0056b3;
             color: white;
         }
 
-        .status-message.error:first-child {
-            background: #dc3545;
-            color: white;
+        .status-message.info {
+            border-left: 3px solid #2196f3;
+        }
+
+        .status-message.info:first-child {
+            background: #2196f3;
+        }
+
+        .status-message.success {
+            border-left: 3px solid #4caf50;
         }
 
         .status-message.success:first-child {
-            background: #28a745;
-            color: white;
+            background: #4caf50;
         }
 
-        .status-message.error:not(:first-child) {
-            color: #dc3545;
-            background: transparent;
+        .status-message.error {
+            border-left: 3px solid #f44336;
         }
 
-        .status-message.success:not(:first-child) {
-            color: #28a745;
-            background: transparent;
+        .status-message.error:first-child {
+            background: #f44336;
         }
 
         /* Log Area */
@@ -292,17 +285,23 @@
         /* Filename Input */
         .filename-container {
             width: 100%;
-            padding: 10px 0;
             display: flex;
             gap: 10px;
+            margin: 10px 0;
         }
 
         #filename-input {
             flex: 1;
-            padding: 8px 12px;
+            padding: 6px 8px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 3px;
+            font-family: inherit;
             font-size: 14px;
+        }
+
+        /* Apply consistent box-sizing to all elements */
+        * {
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -1038,6 +1037,20 @@
 
                 // Reset section frame counts when adding new splits
                 window.sectionFrameCounts = {};
+            }
+
+            // Check if running in an iframe
+            function inIframe() {
+                try {
+                    return window.self !== window.top;
+                } catch (e) {
+                    return true;
+                }
+            }
+
+            // Apply iframe-specific styling if needed
+            if (inIframe()) {
+                document.body.classList.add('in-iframe');
             }
         </script>
     </div>
