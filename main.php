@@ -1109,39 +1109,93 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         /* Mobile adjustments */
         @media (max-width: 768px) {
-            .menu-toggle {
-                display: block;
-            }
-
             .menu {
+                position: fixed;
+                left: 0;
+                top: var(--header-height);
+                width: 80%;
+                /* Slightly narrower on mobile */
+                max-width: 300px;
+                height: calc(100vh - var(--header-height));
                 transform: translateX(-100%);
+                /* Start hidden */
+                transition: transform 0.3s ease;
+                z-index: 999;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                /* Enable smooth scrolling on iOS */
             }
 
             .menu.active {
                 transform: translateX(0);
+                /* Show when active */
             }
 
+            /* Show the menu toggle button */
+            .menu-toggle {
+                display: block;
+            }
+
+            /* Ensure menu overlay works */
+            .menu-overlay.active {
+                display: block;
+            }
+
+            /* Adjust editor container height for better visibility */
+            .editor-container {
+                height: calc(100vh - var(--header-height) - 220px);
+            }
+
+            /* Make menu always visible */
+            .menu {
+                position: relative;
+                left: 0;
+                top: var(--header-height);
+                width: 100%;
+                height: auto;
+                max-height: 300px;
+                overflow-y: auto;
+                transform: none !important;
+                transition: none;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                margin-bottom: 10px;
+            }
+
+            /* Hide the menu toggle button */
+            .menu-toggle {
+                display: none;
+            }
+
+            /* Adjust container to be below menu instead of beside it */
             .container {
                 margin-left: 0;
                 width: 100%;
-                transition: margin-left var(--transition-speed) ease;
+                flex-direction: column;
             }
 
-            .container.menu-active {
-                margin-left: var(--menu-width);
+            /* Remove overlay since we don't need it */
+            .menu-overlay {
+                display: none !important;
             }
 
+            /* Adjust editor view position */
             .editor-view,
             .backup-view {
+                position: relative;
                 left: 0;
+                top: 0;
+            }
+
+            /* Menu container needs to be at full width */
+            .menu-container {
                 width: 100%;
+                max-width: 100%;
             }
 
-            .editor-view.hidden {
-                transform: translateX(-100%);
+            /* Adjust overall height calculations */
+            .editor-container {
+                height: calc(100vh - var(--header-height) - 400px);
             }
-
-            /* Remove any other mobile-specific rules */
         }
 
         /* Editor navigation controls */
@@ -1355,6 +1409,35 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         @media (max-height: 500px) {
             .editor-container {
                 height: calc(100vh - var(--header-height) - 100px);
+            }
+        }
+
+        /* Add these styles to your existing CSS to fix mobile menu */
+        @media (max-width: 768px) {
+            .menu {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                width: 80%;
+                /* Slightly narrower on mobile */
+                max-width: 300px;
+            }
+
+            .menu.active {
+                transform: translateX(0);
+            }
+
+            /* Make sure menu is visible in viewport */
+            #menuPanel {
+                height: calc(100vh - var(--header-height));
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                /* For iOS momentum scrolling */
+            }
+
+            /* Ensure the menu toggle is visible and properly styled */
+            .menu-toggle {
+                display: block;
+                z-index: 1001;
             }
         }
     </style>
@@ -1890,18 +1973,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         function openInNewTab(filename) {
-            if (!filename) return updateStatus('Filename required', 'error');
-
-            const fileExtension = filename.split('.').pop().toLowerCase();
-
-            // Check if trying to run main editor
-            if (filename === 'main.php' || filename.includes('main')) {
-                return updateStatus('Cannot run the editor interface directly', 'info');
-            }
-
-            // Only allow PHP and HTML files to be run directly
-            if (!['php', 'html', 'htm'].includes(fileExtension)) {
-                return updateStatus(`Cannot run ${fileExtension} files directly`, 'info');
+            const checkResult = canRunFileDirectly(filename);
+            if (!checkResult.valid) {
+                return updateStatus(checkResult.message, 'error');
             }
 
             const editorView = document.querySelector('.editor-view');
@@ -1923,18 +1997,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         function openInNewWindow(filename) {
-            if (!filename) return updateStatus('Filename required', 'error');
-
-            const fileExtension = filename.split('.').pop().toLowerCase();
-
-            // Check if trying to run main editor
-            if (filename === 'main.php' || filename.includes('main')) {
-                return updateStatus('Cannot run the editor interface directly', 'info');
-            }
-
-            // Only allow PHP and HTML files to be run directly
-            if (!['php', 'html', 'htm'].includes(fileExtension)) {
-                return updateStatus(`Cannot run ${fileExtension} files directly`, 'info');
+            const checkResult = canRunFileDirectly(filename);
+            if (!checkResult.valid) {
+                return updateStatus(checkResult.message, 'error');
             }
 
             // Get the current folder from URL
@@ -1947,7 +2012,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         }
 
         function updateDisplayFilename() {
-            // Placeholder for future functionality
+            // Set the editor mode based on the current filename
             const filename = document.getElementById('editorFilename').value;
             setEditorMode(filename);
         }
@@ -2040,11 +2105,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         }
 
-        // Add missing updateStatusById function
+        // Replace updateStatusById function with this:
         function updateStatusById(id, message, type = 'info') {
-            // Since we don't actually track status messages by ID currently,
-            // we'll just create a new message
-            updateStatus(message, type);
+            // Direct call to updateStatus since we don't implement ID tracking
+            updateStatus(`${id}: ${message}`, type);
         }
 
         // Add a debounce function to prevent rapid successive calls
@@ -2216,20 +2280,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             // Setup all event listeners in one place to avoid duplication
             setupEventListeners();
 
-            // Add debugging for checkboxes to check if they're properly initialized
-            console.log("Found " + document.querySelectorAll('.delete-check').length + " delete checkboxes");
-
-            // Add a direct event listener to any existing checkboxes
-            document.querySelectorAll('.delete-check').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    console.log("Checkbox changed: ", {
-                        type: this.getAttribute('data-type'),
-                        name: this.getAttribute('data-name'),
-                        checked: this.checked
-                    });
-                });
-            });
-
             // Clear any lingering status messages on page load
             const statusBar = document.getElementById('statusBar');
             if (statusBar) {
@@ -2246,49 +2296,26 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         // Update the message event handler
         window.addEventListener('message', function(event) {
-          if (event.data && event.data.action === 'switchToEditor') {
-              const editorView = document.querySelector('.editor-view');
-              const backupView = document.querySelector('.backup-view');
-
-              editorView.classList.remove('hidden');
-              backupView.classList.remove('active');
-
-              // Clear the iframe src after a short delay to stop any running scripts
-              setTimeout(() => {
-                  backupView.querySelector('iframe').src = '';
-              }, 300);
-
-              // Clean up URL parameters
-              const url = new URL(window.location.href);
-              url.searchParams.delete('app');
-    window.history.pushState({}, '', url);
-
-                        if (event.data.status) {
-                  updateStatus(event.data.status, 'success');
-               }
-          }
-      });
-
-        // Update resize handler to handle mobile menu state
-        window.addEventListener('resize', function() {
-            // Reset menu state on larger screens
-            if (window.innerWidth > 768) {
-                const menuPanel = document.getElementById('menuPanel');
-                const mainContainer = document.getElementById('mainContainer');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const body = document.body;
-                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
+            if (event.data && event.data.action === 'switchToEditor') {
                 const editorView = document.querySelector('.editor-view');
                 const backupView = document.querySelector('.backup-view');
 
-                menuPanel.classList.remove('active');
-                mainContainer.classList.remove('menu-active');
-                menuOverlay.classList.remove('active');
-                body.classList.remove('menu-active');
-                editorView.classList.remove('menu-active');
-                backupView.classList.remove('menu-active');
-                menuToggleIcon.classList.remove('fa-times');
-                menuToggleIcon.classList.add('fa-bars');
+                editorView.classList.remove('hidden');
+                backupView.classList.remove('active');
+
+                // Clear the iframe src after a short delay to stop any running scripts
+                setTimeout(() => {
+                    backupView.querySelector('iframe').src = '';
+                }, 300);
+
+                // Clean up URL parameters
+                const url = new URL(window.location.href);
+                url.searchParams.delete('app');
+                window.history.pushState({}, '', url);
+
+                if (event.data.status) {
+                    updateStatus(event.data.status, 'success');
+                }
             }
         });
 
@@ -2314,6 +2341,36 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 menuToggleIcon.classList.add('fa-bars');
             }
         });
+
+        // Add this helper function above openInNewTab and openInNewWindow
+        function canRunFileDirectly(filename) {
+            if (!filename) return {
+                valid: false,
+                message: 'Filename required'
+            };
+
+            const fileExtension = filename.split('.').pop().toLowerCase();
+
+            // Check if trying to run main editor
+            if (filename === 'main.php' || filename.includes('main')) {
+                return {
+                    valid: false,
+                    message: 'Cannot run the editor interface directly'
+                };
+            }
+
+            // Only allow PHP and HTML files to be run directly
+            if (!['php', 'html', 'htm'].includes(fileExtension)) {
+                return {
+                    valid: false,
+                    message: `Cannot run ${fileExtension} files directly`
+                };
+            }
+
+            return {
+                valid: true
+            };
+        }
     </script>
 
     <script>
@@ -2328,9 +2385,54 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     </script>
     <script>
         // Add this function to your JavaScript
-        function setupEventListeners() {
+        function toggleMobileMenu() {
+            const menuPanel = document.getElementById('menuPanel');
+            const mainContainer = document.getElementById('mainContainer');
+            const menuOverlay = document.getElementById('menuOverlay');
+            const menuToggleIcon = document.querySelector('#menuToggle i');
 
+            // Toggle proper active classes
+            menuPanel.classList.toggle('active');
+            mainContainer.classList.toggle('menu-active');
+            menuOverlay.classList.toggle('active');
+
+            // Update icon
+            if (menuPanel.classList.contains('active')) {
+                menuToggleIcon.classList.remove('fa-bars');
+                menuToggleIcon.classList.add('fa-times');
+            } else {
+                menuToggleIcon.classList.remove('fa-times');
+                menuToggleIcon.classList.add('fa-bars');
+            }
+        }
+
+        // Update the event listener in setupEventListeners()
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            toggleMobileMenu();
+        });
+
+        // Add this function before your existing event listeners
+        function setupEventListeners() {
+            // Set up the sort button functionality
             setupSortButton();
+
+            // Set up delete button
+            const deleteBtn = document.getElementById('menuDeleteBtn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', deleteSelected);
+            }
+
+            // Set up refresh button
+            const refreshBtn = document.getElementById('menuRefreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', refreshFileList);
+            }
+
+            // Menu toggle button - FIXED: using toggleMobileMenu instead of toggleMobileView
+            const menuToggle = document.getElementById('menuToggle');
+            if (menuToggle) {
+                menuToggle.addEventListener('click', toggleMobileMenu);
+            }
         }
 
         // Setup sort button handler
