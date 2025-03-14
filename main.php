@@ -375,14 +375,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $filePath = $currentDir . '/' . $filename;
             $originalContent = file_exists($filePath) ? file_get_contents($filePath) : '';
 
-            // Skip backup check if this is a new file or part of a rename operation
-            if (!file_exists($filePath) || $isRename) {
-                // Just save the file without attempting backup
-                if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
-                    echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename]);
-                } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
-                }
+            if (file_exists($filePath) || $isRename) {
+                // Empty block
             } else if ($content !== $originalContent) {
                 // Regular save with backup attempt for existing file
                 try {
@@ -745,6 +739,15 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             box-shadow: 2px 0 5px rgb(0 0 0 / 10%);
             z-index: 999;
             overflow-y: auto;
+            transform: none !important;
+            /* Always visible */
+        }
+
+
+
+        /* Remove menu overlay */
+        .menu-overlay {
+            display: none !important;
         }
 
         /* Container Layout */
@@ -893,14 +896,89 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 20px;
+            padding: 15px;
             width: 100%;
             max-width: 768px;
             margin: 0;
             box-sizing: border-box;
-            height: calc(100vh - 160px);
-            padding-bottom: 60px;
+            /* Remove fixed min-height, let it be flexible */
+            height: auto;
+            /* Ensure there's always room for buttons */
             transition: max-width 0.3s ease;
+        }
+
+        .editor-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            /* Use flexible height approach */
+            height: auto;
+            /* Limit height to ensure buttons are visible */
+            max-height: calc(100vh - var(--header-height) - 220px);
+            /* Allow smaller height on smaller screens */
+            min-height: 100px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        /* Ensure button row is always visible with stronger positioning */
+        .button-row {
+            position: sticky;
+            bottom: 0;
+            background: #e9ecef;
+            padding: 8px 0;
+            z-index: 1000;
+            margin-top: 10px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Add general responsive layout approach that works for all devices */
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            /* Ensure the form takes at least space needed for buttons */
+            min-height: 220px;
+        }
+
+        /* Status bar adaptations */
+        .persistent-status-bar {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* Make the form layout more responsive */
+        @media (max-height: 600px) {
+            .editor {
+                padding: 5px;
+            }
+
+            .editor-container {
+                min-height: 80px;
+                max-height: calc(100vh - var(--header-height) - 180px);
+            }
+
+            .button-group {
+                margin-top: 2px;
+            }
+
+            .persistent-status-bar {
+                max-height: 60px;
+            }
+
+            .button-row .command-button,
+            .button-row .split-button {
+                /* Smaller buttons on very small screens */
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        }
+
+        /* Add intermediate size range for tablets */
+        @media (min-height: 601px) and (max-height: 800px) {
+            .editor-container {
+                max-height: calc(100vh - var(--header-height) - 200px);
+            }
         }
 
         .editor.fullscreen {
@@ -1107,97 +1185,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             color: white;
         }
 
-        /* Mobile adjustments */
-        @media (max-width: 768px) {
-            .menu {
-                position: fixed;
-                left: 0;
-                top: var(--header-height);
-                width: 80%;
-                /* Slightly narrower on mobile */
-                max-width: 300px;
-                height: calc(100vh - var(--header-height));
-                transform: translateX(-100%);
-                /* Start hidden */
-                transition: transform 0.3s ease;
-                z-index: 999;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                /* Enable smooth scrolling on iOS */
-            }
-
-            .menu.active {
-                transform: translateX(0);
-                /* Show when active */
-            }
-
-            /* Show the menu toggle button */
-            .menu-toggle {
-                display: block;
-            }
-
-            /* Ensure menu overlay works */
-            .menu-overlay.active {
-                display: block;
-            }
-
-            /* Adjust editor container height for better visibility */
-            .editor-container {
-                height: calc(100vh - var(--header-height) - 220px);
-            }
-
-            /* Make menu always visible */
-            .menu {
-                position: relative;
-                left: 0;
-                top: var(--header-height);
-                width: 100%;
-                height: auto;
-                max-height: 300px;
-                overflow-y: auto;
-                transform: none !important;
-                transition: none;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-                margin-bottom: 10px;
-            }
-
-            /* Hide the menu toggle button */
-            .menu-toggle {
-                display: none;
-            }
-
-            /* Adjust container to be below menu instead of beside it */
-            .container {
-                margin-left: 0;
-                width: 100%;
-                flex-direction: column;
-            }
-
-            /* Remove overlay since we don't need it */
-            .menu-overlay {
-                display: none !important;
-            }
-
-            /* Adjust editor view position */
-            .editor-view,
-            .backup-view {
-                position: relative;
-                left: 0;
-                top: 0;
-            }
-
-            /* Menu container needs to be at full width */
-            .menu-container {
-                width: 100%;
-                max-width: 100%;
-            }
-
-            /* Adjust overall height calculations */
-            .editor-container {
-                height: calc(100vh - var(--header-height) - 400px);
-            }
-        }
-
         /* Editor navigation controls */
         .editor-nav-controls {
             position: absolute;
@@ -1369,25 +1356,11 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         }
 
-        /* Add this to your style section */
-        .menu-toggle {
-            display: none;
-            /* Hidden by default on desktop */
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            margin-right: 10px;
-        }
 
-        /* Show only on mobile */
-        @media (max-width: 768px) {
-            .menu-toggle {
-                display: block;
-            }
-        }
+
+
+
+
 
         /* Add responsive editor height */
         @media (max-height: 700px) {
@@ -1433,12 +1406,58 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 -webkit-overflow-scrolling: touch;
                 /* For iOS momentum scrolling */
             }
+        }
 
-            /* Ensure the menu toggle is visible and properly styled */
-            .menu-toggle {
-                display: block;
-                z-index: 1001;
-            }
+        /* Add inside your existing <style> tag */
+        .status-bar {
+            width: 100%;
+            height: 90px;
+            min-height: 90px;
+            max-height: 90px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 5px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column-reverse;
+            box-sizing: border-box;
+        }
+
+        .status-message {
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+            color: #666;
+        }
+
+        .status-message:first-child {
+            color: white;
+        }
+
+        .status-message.info {
+            border-left: 3px solid #2196f3;
+        }
+
+        .status-message.info:first-child {
+            background: #2196f3;
+        }
+
+        .status-message.success {
+            border-left: 3px solid #4caf50;
+        }
+
+        .status-message.success:first-child {
+            background: #4caf50;
+        }
+
+        .status-message.error {
+            border-left: 3px solid #f44336;
+        }
+
+        .status-message.error:first-child {
+            background: #f44336;
         }
     </style>
 </head>
@@ -1648,15 +1667,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         // Core Functions
         function loadFile(filename) {
-            // Check if mobile view (window width <= 768px)
-            if (window.innerWidth <= 768) {
-                // Close the menu if it's open
-                const menuPanel = document.getElementById('menuPanel');
-                if (menuPanel.classList.contains('active')) {
-                    toggleMobileMenu(); // Use the function instead of direct manipulation
-                }
-            }
-
             const editorView = document.querySelector('.editor-view');
             const backupView = document.querySelector('.backup-view');
 
@@ -1681,14 +1691,14 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     editor.setValue(content, -1);
                     document.getElementById('editorFilename').value = filename;
                     currentLoadedFilename = filename; // Store the original filename
-                    updateStatus(STATUS_MESSAGES.file.loaded(filename), 'success');
+                    status.update(STATUS_MESSAGES.file.loaded(filename), 'success');
                     editorContent = editor.getValue();
 
                     // Set Ace editor mode based on file extension
                     setEditorMode(filename);
                 })
                 .catch(error => {
-                    updateStatus(`Error loading file: ${filename}`, 'error');
+                    status.update(`Error loading file: ${filename}`, 'error');
                     console.error('Error loading file:', error);
                 });
         }
@@ -1716,7 +1726,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function saveFile(newFilename = null) {
             const filename = newFilename || document.getElementById('editorFilename').value;
             if (!filename) {
-                return updateStatus('Filename required', 'error');
+                return status.update('Filename required', 'error');
             }
 
             const content = editor.getValue();
@@ -1734,7 +1744,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     return response.json();
                 })
                 .then(result => {
-                    updateStatus(result.message, result.status);
+                    status.update(result.message, result.status);
                     if (newFilename) {
                         document.getElementById('editorFilename').value = newFilename;
                     }
@@ -1742,7 +1752,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     refreshFileList(); // Always refresh after save
                 })
                 .catch(error => {
-                    updateStatus('Error saving file: ' + error.message, 'error');
+                    status.update('Error saving file: ' + error.message, 'error');
                 });
         }
 
@@ -1759,7 +1769,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             a.download = currentFolder ? currentFolder + '/' + defaultName : defaultName;
             a.click();
             URL.revokeObjectURL(url);
-            updateStatus('File saved to local machine', 'success');
+            status.update('File saved to local machine', 'success');
         }
 
         function confirmDelete(filename) {
@@ -1773,7 +1783,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     })
                     .then(response => response.json())
                     .then(result => {
-                        updateStatus(result.message, result.status);
+                        status.update(result.message, result.status);
                         if (result.status === 'success') {
                             refreshFileList();
                             if (document.getElementById('editorFilename').value === filename) {
@@ -1796,7 +1806,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             editor.setValue('');
             document.getElementById('editorFilename').value = newFilename;
-            updateStatus(STATUS_MESSAGES.file.new(newFilename), 'success');
+            status.update(STATUS_MESSAGES.file.new(newFilename), 'success');
             editorContent = editor.getValue();
             setEditorMode(newFilename);
         }
@@ -1805,7 +1815,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function createNewFolder() {
             const folderName = prompt('Enter folder name:');
             if (!folderName || !/^[a-zA-Z0-9_-]+$/.test(folderName)) {
-                return updateStatus('Invalid folder name. Use only letters, numbers, underscore, and dash.', 'error');
+                return status.update('Invalid folder name. Use only letters, numbers, underscore, and dash.', 'error');
             }
 
             const params = new URLSearchParams(window.location.search);
@@ -1826,13 +1836,13 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     return response.json();
                 })
                 .then(result => {
-                    updateStatus(result.message, result.status);
+                    status.update(result.message, result.status);
                     if (result.status === 'success') {
                         refreshFileList(); // Always refresh after folder creation
                     }
                 })
                 .catch(error => {
-                    updateStatus('Error creating folder: ' + error.message, 'error');
+                    status.update('Error creating folder: ' + error.message, 'error');
                 });
         }
 
@@ -1861,9 +1871,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                         } else {
                             refreshFileList();
                         }
-                        updateStatus(result.message, 'success');
+                        status.update(result.message, 'success');
                     } else {
-                        updateStatus(result.message, 'error');
+                        status.update(result.message, 'error');
                     }
                 });
         }
@@ -1878,9 +1888,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     }
                     editor.setValue(text, -1);
                     editorContent = text;
-                    updateStatus(STATUS_MESSAGES.clipboard.paste(), 'success');
+                    status.update(STATUS_MESSAGES.clipboard.paste(), 'success');
                 })
-                .catch(() => updateStatus('Failed to read clipboard', 'error'));
+                .catch(() => status.update('Failed to read clipboard', 'error'));
         }
 
         function appendClipboard() {
@@ -1888,15 +1898,15 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 .then(text => {
                     const currentContent = editor.getValue();
                     editor.setValue(currentContent + '\n' + text, -1);
-                    updateStatus(STATUS_MESSAGES.clipboard.append(), 'success');
+                    status.update(STATUS_MESSAGES.clipboard.append(), 'success');
                 })
-                .catch(() => updateStatus('Failed to read clipboard', 'error'));
+                .catch(() => status.update('Failed to read clipboard', 'error'));
         }
 
         function toClipboard() {
             navigator.clipboard.writeText(editor.getValue())
-                .then(() => updateStatus(STATUS_MESSAGES.clipboard.copy(), 'success'))
-                .catch(() => updateStatus('Failed to copy to clipboard', 'error'));
+                .then(() => status.update(STATUS_MESSAGES.clipboard.copy(), 'success'))
+                .catch(() => status.update('Failed to copy to clipboard', 'error'));
         }
 
         // Backup Functions
@@ -1911,7 +1921,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
         function fromBackup() {
             const filename = document.getElementById('editorFilename').value;
-            if (!filename) return updateStatus('Filename required', 'error');
+            if (!filename) return status.update('Filename required', 'error');
 
             // Get the full path including current folder
             const filePath = getCurrentFilePath();
@@ -1928,9 +1938,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 .then(result => {
                     if (result.status === 'success') {
                         editor.setValue(result.content, -1);
-                        updateStatus(`Restored from backup: ${result.backupFilename}`, 'success');
+                        status.update(`Restored from backup: ${result.backupFilename}`, 'success');
                     } else {
-                        updateStatus(result.message, 'error');
+                        status.update(result.message, 'error');
                     }
                 });
         }
@@ -1947,7 +1957,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             backupView.classList.add('active');
             backupView.querySelector('iframe').src = 'nb-archive-manager.php'; // Changed from backup-manager.php
 
-            updateStatus('Backup manager loaded', 'success');
+            status.update('Backup manager loaded', 'success');
         }
 
         // UI Functions
@@ -1962,7 +1972,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     reader.onload = function(e) {
                         editor.setValue(e.target.result, -1);
                         document.getElementById('editorFilename').value = file.name;
-                        updateStatus(STATUS_MESSAGES.file.loaded(file.name), 'success');
+                        status.update(STATUS_MESSAGES.file.loaded(file.name), 'success');
                         editorContent = editor.getValue();
                         setEditorMode(file.name);
                     };
@@ -1975,7 +1985,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function openInNewTab(filename) {
             const checkResult = canRunFileDirectly(filename);
             if (!checkResult.valid) {
-                return updateStatus(checkResult.message, 'error');
+                return status.update(checkResult.message, 'error');
             }
 
             const editorView = document.querySelector('.editor-view');
@@ -1999,7 +2009,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function openInNewWindow(filename) {
             const checkResult = canRunFileDirectly(filename);
             if (!checkResult.valid) {
-                return updateStatus(checkResult.message, 'error');
+                return status.update(checkResult.message, 'error');
             }
 
             // Get the current folder from URL
@@ -2008,7 +2018,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             // Open in a new browser window instead of iframe
             window.open(filePath, '_blank');
-            updateStatus(`Opened ${filename} in a new window`, 'success');
+            status.update(`Opened ${filename} in a new window`, 'success');
         }
 
         function updateDisplayFilename() {
@@ -2022,17 +2032,17 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             const originalFilename = currentLoadedFilename;
 
             if (!originalFilename) {
-                updateStatus('No file is currently open', 'error');
+                status.update('No file is currently open', 'error');
                 return;
             }
 
             if (newFilename === originalFilename) {
-                updateStatus('Filename unchanged', 'info');
+                status.update('Filename unchanged', 'info');
                 return;
             }
 
             if (!newFilename) {
-                updateStatus('New filename cannot be empty', 'error');
+                status.update('New filename cannot be empty', 'error');
                 return;
             }
 
@@ -2043,7 +2053,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
 
             const content = editor.getValue();
-            updateStatus(`Renaming file to: ${newFilename}...`, 'info');
+            status.update(`Renaming file to: ${newFilename}...`, 'info');
 
             // Save with new name
             fetch('main.php', {
@@ -2076,9 +2086,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                             })
                             .then(deleteResult => {
                                 if (deleteResult.status === 'success') {
-                                    updateStatus(`File renamed from ${originalFilename} to ${newFilename}`, 'success');
+                                    status.update(`File renamed from ${originalFilename} to ${newFilename}`, 'success');
                                 } else {
-                                    updateStatus(`Warning: Created new file but couldn't delete ${originalFilename}`, 'warning');
+                                    status.update(`Warning: Created new file but couldn't delete ${originalFilename}`, 'warning');
                                 }
                                 refreshFileList();
                             });
@@ -2087,7 +2097,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     }
                 })
                 .catch(error => {
-                    updateStatus('Error during rename: ' + error.message, 'error');
+                    status.update('Error during rename: ' + error.message, 'error');
                 });
         }
 
@@ -2136,7 +2146,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 .then(html => {
                     document.querySelector('.file-list').innerHTML = html;
                     // Update with our new function
-                    updateStatus('File list refreshed', 'success');
+                    status.update('File list refreshed', 'success');
 
                     // Re-attach event listeners to checkboxes after refresh
                     document.querySelectorAll('.delete-check').forEach(checkbox => {
@@ -2152,7 +2162,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 .catch(error => {
                     console.error('Error refreshing file list:', error);
                     // Update with error message
-                    updateStatus('Failed to refresh file list: ' + error.message, 'error');
+                    status.update('Failed to refresh file list: ' + error.message, 'error');
                 });
         }, 300); // 300ms debounce time
 
@@ -2160,7 +2170,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         function deleteSelected() {
             const checks = document.querySelectorAll('.delete-check:checked');
             if (checks.length === 0) {
-                updateStatus('No items selected', 'error');
+                status.update('No items selected', 'error');
                 return;
             }
 
@@ -2168,7 +2178,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 return;
             }
 
-            updateStatus(`Deleting ${checks.length} items...`, 'info');
+            status.update(`Deleting ${checks.length} items...`, 'info');
 
             // Process each checked item one by one to ensure reliability
             let completed = 0;
@@ -2182,7 +2192,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 if (currentItem >= deleteQueue.length) {
                     // All done
                     const message = `Deleted ${succeeded} of ${deleteQueue.length} items${failed > 0 ? ` (${failed} failed)` : ''}`;
-                    updateStatus(message, succeeded > 0 ? 'success' : 'error');
+                    status.update(message, succeeded > 0 ? 'success' : 'error');
 
                     // Only refresh once at the end of all operations
                     if (succeeded > 0) {
@@ -2200,7 +2210,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 console.log(`Type: "${type}", Name: "${name}"`);
 
                 if (!name || typeof name !== 'string') {
-                    updateStatus(`Error: Invalid name for item #${currentItem + 1}`, 'error');
+                    status.update(`Error: Invalid name for item #${currentItem + 1}`, 'error');
                     failed++;
                     currentItem++;
                     processNext();
@@ -2208,7 +2218,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 }
 
                 // Show which item is being processed
-                updateStatus(`Deleting ${type}: ${name} (${currentItem + 1}/${deleteQueue.length})...`, 'info');
+                status.update(`Deleting ${type}: ${name} (${currentItem + 1}/${deleteQueue.length})...`, 'info');
 
                 // Determine the action and parameter name based on type
                 const action = type === 'folder' ? 'deleteFolder' : 'delete';
@@ -2248,7 +2258,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                         } else {
                             failed++;
                             console.error(`Failed to delete ${type}: ${name} - ${result.message}`);
-                            updateStatus(`Error: ${result.message}`, 'error');
+                            status.update(`Error: ${result.message}`, 'error');
                         }
 
                         // Process next item after a short delay to avoid overwhelming the server
@@ -2259,7 +2269,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     })
                     .catch(error => {
                         console.error(`Error deleting ${type}: ${name}`, error);
-                        updateStatus(`Error deleting ${type}: ${name} - ${error.message}`, 'error');
+                        status.update(`Error deleting ${type}: ${name} - ${error.message}`, 'error');
                         failed++;
                         completed++;
 
@@ -2314,31 +2324,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 window.history.pushState({}, '', url);
 
                 if (event.data.status) {
-                    updateStatus(event.data.status, 'success');
+                    status.update(event.data.status, 'success');
                 }
-            }
-        });
-
-        // Update resize handler to handle mobile menu state
-        window.addEventListener('resize', function() {
-            // Reset menu state on larger screens
-            if (window.innerWidth > 768) {
-                const menuPanel = document.getElementById('menuPanel');
-                const mainContainer = document.getElementById('mainContainer');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const body = document.body;
-                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
-                const editorView = document.querySelector('.editor-view');
-                const backupView = document.querySelector('.backup-view');
-
-                menuPanel.classList.remove('active');
-                mainContainer.classList.remove('menu-active');
-                menuOverlay.classList.remove('active');
-                body.classList.remove('menu-active');
-                editorView.classList.remove('menu-active');
-                backupView.classList.remove('menu-active');
-                menuToggleIcon.classList.remove('fa-times');
-                menuToggleIcon.classList.add('fa-bars');
             }
         });
 
@@ -2376,42 +2363,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     <script>
         // We're removing all the duplicate code here
         // The deleteSelected function is already properly defined in the main script
-
-        // Initialize event listeners when the page loads to make sure all buttons work
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set up all event listeners properly
-            setupEventListeners();
-        });
+        // ...
     </script>
     <script>
         // Add this function to your JavaScript
-        function toggleMobileMenu() {
-            const menuPanel = document.getElementById('menuPanel');
-            const mainContainer = document.getElementById('mainContainer');
-            const menuOverlay = document.getElementById('menuOverlay');
-            const menuToggleIcon = document.querySelector('#menuToggle i');
-
-            // Toggle proper active classes
-            menuPanel.classList.toggle('active');
-            mainContainer.classList.toggle('menu-active');
-            menuOverlay.classList.toggle('active');
-
-            // Update icon
-            if (menuPanel.classList.contains('active')) {
-                menuToggleIcon.classList.remove('fa-bars');
-                menuToggleIcon.classList.add('fa-times');
-            } else {
-                menuToggleIcon.classList.remove('fa-times');
-                menuToggleIcon.classList.add('fa-bars');
-            }
-        }
-
-        // Update the event listener in setupEventListeners()
-        document.getElementById('menuToggle').addEventListener('click', function() {
-            toggleMobileMenu();
-        });
-
-        // Add this function before your existing event listeners
         function setupEventListeners() {
             // Set up the sort button functionality
             setupSortButton();
@@ -2428,14 +2383,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 refreshBtn.addEventListener('click', refreshFileList);
             }
 
-            // Menu toggle button - FIXED: using toggleMobileMenu instead of toggleMobileView
-            const menuToggle = document.getElementById('menuToggle');
-            if (menuToggle) {
-                menuToggle.addEventListener('click', toggleMobileMenu);
-            }
+            // Menu toggle button removed - no mobile functionality
         }
 
-        // Setup sort button handler
+        // Setup sort button handler with improved status messages
         function setupSortButton() {
             var sortBtn = document.getElementById('menuSortBtn');
             if (!sortBtn) return;
@@ -2449,15 +2400,44 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                         var sortIcon = sortBtn.querySelector('i');
                         sortIcon.classList.remove(data.sortBy === 'name' ? 'fa-clock' : 'fa-sort-alpha-down');
                         sortIcon.classList.add(data.sortBy === 'name' ? 'fa-sort-alpha-down' : 'fa-clock');
-                        refreshFileList();
+
+                        // Add a clear status message about the sort mode
+                        status.update(`Files are now sorted by ${data.sortBy === 'name' ? 'name' : 'date'}`, 'success');
+
+                        // Refresh file list without showing its status message
+                        const params = new URLSearchParams(window.location.search);
+                        const currentFolder = params.get('folder') || '';
+
+                        fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response.text();
+                            })
+                            .then(html => {
+                                document.querySelector('.file-list').innerHTML = html;
+
+                                // Re-attach event listeners to checkboxes after refresh
+                                document.querySelectorAll('.delete-check').forEach(checkbox => {
+                                    checkbox.addEventListener('change', function() {
+                                        console.log("Checkbox changed: ", {
+                                            type: this.getAttribute('data-type'),
+                                            name: this.getAttribute('data-name'),
+                                            checked: this.checked
+                                        });
+                                    });
+                                });
+                            })
+                            .catch(error => {
+                                status.update('Failed to refresh file list: ' + error.message, 'error');
+                            });
                     })
                     .catch(function(error) {
-                        updateStatus('Error toggling sort mode: ' + error.message, 'error');
+                        status.update('Error toggling sort mode: ' + error.message, 'error');
                     });
             };
         }
-
-        // ...existing code...
     </script>
 </body>
 

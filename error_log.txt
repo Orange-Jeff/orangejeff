@@ -16,3 +16,18 @@
 [2025-03-11 05:06:53] WAV Info: Channels=1, Rate=48000, Bits=16
 [2025-03-11 05:06:53] Extracted region: 0 - 1.2462222222222 (1.2462222222222 sec)
 [2025-03-11 05:06:53] Finished extracting to processed_audio/ef9a4f89-8614-433b-a7f3-bfdcc0806d16_speaker1.wav, size: 119637 bytes
+[2025-03-14 18:45:01] Script started - processing audio file
+[2025-03-14 18:45:01] POST data: []
+[2025-03-14 18:45:01] FILES data: []
+[2025-03-14 18:45:01] ERROR: File upload failed: No file uploaded
+[2025-03-14 18:45:01] Stack trace: #0 {main}
+[2025-03-14 19:51:23] Script started - processing audio file
+[2025-03-14 19:51:23] POST data: []
+[2025-03-14 19:51:23] FILES data: []
+[2025-03-14 19:51:23] ERROR: File upload failed: No file uploaded
+[2025-03-14 19:51:23] Stack trace: #0 {main}
+[2025-03-14 19:52:04] Script started - processing audio file
+[2025-03-14 19:52:04] POST data: []
+[2025-03-14 19:52:04] FILES data: []
+[2025-03-14 19:52:04] ERROR: File upload failed: No file uploaded
+[2025-03-14 19:52:04] Stack trace: #0 {main}

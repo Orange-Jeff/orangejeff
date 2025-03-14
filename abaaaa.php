@@ -1,223 +1,1037 @@
+<?php
+/* -------------------------------------------------------------------------- */
+/*                                 Core Setup                                   */
+/*                                 V-INC                                       */
+/* -------------------------------------------------------------------------- */
+// Error Reporting and Session Start
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Ensure REQUEST_METHOD is set
+if (!isset($_SERVER['REQUEST_METHOD'])) {
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+}
+
+// Set up directory and backup directory
+$dir = __DIR__;
+$currentPath = isset($_GET['folder']) ? trim($_GET['folder'], '/') : '';
+$currentPath = preg_replace('/[^a-zA-Z0-9\/_-]/', '', $currentPath); // Sanitize path
+$currentDir = $currentPath ? $dir . '/' . $currentPath : $dir;
+$backupDir = $dir . '/backups/';
+
+// Breadcrumb parts
+$breadcrumbs = $currentPath ? explode('/', $currentPath) : [];
+
+// Create backup directory if it doesn't exist
+if (!is_dir($backupDir)) {
+    if (!@mkdir($backupDir, 0755, true)) {
+        die('Failed to create backup directory. Check permissions.');
+    }
+}
+
+// Session namespace
+$sessionNamespace = 'netbound_' . md5(__DIR__);
+
+/* -------------------------------------------------------------------------- */
+/*                            Cache Control Headers                           */
+/* -------------------------------------------------------------------------- */
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
+/**
+ * Get sorted file list based on current sort preference
+ * Centralizes file listing logic to avoid duplication
+ */
+function getFileList($dir, $sortBy = 'date')
+{
+    $files = glob($dir . '/*') ?: [];
+
+    if (!empty($files)) {
+        if ($sortBy === 'date') {
+            usort($files, function ($a, $b) {
+                $aIsDir = is_dir($a);
+                $bIsDir = is_dir($b);
+
+                if ($aIsDir === $bIsDir) {
+                    return filemtime($b) - filemtime($a);
+                }
+
+                return $aIsDir ? 1 : -1; // Folders at bottom for date sort
+            });
+        } else {
+            // Custom sorting: nb-files first, then alphabetically
+            usort($files, function ($a, $b) {
+                $fileA = basename($a);
+                $fileB = basename($b);
+
+                $aIsDir = is_dir($a);
+                $bIsDir = is_dir($b);
+
+                // Keep folders on top for name sort
+                if ($aIsDir !== $bIsDir) {
+                    return $aIsDir ? -1 : 1; // Folders at top for name sort
+                }
+
+                // If both are files, check for nb- prefix
+                if (!$aIsDir && !$bIsDir) {
+                    $isNbA = (strpos($fileA, 'nb-') === 0);
+                    $isNbB = (strpos($fileB, 'nb-') === 0);
+
+                    if ($isNbA !== $isNbB) {
+                        return $isNbA ? -1 : 1;  // nb- files come first
+                    }
+                }
+
+                // Otherwise sort alphabetically
+                return strcasecmp($fileA, $fileB);
+            });
+        }
+    }
+
+    return $files;
+}
+
+/**
+ * Helper function to check if directory is empty
+ */
+function is_dir_empty($dir)
+{
+    $files = scandir($dir);
+    return count($files) <= 2; // . and ..
+}
+
+/**
+ * Helper function to recursively remove a directory
+ */
+function rrmdir($dir)
+{
+    if (is_dir($dir)) {
+        $objects = scandir($dir);
+        foreach ($objects as $object) {
+            if ($object != "." && $object != "..") {
+                if (is_dir($dir . "/" . $object)) {
+                    rrmdir($dir . "/" . $object);
+                } else {
+                    unlink($dir . "/" . $object);
+                }
+            }
+        }
+        rmdir($dir);
+    }
+}
+
+/**
+ * Get CSS class based on file extension
+ */
+
+/**
+ * Get CSS class based on file extension
+ */
+function getFolderClass($path)
+{
+    if (!is_dir($path)) {
+        return '';
+    }
+    if (basename($path) === 'backups') {
+        return 'folder-special';
+    }
+    return 'folder-normal';
+}
+function getFileTypeClass($filename)
+{
+    $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $basename = basename($filename);
+
+    // Special case for nb- files
+    if (strpos($basename, 'nb-') === 0) {
+        return 'file-nb';
+    }
+
+    // Extension-based coloring
+    switch ($extension) {
+        case 'php':
+            return 'file-php';
+        case 'html':
+        case 'htm':
+            return 'file-html';
+        case 'css':
+            return 'file-css';
+        case 'js':
+            return 'file-js';
+        case 'json':
+            return 'file-json';
+        case 'txt':
+            return 'file-txt';
+        default:
+            return 'file-other';
+    }
+}
+
+/**
+ * Generate HTML for file list
+ */
+function generateFileListHTML($files, $currentFilename = '', $currentPath = '')
+{
+    ob_start();
+
+    $hasValidFiles = false;
+
+    if (count($files) > 0) {
+        foreach ($files as $file) {
+            $filename = basename($file);
+
+            // Skip backup files and dot directories
+            if (
+                preg_match('/\(BAK-\w{3}\d{2}-S\d+\)\.\w+$/', $filename) ||
+                $filename === '.' || $filename === '..' ||
+                (is_dir($file) && $filename === 'backups')
+            ) {
+                continue;
+            }
+
+            $hasValidFiles = true;
+            $isDir = is_dir($file);
+            $fileClass = $isDir ? getFolderClass($file) : getFileTypeClass($filename);
+            $icon = $isDir ? 'fa-folder' : 'fa-file';
+            // Ensure proper path construction
+            $relativePath = trim($currentPath ? $currentPath . '/' . $filename : $filename, '/');
+
+            if ($isDir) {
+                echo "<li class='file-entry folder-entry'>
+                    <div class='file-controls'>
+                        <a href='?folder=" . urlencode($relativePath) . "' title='Open Folder'>
+                            <i class='fas fa-folder'></i>
+                        </a>
+                    </div>
+                    <a href='?folder=" . urlencode($relativePath) . "'
+                        class='filename'
+                        title='" . htmlspecialchars($filename, ENT_QUOTES) . "'>" .
+                    htmlspecialchars($filename, ENT_QUOTES) . "
+                    </a>
+                    <div class='select-control'>
+                        <input type='checkbox' class='delete-check' data-type='folder' data-name='" . htmlspecialchars($filename, ENT_QUOTES) . "' data-path='" . htmlspecialchars($relativePath, ENT_QUOTES) . "'>
+                    </div>
+                </li>";
+            } else {
+                $isCurrentEdit = ($filename === $currentFilename);
+
+                echo "<li class='file-entry " . ($isCurrentEdit ? "current-edit" : "") . "'>
+                    <div class='file-controls'>
+                        <button onclick='loadFile(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\")' title='Edit File'>
+                            <i class='fas fa-pencil-alt'></i>
+                        </button>
+                        <a href='#' onclick='openInNewTab(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\"); return false;' title='Run File'>
+                            <i class='fas fa-play'></i>
+                        </a>
+                    </div>
+                    <a href='#' onclick='loadFile(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\"); return false;'
+                       class='filename " . $fileClass . "'
+                       title='" . htmlspecialchars($filename, ENT_QUOTES) . "'>
+                       <i class='fas " . $icon . "'></i> " . htmlspecialchars($filename, ENT_QUOTES) . "
+                    </a>
+                    <div class='select-control'>
+                        <input type='checkbox' class='delete-check' data-type='file' data-name='" . htmlspecialchars($filename, ENT_QUOTES) . "' data-path='" . htmlspecialchars($relativePath, ENT_QUOTES) . "'>
+                    </div>
+                </li>";
+            }
+        }
+    }
+
+    return ob_get_clean();
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 GET Handlers                               */
+/* -------------------------------------------------------------------------- */
+
+// File Serving Handler
+if (isset($_GET['file'])) {
+    $requestedFile = basename($_GET['file']);
+    // Validate filename to prevent path traversal
+    if (preg_match('/^[\w\-\/\.]+$/', $_GET['file']) && file_exists($currentDir . '/' . $_GET['file'])) {
+        echo file_get_contents($currentDir . '/' . $_GET['file']);
+        exit;
+    }
+}
+
+// Sort Mode Toggle Handler
+if (isset($_GET['toggleSort'])) {
+    $currentSort = $_SESSION['sortBy'] ?? 'date';
+    $sortBy = ($currentSort === 'date') ? 'name' : 'date';
+    $_SESSION['sortBy'] = $sortBy;
+    exit;
+} else {
+    $sortBy = $_SESSION['sortBy'] ?? 'date';
+}
+
+// Get Folders Handler (combined with getFileList for efficiency)
+if (isset($_GET['getFolders'])) {
+    $folders = array_filter(glob('*'), 'is_dir');
+    echo json_encode($folders);
+    exit;
+}
+
+// Get File List Handler - now using centralized function
+if (isset($_GET['getFileList'])) {
+    $files = getFileList($dir, $sortBy);
+    $fileListHTML = generateFileListHTML($files, $_GET['edit'] ?? '', $currentPath);
+    echo $fileListHTML;
+    exit;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                POST Handler                                */
+/* -------------------------------------------------------------------------- */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    // Fixed delete folder handler - improved error reporting
+    if ($action === 'deleteFolder') {
+        $folderName = basename($_POST['folderName'] ?? '');
+        $response = ['status' => 'error', 'message' => ''];
+
+        if (empty($folderName)) {
+            $response['message'] = 'Folder name is required';
+        } else {
+            $folderPath = $currentDir . '/' . $folderName;
+
+            if (!is_dir($folderPath)) {
+                $response['message'] = 'Folder does not exist: ' . $folderName;
+            } else {
+                try {
+                    // Make sure we have permission to delete the folder
+                    if (!is_readable($folderPath) || !is_writable($folderPath)) {
+                        $response['message'] = 'Permission denied: Cannot delete folder ' . $folderName;
+                    } else {
+                        rrmdir($folderPath);
+                        if (!is_dir($folderPath)) {
+                            $response['status'] = 'success';
+                            $response['message'] = 'Folder deleted: ' . $folderName;
+                        } else {
+                            $response['message'] = 'Failed to delete folder: ' . $folderName;
+                        }
+                    }
+                } catch (Exception $e) {
+                    $response['message'] = 'Error deleting folder: ' . $e->getMessage();
+                }
+            }
+        }
+        echo json_encode($response);
+        exit;
+    }
+
+    // Create folder handler
+    if ($action === 'createFolder') {
+        $folderName = $_POST['folderName'] ?? '';
+        $response = ['status' => 'error', 'message' => ''];
+
+        if (empty($folderName)) {
+            $response['message'] = 'Folder name required';
+        } else if (mkdir($currentDir . '/' . $folderName, 0755)) {
+            $response['status'] = 'success';
+            $response['message'] = 'Folder created: ' . $folderName;
+        } else {
+            $response['message'] = 'Failed to create folder: ' . $folderName;
+        }
+        echo json_encode($response);
+        exit;
+    }
+    // File save handler
+    if ($action === 'save') {
+        $filename = basename($_POST['filename'] ?? '');
+        $content = $_POST['content'] ?? '';
+
+        if (empty($filename)) {
+            echo json_encode(['status' => 'error', 'message' => 'Filename required']);
+        } else {
+            $filePath = $currentDir . '/' . $filename;
+            $originalContent = file_exists($filePath) ? file_get_contents($filePath) : '';
+
+            if ($content !== $originalContent) {
+                // Backup logic
+                $backupFilename = basename($filename);
+                $version = 1;
+                while (file_exists($backupDir . $backupFilename . '(V' . $version . ').php')) {
+                    $version++;
+                }
+                $backupFilename = $backupFilename . '(V' . $version . ').php';
+
+                if (copy($filePath, $backupDir . $backupFilename)) {
+                    if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
+                        echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup created: ' . $backupFilename . ')']);
+                    } else {
+                        echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
+                    }
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Backup failed: ' . $filename]);
+                }
+            } else {
+                echo json_encode(['status' => 'info', 'message' => 'No changes detected, file not saved: ' . $filename]);
+            }
+        }
+        exit;
+    }
+    // Backup retrieval handler
+    else if ($action === 'getBackup') {
+        $filename = basename($_POST['filename'] ?? '');
+        if (empty($filename)) {
+            echo json_encode(['status' => 'error', 'message' => 'Filename required']);
+            exit;
+        }
+        $backupFilename = '';
+        $version = 1;
+        while (file_exists($backupDir . $filename . '(v' . $version . ').php')) {
+            $backupFilename = $backupDir . $filename . '(v' . $version . ').php';
+            $version++;
+        }
+        if ($backupFilename) {
+            $content = file_get_contents($backupFilename);
+            echo json_encode(['status' => 'success', 'content' => $content, 'backupFilename' => basename($backupFilename)]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No backups found for this file.']);
+        }
+        exit;
+    }
+    // File delete handler
+    else if ($action === 'delete') {
+        $filename = basename($_POST['filename'] ?? '');
+
+        $response = ['status' => 'error', 'message' => ''];
+
+        if (empty($filename)) {
+            $response['message'] = 'Filename is required for deletion.';
+        } else {
+            $filePath = $currentDir . '/' . $filename;
+
+            if (!file_exists($filePath)) {
+                $response['message'] = 'File does not exist: ' . $filename;
+            } elseif (is_dir($filePath)) {
+                $response['message'] = 'Cannot delete directories with this method. Use deleteFolder instead.';
+            } else {
+                // Check permissions before attempting to delete
+                if (!is_readable($filePath) || !is_writable($filePath)) {
+                    $response['message'] = 'Permission denied: Cannot delete file ' . $filename;
+                } else {
+                    if (@unlink($filePath)) {
+                        $response['status'] = 'success';
+                        $response['message'] = 'File deleted successfully: ' . $filename;
+                    } else {
+                        $error = error_get_last();
+                        $response['message'] = 'Failed to delete the file: ' . $filename .
+                            (isset($error['message']) ? ' - ' . $error['message'] : '');
+                    }
+                }
+            }
+        }
+
+        echo json_encode($response);
+        exit;
+    }
+    // Handle file transfers (retained but improved)
+    else if ($action === 'transferFiles') {
+        $response = ['status' => 'error', 'message' => 'No files uploaded'];
+
+        if (!empty($_FILES['files']['name'][0])) {
+            $successCount = 0;
+            $failCount = 0;
+
+            foreach ($_FILES['files']['name'] as $key => $name) {
+                $tmpName = $_FILES['files']['tmp_name'][$key];
+                $targetPath = $currentDir . '/' . basename($name);
+
+                // Create backup of existing file if applicable
+                if (file_exists($targetPath)) {
+                    $backupName = basename($name) . '(V' . time() . ').php';
+                    copy($targetPath, $backupDir . $backupName);
+                }
+
+                if (move_uploaded_file($tmpName, $targetPath)) {
+                    $successCount++;
+                } else {
+                    $failCount++;
+                }
+            }
+
+            $response = [
+                'status' => $failCount === 0 ? 'success' : ($successCount > 0 ? 'partial' : 'error'),
+                'message' => "Transferred: $successCount, Failed: $failCount"
+            ];
+        }
+
+        echo json_encode($response);
+        exit;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                HTML Output                                 */
+$currentFilename = isset($_GET['file']) ? basename($_GET['file']) : '';
+$content = '';
+if (isset($_GET['file']) && !empty($_GET['file'])) {
+    $content = file_get_contents($currentDir . '/' . $_GET['file']);
+}
+
+// Get file list for initial display
+$files = getFileList($currentDir, $sortBy);
+$validFiles = !empty($files);
+foreach ((array)$files as $file) {
+    $filename = basename($file);
+    if (!preg_match('/\(BAK-\w{3}\d{2}-S\d+\)\.\w+$/', $filename) && $filename !== '.' && $filename !== '..' && !($filename === 'backups' && is_dir($file))) {
+        $validFiles = true;
+        break;
+    }
+}
+
+// Display empty folder message if no files
+$showEmptyMessage = !$validFiles && !empty($currentPath);
+$sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
+?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetBound Tools: Audio Splitter</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>NetBound Tools Menu</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Main Styles from main-styles.css */
+        html,
+
+        /* Folder and Breadcrumb Styles */
+        .folder-entry {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+
+        .folder-entry:hover {
+            background-color: #e9ecef;
+        }
+
+        .folder-normal {
+            color: #b8860b !important;
+        }
+
+        .folder-special {
+            color: #007bff !important;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            margin: 0 -15px 15px -15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .up-level {
+            margin-left: -5px;
+            padding: 5px;
+            color: var(--primary-color);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .up-level:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        .folder-name {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+
+        .breadcrumb .separator {
+            color: #6c757d;
+        }
+
         body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f4f4f9;
+            font-family: Arial, sans-serif;
+            background-color: #e9ecef;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #f8f9fa;
+            --text-color: #333;
+            --background-color: #e9ecef;
+            --header-height: 40px;
+            --menu-width: 250px;
+            --button-padding-y: 6px;
+            --button-padding-x: 10px;
+            --button-border-radius: 4px;
+            --status-bar-padding: 8px 15px;
+            --status-bar-margin: 10px 0;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --info-color: #17a2b8;
+            --transition-speed: 0.3s;
+        }
+
+        /* Header Styles */
+        .header {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            height: var(--header-height);
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0 20px;
+            display: flex;
+            box-shadow: 0 2px 5px rgb(0 0 0 / 10%);
+        }
+
+        .header .left-section,
+        .header .right-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header .left-section .menu-title,
+        .header .right-section .editor-title {
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        /* Mobile menu toggle button - now visible on all screens */
+        .mobile-menu-toggle {
+            display: block;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        /* File coloring */
+        .nb-file {
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .php-file {
+            color: #6f42c1;
+        }
+
+        .js-file {
+            color: #e9b64d;
+        }
+
+        .css-file {
+            color: #20c997;
+        }
+
+        .html-file {
+            color: #e34c26;
+        }
+
+        .other-file {
+            color: #6c757d;
+        }
+
+        .header .right-section button,
+        .header .left-section .header-button {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            border: none;
+            padding: 4px 8px;
+            border-radius: var(--button-border-radius);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .header .right-section button:hover,
+        .header .left-section .header-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .header .left-section .header-button.disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        /* Menu Layout */
+        .menu {
+            position: fixed;
+            left: 0;
+            top: var(--header-height);
+            width: var(--menu-width);
+            height: calc(100vh - var(--header-height));
+            background-color: #fff;
+            border-right: 1px solid #ddd;
+            box-shadow: 2px 0 5px rgb(0 0 0 / 10%);
+            z-index: 999;
+            overflow-y: auto;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        /* Container Layout */
+        .container {
+            display: flex;
+            margin-left: var(--menu-width);
+            width: calc(100% - var(--menu-width));
+            height: calc(100vh - var(--header-height));
+            transition: margin-left var(--transition-speed) ease;
+            margin-top: var(--header-height);
+        }
+
+        /* Menu collapsed state */
+        .menu.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .container.menu-collapsed {
+            margin-left: 0;
+        }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+        }
+
+        .menu-overlay.active {
+            display: block;
+        }
+
+        .menu-container {
+            margin-top: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             width: 100%;
             max-width: 768px;
-            margin: 0 auto;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 0 20px;
             box-sizing: border-box;
         }
 
-        /* Layout Components */
-        .container {
-            background: #f4f4f9;
+        .tool-iframe {
             width: 100%;
+            height: calc(100vh - 160px);
+            border: none;
+            background: #fff;
+        }
+
+        .menu-tools {
+            position: sticky;
+            top: 0;
+            background: #fff;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            z-index: 1003;
+            height: 32px;
+            margin-top: 5px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .menu-content {
+            padding: 15px;
+            height: calc(100% - 52px);
+            overflow: hidden auto;
+            flex: 1;
+        }
+
+        .menu-header {
+            padding: 10px;
+            display: flex;
+            justify-content: flex-end;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 1003;
+        }
+
+        /* File List Styles */
+        .file-list {
+            padding: 10px 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .file-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .file-entry:hover {
+            background-color: #e9ecef;
+        }
+
+        .file-entry.current-edit {
+            background-color: #d1ecf1;
+        }
+
+        .file-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .file-controls button,
+        .file-controls a {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .file-controls button:hover,
+        .file-controls a:hover {
+            color: #003d82;
+        }
+
+        .select-control {
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .delete-check {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .filename {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-left: 10px;
+            font-size: 14px;
+            color: var(--text-color);
+            text-decoration: none;
+            max-width: 160px;
+        }
+
+        /* Editor styles */
+        .editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            width: 100%;
+            max-width: 768px;
             margin: 0;
             box-sizing: border-box;
-            padding: 15px;
+            height: calc(100vh - 160px);
+            padding-bottom: 60px;
+            transition: max-width 0.3s ease;
+        }
+
+        .editor.fullscreen {
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
+        }
+
+        .editor-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 240px);
+            min-height: 400px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        #editor {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+        }
+
+        .button-row {
+            position: sticky;
+            bottom: 0;
+            background: transparent;
+            padding: 5px 0;
+            z-index: 1000;
         }
 
         .editor-header {
-            background: #f4f4f9;
-            padding: 0;
-            border-bottom: none;
+            margin-top: 10px;
+            padding: 5px 0;
             width: 100%;
             box-sizing: border-box;
-            padding-left: 0;
-            padding-right: 0;
-            margin-bottom: 0;
         }
 
         .editor-title {
-            margin: 10px 0 8px 0;
-            color: #0056b3;
+            margin: 0 0 15px;
+            padding: 0;
             line-height: 1.2;
+            color: var(--primary-color);
             font-weight: bold;
             font-size: 18px;
         }
 
-        /* Waveform container with responsive design */
-        #waveform-container {
-            position: relative;
-            margin: 5px 0;
-            padding: 5px;
-            background: #f4f4f9;
-            border-radius: 4px;
-            box-shadow: none;
-            transition: all 0.3s ease;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .waveform-wrapper {
-            position: relative;
-            width: 100%;
-            min-height: 150px;
-            background: #f4f4f9;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 5px;
-            transition: min-height 0.3s ease;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        #waveform {
-            width: 100%;
-            height: 150px;
-            background-color: #e0f0ff;
-            border: 2px solid #0056b3;
-            position: relative;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            box-sizing: border-box;
-        }
-
-        #waveform.stereo {
-            height: 180px;
-        }
-
-        .waveform-wrapper.stereo {
-            min-height: 180px;
-        }
-
-        /* Channel labels */
-        .channel-label {
-            position: absolute;
-            left: 5px;
-            font-size: 12px;
-            color: #666;
-            z-index: 2;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 2px 5px;
-            border-radius: 3px;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s ease;
-        }
-
-        #waveform.stereo .channel-label {
-            opacity: 1;
-        }
-
-        .channel-label.left {
-            top: 5px;
-        }
-
-        .channel-label.right {
-            bottom: 5px;
-        }
-
-        /* Button and controls styling */
-        .button-controls,
-        .button-group {
+        .header-top {
             display: flex;
-            gap: 2px;
-            flex-shrink: 0;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            gap: 5px;
         }
 
-        .button-blue {
-            background-color: #0056b3;
+        .editor-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .label-line {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 8px;
+            flex-wrap: nowrap;
+        }
+
+        .info-label {
+            color: var(--text-color);
+            font-weight: normal;
+            width: 80px;
+            font-size: 14px;
+        }
+
+        .info-input {
+            flex: 1;
+            font-size: 14px;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: var(--button-border-radius);
+        }
+
+        /* Button Styles */
+        .button-row {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: inline-flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            margin-top: 15px;
+        }
+
+        .command-button,
+        .split-button {
+            font-size: 14px;
+            padding: var(--button-padding-y) var(--button-padding-x);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 3px;
             cursor: pointer;
-            min-width: 30px;
-            height: 30px;
+            border-radius: var(--button-border-radius);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .command-button:hover,
+        .split-button:hover {
+            background-color: #003d82;
+        }
+
+        .split-button {
+            display: flex;
+            padding: 0;
+            gap: 1px;
+            background-color: white;
+            align-items: stretch;
+        }
+
+        .split-button .main-part,
+        .split-button .append-part {
+            background-color: var(--primary-color);
+            padding: var(--button-padding-y) var(--button-padding-x);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .split-button .main-part {
+            border-radius: var(--button-border-radius) 0 0 var(--button-border-radius);
+        }
+
+        .split-button .append-part {
+            padding: var(--button-padding-y) 7px;
+            border-radius: 0 var(--button-border-radius) var(--button-border-radius) 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-            padding: 0 8px;
-            font-size: 14px;
-            position: relative;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        .button-blue:hover {
-            background-color: #004494;
+        .split-button i {
+            margin-right: 5px;
         }
 
-        .button-blue:active,
-        .button-blue.playing {
-            transform: translateY(1px);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-            background-color: #004494;
+        .split-button .main-part:hover,
+        .split-button .append-part:hover {
+            background-color: #003d82;
         }
 
-        .button-blue.warning {
-            background-color: #6c757d;
-        }
-
-        .button-blue.warning:hover {
-            background-color: #5a6268;
-        }
-
-        /* Play button special styling */
-        #playPause {
-            width: 40px;
-        }
-
-        #playPause i.fas {
-            transition: all 0.2s ease;
-        }
-
-        #playPause.playing i.fas {
-            transform: scale(1.1);
-        }
-
-        /* Controls responsive layout */
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        /* Make controls wrap better on mobile */
-        @media (max-width: 576px) {
-            .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-            .button-blue {
-                min-width: calc(25% - 10px);
-                flex-grow: 1;
-            }
-        }
-
-        .zoom.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        /* Status bar and logs */
+        /* Status Bar */
         .persistent-status-bar {
             width: 100%;
             height: 84px;
@@ -227,7 +1041,7 @@
             border: 1px solid #ddd;
             background: #fff;
             padding: 5px;
-            margin: 5px 0;
+            margin: 10px 0;
             border-radius: 4px;
             display: flex;
             flex-direction: column-reverse;
@@ -235,1223 +1049,1257 @@
         }
 
         .status-message {
-            margin: 0;
-            font-size: 13px;
-            color: #666;
+            margin: 2px 0;
             padding: 2px 5px;
-            line-height: 24px;
-            height: 24px;
-        }
-
-        .status-message:first-child {
-            background-color: #0056b3;
-            color: white;
-        }
-
-        .status-message:first-child.error {
-            background-color: #dc3545;
-            color: white;
-        }
-
-        .status-message:first-child.success {
-            background-color: #28a745;
-            color: white;
-        }
-
-        /* Region entries */
-        .regions-log {
-            margin-top: 20px;
-            border: 1px solid #ddd;
-            padding: 10px;
-            font-family: monospace;
-            max-height: 200px;
-            overflow-y: auto;
-            width: 100%;
-            box-sizing: border-box;
-            padding-left: 0;
-            padding-right: 0;
-            margin-bottom: 0;
-        }
-
-        .region-entry {
-            padding: 5px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .region-entry.speaker1 {
-            color: #ff8c00;
-        }
-
-        .region-entry.speaker2 {
-            color: #28a745;
-        }
-
-        .region-entry.trash {
-            color: #6c757d;
-        }
-
-        /* Processed files */
-        .processed-files {
-            margin-top: 20px;
-            width: 100%;
-            padding-left: 0;
-            padding-right: 0;
-            margin-bottom: 0;
-        }
-
-        .processed-files a {
-            display: block;
-            margin: 10px 0;
-            color: #0056b3;
-            text-decoration: none;
-        }
-
-        .command-button {
-            background: #0056b3;
-            color: white;
-            border: none;
             border-radius: 3px;
-            padding: 6px 12px;
-            cursor: pointer;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
             font-size: 14px;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-            box-sizing: border-box;
+            color: var(--text-color);
         }
 
-        .command-button:hover {
-            background-color: #004494;
+        .persistent-status-bar .status-message:first-child.success {
+            background-color: var(--success-color);
+            color: white;
         }
 
-        .command-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            opacity: 0.6;
+        .persistent-status-bar .status-message:first-child.error {
+            background-color: var(--error-color);
+            color: white;
         }
 
-        /* Make buttons more responsive */
-        @media (max-width: 576px) {
-            .command-button {
-                flex: 1 1 calc(50% - 5px);
-                justify-content: center;
-                white-space: normal;
+        .persistent-status-bar .status-message:first-child.info {
+            background-color: var(--info-color);
+            color: white;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .menu {
+                transform: translateX(-100%);
+            }
+
+            .menu.active {
+                transform: translateX(0);
+            }
+
+            .container {
+                margin-left: 0;
+                width: 100%;
+                transition: margin-left var(--transition-speed) ease;
+            }
+
+            .container.menu-active {
+                margin-left: var(--menu-width);
+            }
+
+            .editor-view,
+            .backup-view {
+                left: 0;
+                width: 100%;
+            }
+
+            .editor-view.hidden {
+                transform: translateX(-100%);
+            }
+
+            .persistent-status-bar {
+                margin: 10px -20px;
+                width: calc(100% + 40px);
+                border-left: none;
+                border-right: none;
+                border-radius: 0;
+            }
+
+            /* Prevent horizontal overflow */
+            body.menu-active {
+                overflow-x: hidden;
+            }
+
+            /* Overlay when menu is active */
+            .menu-overlay {
+                display: none;
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 998;
+            }
+
+            .menu-overlay.active {
+                display: block;
             }
         }
 
-        /* Waveform header */
-        .waveform-header {
+        /* Editor navigation controls */
+        .editor-nav-controls {
+            position: absolute;
+            right: 25px;
+            top: 15px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0;
-            background-color: transparent;
-            width: 100%;
-        }
-
-        /* Responsive layout for waveform header */
-        @media (max-width: 576px) {
-            .waveform-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0;
-            background-color: transparent;
-            width: 100%;
-        }
-
-            .waveform-header > * {
-            flex: 1;
-        }
-
-        .waveform-header span {
-            white-space: nowrap;
-        }
-
-            .zoom.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-        }
-
-        .waveform-header > * {
-            flex: 1;
-        }
-
-        .waveform-header span {
-            white-space: nowrap;
-        }
-
-        /* Add margin to processing button for better spacing */
-        #processAudio {
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        /* Frame-specific adjustments */
-        body.in-frame {
-            max-width: 768px !important;
-            margin-left: 20px !important;
-            margin-right: 0 !important;
-        }
-
-        body.standalone {
-            max-width: 768px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-
-        /* Prevent flickering during page load */
-        body {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        body.in-frame,
-        body.standalone {
-            opacity: 1;
-        }
-
-        /* Add CSS in the <style> section */
-        .status-bar {
-            width: 100%;
-            height: 90px;
-            min-height: 90px;
-            max-height: 90px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-            margin: 10px 0;
+            flex-direction: row;
+            z-index: 1000;
+            background-color: rgba(50, 50, 50, 0.8);
             border-radius: 4px;
+            padding: 2px;
+        }
+
+        .editor-nav-controls button {
+            margin: 2px;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 4px;
+            background-color: rgba(80, 80, 80, 9);
+            color: #ffffff;
+            cursor: pointer;
             display: flex;
-            flex-direction: column-reverse;
-            box-sizing: border-box;
-        }
-
-        .status-message {
-            padding: 5px;
-            margin: 2px 0;
-            border-radius: 3px;
-            color: #666;
-        }
-
-        .status-message:first-child {
-            color: white;
-        }
-
-        .status-message.info {
-            border-left: 3px solid #2196f3;
-        }
-
-        .status-message.info:first-child {
-            background: #2196f3;
-        }
-
-        .status-message.success {
-            border-left: 3px solid #4caf50;
-        }
-
-        .status-message.success:first-child {
-            background: #4caf50;
-        }
-
-        .status-message.error {
-            border-left: 3px solid #f44336;
-        }
-
-        .status-message.error:first-child {
-            background: #f44336;
-        }
-
-        .status-bar.drag-over {
-            background: #e3f2fd;
-            border-color: #2196f3;
-            border-style: dashed;
-        }
-
-        /* Add this to your style section */
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
             align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
+            justify-content: center;
+            transition: background-color 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
-        .button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
+        .editor-nav-controls button:hover {
+            background-color: #0078d7;
         }
 
-        /* Add these styles to your CSS section */
-        .button.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        .container {
+        /* Fullwidth mode */
+        .editor-container.fullwidth {
+            position: relative;
+            width: calc(100% - 40px);
+            /* 100% width minus 40px to prevent overflow */
+            max-width: calc(100% - 40px) !important;
+            margin-left: -20px;
+            margin-right: -20px;
             padding: 0 20px;
-            /* Equal padding on left and right */
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-
-        /* Fix button group spacing */
-        .button-group[style="margin-left: 10px;"] {
-            margin-left: 5px !important;
-        }
-
-        /* Ensure equal padding on all elements */
-        .editor-header,
-        .waveform-container,
-        .regions-log,
-        .processed-files {
-            padding-left: 0;
-            padding-right: 0;
-        }
-
-        /* Fix controls layout to keep all buttons inside */
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        /* Increase button spacing within groups */
-        .button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-
-        /* Add extra space before speaker buttons */
-        .button-group+.button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-
-        /* Add a visual separator */
-        .button-group+.button-group::before {
-            display: none;
-        }
-
-        /* 1. Consistent element alignment and padding */
-        .container {
-            padding: 15px;
-        }
-
-        .editor-header,
-        .waveform-container,
-        .process-controls,
-        .regions-log,
-        .processed-files {
-            padding-left: 0;
-            padding-right: 0;
-            margin-bottom: 0;
-        }
-
-        /* 2. Fix waveform header to keep duration and viewable on same line as zoom controls */
-        .waveform-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0;
-            background-color: transparent;
-            width: 100%;
-        }
-
-        .zoom.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        /* 3. Fix bottom row buttons to be one cohesive set */
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-
-        .button-group:not(:last-child) {
-            margin-right: 10px;
-        }
-
-        /* Remove the separator */
-        .button-group+.button-group::before {
-            display: none;
-        }
-
-        /* 4. Process and Save buttons side by side */
-        .process.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        .process-controls .command-button {
-            width: auto !important;
-        }
-
-        /* Override the full-width setting */
-        #processAudio {
-            margin-top: 0;
-            width: auto !important;
-        }
-
-        /* 5. Log scrolling */
-        .regions-log {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-
-        /* Container and layout */
-        .container {
-            padding: 15px;
+            z-index: 5;
+            background-color: #272822;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
         }
 
-        .editor-header,
-        .waveform-container,
-        .process-controls,
-        .regions-log,
-        .processed-files {
-            padding-left: 0;
-            padding-right: 0;
-            margin-bottom: 0;
+        .editor.fullscreen {
+            max-width: 100%;
             width: 100%;
+            box-sizing: border-box;
+            /* Ensure padding is included in width calculation */
         }
 
-        /* Waveform header - single definition */
-        .waveform-header {
+        /* File type colors (specific) */
+        .file-nb {
+            color: #4287f5 !important;
+            font-weight: bold;
+        }
+
+        .file-php {
+            color: #9c27b0 !important;
+        }
+
+        .file-html {
+            color: #e91e63 !important;
+        }
+
+        .file-css {
+            color: #2196f3 !important;
+        }
+
+        .file-js {
+            color: #ffc107 !important;
+        }
+
+        .file-json {
+            color: #8bc34a !important;
+        }
+
+        .file-txt {
+            color: #607d8b !important;
+        }
+
+        .file-other {
+            color: #9e9e9e !important;
+        }
+
+        .empty-folder-message {
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: 20px;
+            color: #666;
+            font-style: italic;
+            font-size: 15px;
+            border: 1px dashed #ccc;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .folder-controls {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0;
-            background-color: transparent;
+            gap: 4px;
+        }
+
+        /* Views */
+        .editor-view,
+        .backup-view {
+            display: flex;
+            flex-direction: column;
             width: 100%;
+            height: 100%;
+            position: absolute;
+            top: var(--header-height);
+            left: var(--menu-width);
+            right: 0;
+            transition: transform 0.3s ease-in-out;
         }
 
-        .zoom.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
+        .editor-view {
+            transform: translateX(0);
+            background: #fff;
+            z-index: 2;
+        }
+
+        .backup-view {
+            z-index: 1;
+        }
+
+        .editor-view.hidden {
+            transform: translateX(-100%);
+        }
+
+        .backup-view.active {
+            z-index: 3;
+        }
+
+        .backup-view iframe {
             width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
+            height: 100%;
+            border: none;
         }
-
-        /* Controls - single definition */
-        .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        /* Button groups - single definition */
-        .button-group {
-            display: flex;
-            gap: 2px;
-            flex-shrink: 0;
-        }
-
-        .button-group:not(:last-child) {
-            margin-right: 10px;
-        }
-
-        /* Process controls - fixed layout */
-        .process.controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
-
-        #processAudio,
-        .process-controls .command-button {
-            width: auto;
-            margin-top: 0;
-        }
-
-        /* Regions log */
-        .regions-log {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-
-
     </style>
-    <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
-    <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
 </head>
 
 <body>
-    <div class="container">
-        <div class="editor-header">
-            <h1 class="editor-title">NetBound Tools: Speaker Splitter</h1>
-            <div class="persistent-status-bar status-bar" id="status-messages">
-                <div class="status-message info">Waiting for audio...</div>
-            </div>
-            <div class="button-controls">
-                <div class="button-group">
-                    <button class="command-button" id="btnOpen">
-                        <i class="fas fa-microphone"></i> Open Wav
-                    </button>
-                    <button class="command-button" id="btnRestart">
-                        <i class="fas fa-redo"></i> Restart
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <input type="file" id="fileInput" accept=".wav" style="display: none;">
-
-        <div id="waveform-container">
-            <div class="waveform-header">
-                <span id="duration-display">Duration: 0:00</span>
-                <span id="window-display">Viewable: 0:00 - 0:00</span>
-                <div class="zoom-buttons">
-                    <button type="button" id="zoomIn" class="button-blue" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                    <button type="button" id="zoomOut" class="button-blue" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                    <button type="button" id="zoomFit" class="button-blue" title="Fit to Window"><i class="fas fa-expand"></i></button>
-                    <button type="button" id="clearRegions" class="button-blue warning" title="Clear All Segments"><i class="fas fa-eraser"></i></button>
-                </div>
-            </div>
-            <div class="waveform-wrapper">
-                <div id="waveform">
-                    <div class="channel-label left">Left Channel</div>
-                    <div class="channel-label right">Right Channel</div>
-                </div>
-            </div>
-            <div class="controls">
-                <div class="button-group">
-                    <button id="jumpStart" class="button-blue" title="Jump to start"><i class="fas fa-step-backward"></i></button>
-                    <button id="jumpBack" class="button-blue" title="Jump back"><i class="fas fa-backward"></i></button>
-                    <button id="playPause" class="button-blue" title="Play/Pause"><i class="fas fa-play"></i></button>
-                    <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
-                    <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
-                </div>
-
-                <div class="button-group" >
-                    <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
-                        <i class="fas fa-user-circle"></i> 1
-                    </button>
-                    <button id="speaker2Region" class="button-blue speaker2-btn" title="Mark Speaker 2 Region">
-                        <i class="fas fa-user-circle"></i> 2
-                    </button>
-                    <button id="trashRegion" class="button-blue trash-btn" title="Mark Trash Region">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button id="undoRegion" class="button-blue" title="Undo Last Region">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Process and Save buttons section -->
-        <div class="process-controls">
-            <button type="button" id="processAudio" class="command-button">
-                <i class="fas fa-cogs"></i> Process Audio
+    <div class="header">
+        <div class="left-section">
+            <button id="mobileMenuToggle" class="mobile-menu-toggle">
+                <i class="fas fa-bars"></i>
             </button>
-            <button type="button" id="saveRegions" class="command-button">
-                <i class="fas fa-save"></i> Save Regions
+            <h2 class="menu-title">NetBound Tools</h2>
+            <button id="menuUpdateBtn" class="header-button" title="Transfer files to server">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+            <?php if ($currentPath): ?>
+                <a href="?folder=<?php echo dirname($currentPath); ?>" class="up-level" title="Up Level"><i class="fas fa-level-up-alt"></i></a>
+            <?php endif; ?>
+            <button id="menuNewBtn" class="header-button" title="New" onclick="createNewFile()">
+                <i class="fas fa-file"></i>
+            </button>
+            <button id="menuNewFolderBtn" class="header-button" title="New Folder" onclick="createNewFolder()">
+                <i class="fas fa-folder-plus"></i>
+            </button>
+            <button id="menuRefreshBtn" class="header-button" title="Reload Menu">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortBy === 'date' ? 'by date' : 'alphabetical'; ?>)">
+                <i class="fas <?php echo $sortIcon; ?>"></i>
+            </button>
+            <button id="menuDeleteBtn" class="header-button" title="Delete Selected">
+                <i class="fas fa-trash-alt"></i>
             </button>
         </div>
-
-        <!-- Log section -->
-        <div id="regions-log" class="regions-log"></div>
-
-        <div class="processed-files" id="processedFiles" style="display:none;">
-            <h3>Processed Files:</h3>
-            <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
-            <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
-            <a href="#" id="stereoFile" target="_blank" style="display:none;">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+    </div>
+    <div id="menuOverlay" class="menu-overlay"></div>
+    <div class="container" id="mainContainer">
+        <div class="menu" id="menuPanel">
+            <div class="menu-content">
+                <?php if (!empty($breadcrumbs)): ?>
+                    <div class="breadcrumb">
+                        <a href="?"><i class="fas fa-home"></i></a>
+                        <?php foreach ($breadcrumbs as $i => $crumb): ?>
+                            <span class="separator">/</span>
+                            <a href="?folder=<?php echo urlencode(implode('/', array_slice($breadcrumbs, 0, $i + 1))); ?>">
+                                <?php echo htmlspecialchars($crumb); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                <ul class="file-list">
+                    <?php echo generateFileListHTML($files, $currentFilename); ?>
+                </ul>
+                <?php if ($showEmptyMessage): ?>
+                    <div class="empty-folder-message">
+                        <i class="fas fa-folder-open" style="font-size: 24px; margin-bottom: 10px; color: #999;"></i><br>
+                        This folder is empty.<br>Click the "+" button above to create a new file or upload files to get started.
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
+        <div class="menu-container">
+            <div class="editor-view">
+                <div class="editor" id="editorSection">
+                    <div class="editor-header">
+                        <div class="header-top">
+                            <h1 class="editor-title">
+                                NetBound Editor: <?php echo date("F j Y", filemtime(__FILE__)); ?></h1>
+                        </div>
+                    </div>
 
-        <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
-            <input type="hidden" name="regions" id="regions">
-            <input type="hidden" name="fileName" id="fileName">
-            <input type="file" name="audioFile" id="audioFileUpload">
-        </form>
+                    <div class="persistent-status-bar" id="statusBar"></div>
+
+                    <div class="button-group">
+                        <button type="button" class="command-button" onclick="openFileRequester()" title="Open a file from your computer">
+                            <i class="fas fa-folder-open"></i> From File
+                        </button>
+
+                        <div class="split-button">
+                            <div class="main-part" onclick="fromClipboard()" title="Replace editor content with clipboard content">
+                                <i class="fas fa-clipboard"></i> From Clipboard
+                            </div>
+                            <div class="append-part" onclick="appendClipboard()" title="Add clipboard content to end of file">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                        </div>
+                        <div class="split-button">
+                            <div class="main-part" onclick="fromBackup()" title="Load content from latest backup">
+                                <i class="fas fa-history"></i> From Backup
+                            </div>
+                            <div class="append-part" onclick="fromBackupManager()" title="Open the full backup manager">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" class="edit-form" style="display:flex;flex-direction:column;height:100%;" id="editorForm">
+                        <div class="editor-container" id="editorContainer">
+                            <div class="editor-nav-controls">
+                                <button type="button" onclick="scrollEditorTop()" title="Scroll to top">
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                                <button type="button" onclick="scrollEditorBottom()" title="Scroll to bottom">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                                <button type="button" onclick="toggleEditorFullWidth()" title="Toggle fullscreen">
+                                    <i class="fas fa-expand" id="fullwidthIcon"></i>
+                                </button>
+                            </div>
+                            <div id="editor"></div>
+                        </div>
+
+                        <div class="label-line">
+                            <input type="text" id="editorFilename" class="info-input" value="" onchange="updateDisplayFilename()" placeholder="Filename">
+                            <button type="button" class="command-button" onclick="updateVersionAndDate()" title="Change the filename">
+                                <i class="fas fa-sync-alt"></i> Rename
+                            </button>
+                        </div>
+
+                        <div class="button-row">
+                            <div class="button-group">
+                                <div class="split-button">
+                                    <div class="main-part" onclick="saveFile()" title="Save file to server">
+                                        <i class="fas fa-upload"></i> Save
+                                    </div>
+                                    <div class="append-part" onclick="saveAs()" title="Save file to local machine">
+                                        <i class="fas fa-download"></i>
+                                    </div>
+                                </div>
+                                <div class="split-button">
+                                    <div class="main-part" onclick="toClipboard()" title="Copy all editor content to clipboard">
+                                        <i class="fas fa-clipboard"></i> To Clipboard
+                                    </div>
+                                </div>
+                                <button type="button" name="run" class="command-button" title="Run this file in a new tab"
+                                    onclick="openInNewTab(document.getElementById('editorFilename').value)">
+                                    <i class="fas fa-play"></i> Run
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="backup-view">
+                <iframe src="" style="width:100%; height:100%; border:none;"></iframe>
+            </div>
+        </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ext-language_tools.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ext-searchbox.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize elements
-            const statusBar = document.getElementById('statusBar');
-            const btnOpen = document.getElementById('btnOpen');
-            const fileInput = document.getElementById('fileInput');
-            const regionsInput = document.getElementById('regions');
-            const fileNameInput = document.getElementById('fileName');
-            const processedFiles = document.getElementById('processedFiles');
-            const speaker1File = document.getElementById('speaker1File');
-            const speaker2File = document.getElementById('speaker2File');
-            const stereoFile = document.getElementById('stereoFile');
-            const durationDisplay = document.getElementById('duration-display');
-            const windowDisplay = document.getElementById('window-display');
-            const playPauseButton = document.getElementById('playPause');
-            const playPauseIcon = playPauseButton.querySelector('i.fas');
-            const waveformContainer = document.getElementById('waveform-container');
-            const waveformWrapper = document.querySelector('.waveform-wrapper');
-
-            // Initialize data
-            let currentFileName = '',
-                lastEndPoint = 0,
-                lastRegion = null,
-                isPlaying = false;
-            let regionsData = {
-                speaker1: [],
-                speaker2: [],
-                trash: []
-            };
-            let sequentialRegions = [];
-
-            // Keep track of the original file
-            let originalAudioFile = null;
-
-            // Initialize WaveSurfer with optimized stereo support
-            const wavesurfer = WaveSurfer.create({
-                container: '#waveform',
-                waveColor: 'blue',
-                progressColor: 'darkblue',
-                responsive: true,
-                height: 150,
-                scrollParent: true,
-                minPxPerSec: 50,
-                fillParent: true, // Ensure the waveform fits the container initially
-                normalize: true,
-                splitChannels: true,
-                splitChannelsOptions: {
-                    channels: [{
-                            waveColor: 'blue',
-                            progressColor: 'darkblue',
-                            height: 65, // Adjusted for better fit
-                            label: 'Left'
-                        },
-                        {
-                            waveColor: '#4488cc',
-                            progressColor: '#2266aa',
-                            height: 65,
-                            label: 'Right'
-                        }
-                    ]
-                },
-                plugins: [
-                    WaveSurfer.regions.create({
-                        dragSelection: true,
-                        slop: 5
-                    })
-                ]
-            });
-
-            // Functions
-            function formatTime(seconds) {
-                if (!seconds || isNaN(seconds)) return '0:00';
-                const minutes = Math.floor(seconds / 60);
-                const remainingSeconds = Math.floor(seconds % 60);
-                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        // Constants
+        const STATUS_MESSAGES = {
+            folder: {
+                created: (name) => `Folder created: ${name}`,
+                error: (name) => `Failed to create folder: ${name}`,
+                deleted: (name) => `Folder deleted: ${name}`
+            },
+            parent: "parent",
+            file: {
+                loaded: (filename) => `File loaded: ${filename}`,
+                saved: (filename) => `File saved: ${filename}`,
+                new: (filename) => `New file created: ${filename}`,
+                deleted: (filename) => `File deleted: ${filename}`
+            },
+            clipboard: {
+                paste: () => `Content pasted from clipboard`,
+                append: () => `Content appended from clipboard`,
+                copy: () => `Content copied to clipboard`
+            },
+            backup: {
+                restored: () => `Backup restored but not saved`,
+                created: (version) => `Backup created (V${version})`
             }
+        };
 
-            function updateStatus(message, type = 'info') {
-                const statusBar = document.getElementById('status-messages');
+        // Initialize Ace Editor
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");
+        editor.session.setMode("ace/mode/php");
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: true,
+            useSoftTabs: true,
+            tabSize: 4,
+            fontSize: "14px",
+            showPrintMargin: false
+        });
 
-                if (!statusBar) {
-                    console.error('Status bar element not found');
-                    return;
-                }
+        // State variables
+        let editorContent = '';
+        <?php if (!empty($content)): ?>
+            editor.setValue(<?php echo json_encode($content); ?>);
+            editorContent = editor.getValue();
+        <?php endif; ?>
 
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `status-message ${type}`;
-                messageDiv.textContent = message;
-
-                // Insert at top (newest messages appear at top)
-                statusBar.insertBefore(messageDiv, statusBar.firstChild);
-
-                // Keep scrolled to top to see newest messages
-                statusBar.scrollTop = 0;
-            }
-
-            function updateDisplays() {
-                try {
-                    if (!wavesurfer.drawer?.wrapper) return;
-                    const duration = wavesurfer.getDuration() || 0;
-                    const wrapper = wavesurfer.drawer.wrapper;
-                    const scrollLeft = wrapper.scrollLeft;
-                    const viewWidth = wrapper.clientWidth;
-                    const pixelsPerSecond = wavesurfer.params.minPxPerSec;
-
-                    const startTime = scrollLeft / pixelsPerSecond;
-                    const viewDuration = viewWidth / pixelsPerSecond;
-                    const endTime = Math.min(startTime + viewDuration, duration);
-
-                    durationDisplay.textContent = `Duration: ${formatTime(duration)}  `;
-                    windowDisplay.textContent = `Viewable: ${formatTime(startTime)} - ${formatTime(endTime)}`;
-                } catch (err) {
-                    console.error('Display update error:', err);
+        // Core Functions
+        function loadFile(filename) {
+            // Check if mobile view (window width <= 768px)
+            if (window.innerWidth <= 768) {
+                // Close the menu if it's open
+                const menuPanel = document.getElementById('menuPanel');
+                if (menuPanel.classList.contains('active')) {
+                    toggleMobileMenu();
                 }
             }
 
-            function handleFile(file) {
-                if (!file || !(file.name.toLowerCase().endsWith('.wav'))) {
-                    updateStatus('Please select a valid WAV file', 'error');
-                    return;
-                }
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
 
-                // Store the original file for later processing
-                originalAudioFile = file;
+            // Restore editor view if hidden
+            editorView.classList.remove('hidden');
+            backupView.classList.remove('active');
 
-                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
-                currentFileName = file.name;
-                fileNameInput.value = file.name;
+            // Get the current folder from URL
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
 
-                const audioUrl = URL.createObjectURL(file);
-                wavesurfer.load(audioUrl);
-                lastEndPoint = 0;
+            // Construct the file path
+            const filePath = currentFolder ? currentFolder + '/' + filename : filename;
 
-                // Clear previous regions
-                wavesurfer.clearRegions();
-                regionsData = {
-                    speaker1: [],
-                    speaker2: [],
-                    trash: []
-                };
-                sequentialRegions = [];
-                document.getElementById('regions-log').innerHTML = '';
-
-                wavesurfer.once('ready', () => {
-                    URL.revokeObjectURL(audioUrl);
-                });
-            }
-
-            function createSpeakerRegion(speakerType) {
-                const currentTime = wavesurfer.getCurrentTime();
-                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
-
-                if (currentTime <= startTime) {
-                    updateStatus('Please move playhead forward to create region', 'error');
-                    return;
-                }
-
-                // Fill gaps with trash regions automatically
-                if (sequentialRegions.length > 0) {
-                    const lastRegionEnd = sequentialRegions[sequentialRegions.length - 1].end;
-                    if (startTime > lastRegionEnd) {
-                        const trashRegion = wavesurfer.addRegion({
-                            start: lastRegionEnd,
-                            end: startTime,
-                            color: 'rgba(108, 117, 125, 0.3)',
-                            drag: false,
-                            resize: false
-                        });
-
-                        const trashData = {
-                            start: lastRegionEnd,
-                            end: startTime,
-                            type: 'trash',
-                            region: trashRegion
-                        };
-
-                        regionsData.trash.push(trashData);
-                        sequentialRegions.push(trashData);
+            // Load the file content
+            fetch('main.php?file=' + encodeURIComponent(filePath))
+                .then(response => response.text())
+                .then(content => {
+                    if (editor.getValue() !== editorContent) {
+                        if (!confirm('Unsaved changes detected. Continue?')) return;
                     }
-                }
+                    editor.setValue(content, -1);
+                    document.getElementById('editorFilename').value = filename;
+                    updateStatus(STATUS_MESSAGES.file.loaded(filename), 'success');
+                    editorContent = editor.getValue();
 
-                // Create region
-                const color = speakerType === 1 ? 'rgba(255, 165, 0, 0.3)' :
-                    speakerType === 2 ? 'rgba(0, 255, 0, 0.3)' :
-                    'rgba(108, 117, 125, 0.3)';
-                const label = speakerType === 'trash' ? 'Unlabeled' : `Speaker ${speakerType}`;
-
-                const region = wavesurfer.addRegion({
-                    start: startTime,
-                    end: currentTime,
-                    color: color,
-                    drag: false,
-                    resize: false
+                    // Set Ace editor mode based on file extension
+                    setEditorMode(filename);
+                })
+                .catch(error => {
+                    updateStatus(`Error loading file: ${filename}`, 'error');
+                    console.error('Error loading file:', error);
                 });
+        }
 
-                const regionData = {
-                    start: startTime,
-                    end: currentTime,
-                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`,
-                    region: region
-                };
+        function setEditorMode(filename) {
+            const fileExtension = filename.split('.').pop().toLowerCase();
+            let mode = "ace/mode/php"; // Default mode
 
-                if (speakerType === 'trash') {
-                    regionsData.trash.push(regionData);
-                } else {
-                    regionsData[`speaker${speakerType}`].push(regionData);
-                }
-
-                sequentialRegions.push(regionData);
-
-                const logEntry = document.createElement('div');
-                logEntry.className = `region-entry ${speakerType === 'trash' ? 'trash' : 'speaker' + speakerType}`;
-                logEntry.textContent = `${label}: ${formatTime(startTime)} - ${formatTime(currentTime)}`;
-                document.getElementById('regions-log').appendChild(logEntry);
-                document.getElementById('regions-log').scrollTop = document.getElementById('regions-log').scrollHeight;
-
-                lastEndPoint = currentTime;
-                lastRegion = region;
-                updateStatus(`${label} region created`, 'success');
-                updateDisplays();
-
-                if (isPlaying) {
-                    wavesurfer.pause();
-                }
+            // Set appropriate language mode based on file extension
+            if (fileExtension === 'css') {
+                mode = "ace/mode/css";
+            } else if (fileExtension === 'js') {
+                mode = "ace/mode/javascript";
+            } else if (fileExtension === 'json') {
+                mode = "ace/mode/json";
+            } else if (fileExtension === 'html' || fileExtension === 'htm') {
+                mode = "ace/mode/html";
+            } else if (fileExtension === 'txt') {
+                mode = "ace/mode/text";
             }
 
-            // Handle stereo/mono switching
-            wavesurfer.on('ready', () => {
-                const audioInfo = wavesurfer.backend.buffer;
-                const isStereo = audioInfo.numberOfChannels === 2;
+            editor.session.setMode(mode);
+        }
 
-                // Toggle stereo mode and adjust container
-                if (isStereo) {
-                    waveformContainer.classList.add('stereo');
-                    waveformWrapper.classList.add('stereo');
-                    wavesurfer.setHeight(180);
-                    wavesurfer.drawer.params.height = 180;
-                    wavesurfer.drawBuffer();
-                } else {
-                    waveformContainer.classList.remove('stereo');
-                    waveformWrapper.classList.remove('stereo');
-                    wavesurfer.setHeight(150);
-                    wavesurfer.drawer.params.height = 150;
-                    wavesurfer.drawBuffer();
-                }
+        function saveFile(newFilename = null) {
+            const filename = newFilename || document.getElementById('editorFilename').value;
+            if (!filename) {
+                return updateStatus('Filename required', 'error');
+            }
 
-                // Calculate proper zoom level to fit entire audio in view
-                const duration = wavesurfer.getDuration();
-                const containerWidth = waveformContainer.clientWidth - 20; // Subtract padding
-                const pixelsPerSecond = containerWidth / duration;
-
-                // Set zoom level to fit entire audio
-                wavesurfer.zoom(pixelsPerSecond);
-
-                // Setup scroll handler and update displays
-                const wrapper = wavesurfer.drawer.wrapper;
-                if (wrapper) {
-                    wrapper.addEventListener('scroll', () => requestAnimationFrame(updateDisplays));
-                }
-
-                updateDisplays();
-                const durationText = wavesurfer.getDuration().toFixed(2);
-                updateStatus(`Loaded ${isStereo ? 'stereo' : 'mono'} audio: ${durationText}s`, 'success');
-            });
-
-            // Event listeners for display updates
-            ['audioprocess', 'seek', 'zoom', 'interaction'].forEach(event => {
-                wavesurfer.on(event, () => requestAnimationFrame(updateDisplays));
-            });
-
-            // Play/Pause handling
-            playPauseButton.addEventListener('click', () => wavesurfer.playPause());
-
-            wavesurfer.on('play', () => {
-                playPauseButton.classList.add('playing');
-                playPauseIcon.classList.remove('play');
-                playPauseIcon.classList.add('fa-pause');
-                isPlaying = true;
-                updateDisplays();
-            });
-
-            wavesurfer.on('pause', () => {
-                playPauseButton.classList.remove('playing');
-                playPauseIcon.classList.remove('fa-pause');
-                playPauseIcon.classList.add('fa-play');
-                isPlaying = false;
-                updateDisplays();
-            });
-
-            // File handling
-            btnOpen.addEventListener('click', e => {
-                e.preventDefault();
-                fileInput.click();
-            });
-
-            fileInput.addEventListener('change', e => {
-                if (e.target.files && e.target.files[0]) {
-                    handleFile(e.target.files[0]);
-                }
-            });
-
-            // Clear regions with confirmation
-            document.getElementById('clearRegions').addEventListener('click', () => {
-                if (confirm('Are you sure you want to clear all segments?')) {
-                    wavesurfer.clearRegions();
-                    regionsData = {
-                        speaker1: [],
-                        speaker2: [],
-                        trash: []
-                    };
-                    sequentialRegions = [];
-                    lastEndPoint = 0;
-                    lastRegion = null;
-                    document.getElementById('regions-log').innerHTML = '';
-                    updateStatus('All segments cleared', 'info');
-                }
-            });
-
-            // Navigation controls
-            document.getElementById('jumpBack').addEventListener('click', () => wavesurfer.skip(-0.5));
-            document.getElementById('jumpForward').addEventListener('click', () => wavesurfer.skip(0.5));
-            document.getElementById('jumpStart').addEventListener('click', () => {
-                wavesurfer.seekTo(0); // Use seekTo(0) instead of setTime(0)
-                updateDisplays();
-            });
-            document.getElementById('jumpEnd').addEventListener('click', () => {
-                // Get the total duration
-                const duration = wavesurfer.getDuration();
-
-                // Zoom out to fit entire waveform first
-                const containerWidth = waveformContainer.clientWidth - 20;
-                const pixelsPerSecond = containerWidth / duration;
-                wavesurfer.zoom(pixelsPerSecond);
-
-                // Allow zoom to complete and then scroll to end and set cursor
-                setTimeout(() => {
-                    // Calculate the position to scroll to (all the way to the right)
-                    const wrapper = wavesurfer.drawer.wrapper;
-                    const scrollWidth = wrapper.scrollWidth;
-                    const clientWidth = wrapper.clientWidth;
-
-                    // Scroll to the end
-                    wrapper.scrollLeft = scrollWidth - clientWidth;
-
-                    // Set the cursor position to the end (use seekTo(1) to go to end)
-                    wavesurfer.seekTo(1);
-
-                    updateDisplays();
-                }, 100);
-            });
-
-            // Zoom controls
-            document.getElementById('zoomIn').addEventListener('click', () => {
-                wavesurfer.zoom(wavesurfer.params.minPxPerSec + 10);
-            });
-
-            document.getElementById('zoomOut').addEventListener('click', () => {
-                wavesurfer.zoom(Math.max(wavesurfer.params.minPxPerSec - 10, 1));
-            });
-
-            document.getElementById('zoomFit').addEventListener('click', () => {
-                // Calculate proper zoom level based on audio duration
-                const duration = wavesurfer.getDuration();
-                const containerWidth = waveformContainer.clientWidth - 20;
-                const pixelsPerSecond = containerWidth / duration;
-
-                // Apply calculated zoom level
-                wavesurfer.zoom(pixelsPerSecond);
-
-                // Reset scroll position
-                requestAnimationFrame(() => {
-                    wavesurfer.drawer.wrapper.scrollLeft = 0;
-                    updateDisplays();
-                });
-            });
-
-            document.getElementById('btnRestart').addEventListener('click', () => {
-                location.href = location.pathname;
-            });
-
-            // Region buttons
-            document.getElementById('speaker1Region').addEventListener('click', () => createSpeakerRegion(1));
-            document.getElementById('speaker2Region').addEventListener('click', () => createSpeakerRegion(2));
-            document.getElementById('trashRegion').addEventListener('click', () => createSpeakerRegion('trash'));
-
-            // Fix the processing function to handle zoom state properly
-            document.getElementById('processAudio').addEventListener('click', function() {
-                // Check if we need to zoom out first
-                const currentZoom = wavesurfer.params.minPxPerSec;
-                const duration = wavesurfer.getDuration();
-                const containerWidth = waveformContainer.clientWidth;
-                const visibleDuration = containerWidth / currentZoom;
-
-                // More generous threshold - if at least 90% is visible, consider it zoomed out enough
-                if (visibleDuration < duration * 0.9) {
-                    const confirmProcess = confirm(
-                        "The waveform is currently zoomed in and you may not see all regions. " +
-                        "Would you like to zoom out to see the entire audio before processing, or proceed anyway?\n\n" +
-                        "Click 'OK' to zoom out first, or 'Cancel' to process with current view."
-                    );
-
-                    if (confirmProcess) {
-                        // Zoom out to fit the entire audio - with a slight adjustment factor
-                        const fitZoom = (containerWidth / duration) * 0.95; // Slightly less than full width
-                        wavesurfer.zoom(fitZoom);
-                        wavesurfer.drawer.wrapper.scrollLeft = 0;
-                        updateDisplays();
-                        return; // Don't process yet, let the user see the full waveform first
+            const content = editor.getValue();
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=save&filename=${encodeURIComponent(filename)}&content=${encodeURIComponent(content)}`
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
                     }
-                    // Otherwise continue with processing
-                }
-
-                // Process the audio
-                processAudioRegions();
-            });
-
-            // Revised processing function to ensure all regions are included
-            function processAudioRegions() {
-                // Check if we have an audio file loaded
-                if (!originalAudioFile) {
-                    updateStatus("Please load an audio file first.", "error");
-                    return;
-                }
-
-                // Update status
-                updateStatus("Processing audio regions...", "info");
-
-                // Collect all regions from sequentialRegions array instead of wavesurfer.regions.list
-                const allRegions = {
-                    speaker1: [],
-                    speaker2: [],
-                    trash: []
-                };
-
-                // Use the sequentialRegions array which has all regions regardless of view
-                sequentialRegions.forEach(region => {
-                    const type = region.type;
-                    if (type === 'speaker1' || type === 'speaker2' || type === 'trash') {
-                        allRegions[type].push({
-                            start: region.start,
-                            end: region.end
-                        });
+                    return response.json();
+                })
+                .then(result => {
+                    updateStatus(result.message, result.status);
+                    if (newFilename) {
+                        document.getElementById('editorFilename').value = newFilename;
                     }
+                    editorContent = editor.getValue();
+                    refreshFileList(); // Always refresh after save
+                })
+                .catch(error => {
+                    updateStatus('Error saving file: ' + error.message, 'error');
                 });
+        }
 
-                // Create form data for submission
-                const formData = new FormData();
-                formData.append('regions', JSON.stringify(allRegions));
-                formData.append('fileName', currentFileName);
-                formData.append('audioFile', originalAudioFile);
+        function saveAs() {
+            const defaultName = document.getElementById('editorFilename').value || 'newfile.php';
+            const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
+            const content = editor.getValue();
+            const blob = new Blob([content], {
+                type: 'text/plain'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFolder ? currentFolder + '/' + defaultName : defaultName;
+            a.click();
+            URL.revokeObjectURL(url);
+            updateStatus('File saved to local machine', 'success');
+        }
 
-                // Rest of the processing function remains the same
-                fetch('process_audio.php', {
+        function confirmDelete(filename) {
+            if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                fetch('main.php', {
                         method: 'POST',
-                        body: formData
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `action=delete&filename=${encodeURIComponent(filename)}`
                     })
                     .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            updateStatus("Audio processing complete!", "success");
-
-                            // Update download links
-                            if (data.speaker1) {
-                                speaker1File.href = data.speaker1;
-                                speaker1File.download = `${currentFileName}_speaker1.wav`;
+                    .then(result => {
+                        updateStatus(result.message, result.status);
+                        if (result.status === 'success') {
+                            refreshFileList();
+                            if (document.getElementById('editorFilename').value === filename) {
+                                editor.setValue('');
+                                document.getElementById('editorFilename').value = '';
+                                editorContent = '';
                             }
-
-                            if (data.speaker2) {
-                                speaker2File.href = data.speaker2;
-                                speaker2File.download = `${currentFileName}_speaker2.wav`;
-                            }
-
-                            if (data.stereo) {
-                                stereoFile.href = data.stereo;
-                                stereoFile.style.display = 'block';
-                                stereoFile.download = `${currentFileName}_stereo.wav`;
-                            } else {
-                                stereoFile.style.display = 'none';
-                            }
-
-                            // Show the processed files section
-                            processedFiles.style.display = 'block';
-                        } else {
-                            updateStatus(`Processing error: ${data.message}`, "error");
                         }
+                    });
+            }
+        }
+
+        function createNewFile() {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+            const newFilename = `newfile_${timestamp}.php`;
+
+            if (editor.getValue() !== editorContent) {
+                if (!confirm('Unsaved changes detected. Continue?')) return;
+            }
+
+            editor.setValue('');
+            document.getElementById('editorFilename').value = newFilename;
+            updateStatus(STATUS_MESSAGES.file.new(newFilename), 'success');
+            editorContent = editor.getValue();
+            setEditorMode(newFilename);
+        }
+
+        // Folder Functions
+        function createNewFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (!folderName || !/^[a-zA-Z0-9_-]+$/.test(folderName)) {
+                return updateStatus('Invalid folder name. Use only letters, numbers, underscore, and dash.', 'error');
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const currentPath = params.get('folder') || '';
+            const fullPath = currentPath ? currentPath + '/' + folderName : folderName;
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=createFolder&folderName=${encodeURIComponent(folderName)}`
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    updateStatus(result.message, result.status);
+                    if (result.status === 'success') {
+                        refreshFileList(); // Always refresh after folder creation
+                    }
+                })
+                .catch(error => {
+                    updateStatus('Error creating folder: ' + error.message, 'error');
+                });
+        }
+
+
+        function deleteFolder(folderName) {
+            if (!confirm(`Are you sure you want to delete the folder "${folderName}" and all its contents?`)) {
+                return;
+            }
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=deleteFolder&folderName=${encodeURIComponent(folderName)}`
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        // If in the deleted folder, navigate up
+                        const params = new URLSearchParams(window.location.search);
+                        const currentPath = params.get('folder') || '';
+
+                        if (currentPath === folderName) {
+                            window.location.href = '?';
+                        } else {
+                            refreshFileList();
+                        }
+                        updateStatus(result.message, 'success');
+                    } else {
+                        updateStatus(result.message, 'error');
+                    }
+                });
+        }
+
+        // Clipboard Functions
+        function fromClipboard() {
+            navigator.clipboard.readText()
+                .then(text => {
+                    if (editor.getValue() !== editorContent &&
+                        !confirm('Unsaved changes will be lost. Continue?')) {
+                        return;
+                    }
+                    editor.setValue(text, -1);
+                    editorContent = text;
+                    updateStatus(STATUS_MESSAGES.clipboard.paste(), 'success');
+                })
+                .catch(() => updateStatus('Failed to read clipboard', 'error'));
+        }
+
+        function appendClipboard() {
+            navigator.clipboard.readText()
+                .then(text => {
+                    const currentContent = editor.getValue();
+                    editor.setValue(currentContent + '\n' + text, -1);
+                    updateStatus(STATUS_MESSAGES.clipboard.append(), 'success');
+                })
+                .catch(() => updateStatus('Failed to read clipboard', 'error'));
+        }
+
+        function toClipboard() {
+            navigator.clipboard.writeText(editor.getValue())
+                .then(() => updateStatus(STATUS_MESSAGES.clipboard.copy(), 'success'))
+                .catch(() => updateStatus('Failed to copy to clipboard', 'error'));
+        }
+
+        // Backup Functions
+        function fromBackup() {
+            const filename = document.getElementById('editorFilename').value;
+            if (!filename) return updateStatus('Filename required', 'error');
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'action=getBackup&filename=' + encodeURIComponent(filename)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        editor.setValue(result.content, -1);
+                        updateStatus(STATUS_MESSAGES.backup.restored(), 'info');
+                    } else {
+                        updateStatus(result.message, 'error');
+                    }
+                });
+        }
+
+        function fromBackupManager() {
+            if (editor.getValue() !== editorContent) {
+                if (!confirm('Unsaved changes detected. Continue?')) return;
+            }
+
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
+
+            editorView.classList.add('hidden');
+            backupView.classList.add('active');
+            backupView.querySelector('iframe').src = 'backup-manager.php';
+
+            updateStatus('Backup manager loaded', 'success');
+        }
+
+        // UI Functions
+        function openFileRequester() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.php,.css,.js,.html,.txt';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        editor.setValue(e.target.result, -1);
+                        document.getElementById('editorFilename').value = file.name;
+                        updateStatus(STATUS_MESSAGES.file.loaded(file.name), 'success');
+                        editorContent = editor.getValue();
+                        setEditorMode(file.name);
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function openInNewTab(filename) {
+            if (!filename) return updateStatus('Filename required', 'error');
+
+            const fileExtension = filename.split('.').pop().toLowerCase();
+
+            // Check if trying to run main editor
+            if (filename === 'main.php' || filename.includes('main')) {
+                return updateStatus('Cannot run the editor interface directly', 'info');
+            }
+
+            // Only allow PHP and HTML files to be run directly
+            if (!['php', 'html', 'htm'].includes(fileExtension)) {
+                return updateStatus(`Cannot run ${fileExtension} files directly`, 'info');
+            }
+
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
+
+            // Get the current folder from URL
+            const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
+            const filePath = currentFolder ? currentFolder + '/' + filename : filename;
+
+            backupView.classList.add('active');
+            backupView.querySelector('iframe').src = filePath;
+        }
+
+        function updateDisplayFilename() {
+            // Placeholder for future functionality
+            const filename = document.getElementById('editorFilename').value;
+            setEditorMode(filename);
+        }
+
+        function updateVersionAndDate() {
+            const originalFilename = document.getElementById('editorFilename').value.trim();
+            if (!originalFilename) {
+                updateStatus('No file is currently open', 'error');
+                return;
+            }
+
+            let newFilename = prompt('Enter new filename:', originalFilename);
+            if (!newFilename) {
+                return; // User cancelled
+            }
+
+            // Trim whitespace to prevent accidental spaces causing comparison issues
+            newFilename = newFilename.trim();
+
+            // Log to help with debugging
+            console.log('Original filename:', JSON.stringify(originalFilename));
+            console.log('New filename:', JSON.stringify(newFilename));
+
+            if (newFilename.toLowerCase() === originalFilename.toLowerCase()) {
+                // Check if case is the only difference
+                if (newFilename !== originalFilename) {
+                    updateStatus('Only case difference detected. Proceeding with rename...', 'info');
+                } else {
+                    updateStatus('No change in filename', 'info');
+                    return;
+                }
+            }
+
+            // Get the current path from the URL
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+
+            // Debug logging
+            console.log(`Current folder: ${currentFolder}`);
+            console.log(`Renaming: ${originalFilename} to ${newFilename}`);
+
+            // First save content to new file
+            const content = editor.getValue();
+            updateStatus(`Saving as: ${newFilename}...`, 'info');
+
+            fetch('main.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `action=save&filename=${encodeURIComponent(newFilename)}&content=${encodeURIComponent(content)}`
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success' || result.status === 'info') {
+                        // Update UI first
+                        document.getElementById('editorFilename').value = newFilename;
+                        editorContent = editor.getValue();
+                        updateStatus(`New file saved as: ${newFilename}`, 'success');
+
+                        // Now delete the old file if names are different
+                        if (newFilename !== originalFilename) {
+                            updateStatus(`Deleting original file: ${originalFilename}...`, 'info');
+
+                            return fetch('main.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: `action=delete&filename=${encodeURIComponent(originalFilename)}`
+                                })
+                                .then(response => response.json())
+                                .then(deleteResult => {
+                                    if (deleteResult.status === 'success') {
+                                        updateStatus(`Successfully renamed ${originalFilename} to ${newFilename}`, 'success');
+                                    } else {
+                                        updateStatus(`Warning: File saved as ${newFilename} but could not delete ${originalFilename}. Error: ${deleteResult.message}`, 'warning');
+                                    }
+                                    refreshFileList();
+                                });
+                        }
+                    } else {
+                        throw new Error(result.message || 'Failed to save file with new name');
+                    }
+                })
+                .catch(error => {
+                    console.error('Rename error:', error);
+                    updateStatus('Error during rename: ' + error.message, 'error');
+                    refreshFileList();
+                });
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusBar = document.getElementById('statusBar');
+            const statusMessage = document.createElement('div');
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.textContent = message;
+            statusBar.insertBefore(statusMessage, statusBar.firstChild);
+
+            // Keep only last 5 messages
+            while (statusBar.children.length > 5) {
+                statusBar.removeChild(statusBar.lastChild);
+            }
+        }
+
+        // Add a debounce function to prevent rapid successive calls
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), wait);
+            };
+        }
+
+        // Improved refresh function with debounce to prevent multiple rapid refreshes
+        const refreshFileList = debounce(function() {
+            const params = new URLSearchParams(window.location.search);
+            const currentFolder = params.get('folder') || '';
+
+            // Show loading indicator
+            updateStatus('Refreshing file list...', 'info');
+
+            fetch('main.php?getFileList=1' + (currentFolder ? '&folder=' + encodeURIComponent(currentFolder) : ''))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.querySelector('.file-list').innerHTML = html;
+                    updateStatus('File list refreshed', 'success');
+
+                    // Re-attach event listeners to checkboxes after refresh
+                    document.querySelectorAll('.delete-check').forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            console.log("Checkbox changed: ", {
+                                type: this.getAttribute('data-type'),
+                                name: this.getAttribute('data-name'),
+                                checked: this.checked
+                            });
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error refreshing file list:', error);
+                    updateStatus('Failed to refresh file list: ' + error.message, 'error');
+                });
+        }, 300); // 300ms debounce time
+
+        // Fixed delete selected function with improved error handling
+        function deleteSelected() {
+            const checks = document.querySelectorAll('.delete-check:checked');
+            if (checks.length === 0) {
+                updateStatus('No items selected', 'error');
+                return;
+            }
+
+            if (!confirm(`Delete ${checks.length} selected item(s)?`)) {
+                return;
+            }
+
+            updateStatus(`Deleting ${checks.length} items...`, 'info');
+
+            // Process each checked item one by one to ensure reliability
+            let completed = 0;
+            let succeeded = 0;
+            let failed = 0;
+            let currentItem = 0;
+            let deleteQueue = Array.from(checks); // Convert NodeList to Array for easier tracking
+
+            // Use a serial approach instead of Promise.all to ensure each delete completes
+            function processNext() {
+                if (currentItem >= deleteQueue.length) {
+                    // All done
+                    const message = `Deleted ${succeeded} of ${deleteQueue.length} items${failed > 0 ? ` (${failed} failed)` : ''}`;
+                    updateStatus(message, succeeded > 0 ? 'success' : 'error');
+
+                    // Only refresh once at the end of all operations
+                    if (succeeded > 0) {
+                        refreshFileList();
+                    }
+                    return;
+                }
+
+                const check = deleteQueue[currentItem];
+                const type = check.getAttribute('data-type');
+                const name = check.getAttribute('data-name');
+
+                // Enhanced debugging
+                console.log(`Processing item ${currentItem + 1}/${deleteQueue.length}`);
+                console.log(`Type: "${type}", Name: "${name}"`);
+
+                if (!name || typeof name !== 'string') {
+                    updateStatus(`Error: Invalid name for item #${currentItem + 1}`, 'error');
+                    failed++;
+                    currentItem++;
+                    processNext();
+                    return;
+                }
+
+                // Show which item is being processed
+                updateStatus(`Deleting ${type}: ${name} (${currentItem + 1}/${deleteQueue.length})...`, 'info');
+
+                // Determine the action and parameter name based on type
+                const action = type === 'folder' ? 'deleteFolder' : 'delete';
+                const paramName = type === 'folder' ? 'folderName' : 'filename';
+
+                // Log the request we're about to make
+                console.log(`Sending request: action=${action}&${paramName}=${encodeURIComponent(name)}`);
+
+                // Send the request
+                fetch('main.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `action=${action}&${paramName}=${encodeURIComponent(name)}`
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        completed++;
+                        console.log('Server response:', result);
+
+                        if (result.status === 'success') {
+                            succeeded++;
+                            console.log(`Successfully deleted ${type}: ${name}`);
+
+                            // Check for current open file and clear editor if needed
+                            if (type === 'file' && document.getElementById('editorFilename').value === name) {
+                                editor.setValue('');
+                                document.getElementById('editorFilename').value = '';
+                                editorContent = '';
+                            }
+                        } else {
+                            failed++;
+                            console.error(`Failed to delete ${type}: ${name} - ${result.message}`);
+                            updateStatus(`Error: ${result.message}`, 'error');
+                        }
+
+                        // Process next item after a short delay to avoid overwhelming the server
+                        setTimeout(() => {
+                            currentItem++;
+                            processNext();
+                        }, 100);
                     })
                     .catch(error => {
-                        updateStatus(`Error: ${error.message}`, "error");
-                        console.error("Processing error:", error);
+                        console.error(`Error deleting ${type}: ${name}`, error);
+                        updateStatus(`Error deleting ${type}: ${name} - ${error.message}`, 'error');
+                        failed++;
+                        completed++;
+
+                        // Continue with next item even if this one failed
+                        setTimeout(() => {
+                            currentItem++;
+                            processNext();
+                        }, 100);
                     });
             }
 
-            // Add undo region functionality
-            document.getElementById('undoRegion').addEventListener('click', () => {
-                // Make sure we have regions to undo
-                if (sequentialRegions.length === 0) {
-                    updateStatus('Nothing to undo', 'info');
-                    return;
+            // Start processing
+            processNext();
+        }
+
+        // Initialize event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup all event listeners in one place to avoid duplication
+            setupEventListeners();
+
+            // Add debugging for checkboxes to check if they're properly initialized
+            console.log("Found " + document.querySelectorAll('.delete-check').length + " delete checkboxes");
+
+            // Add a direct event listener to any existing checkboxes
+            document.querySelectorAll('.delete-check').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    console.log("Checkbox changed: ", {
+                        type: this.getAttribute('data-type'),
+                        name: this.getAttribute('data-name'),
+                        checked: this.checked
+                    });
+                });
+            });
+
+            // Clear any lingering status messages on page load
+            const statusBar = document.getElementById('statusBar');
+            if (statusBar) {
+                statusBar.innerHTML = '';
+            }
+        });
+
+        window.addEventListener('beforeunload', function(e) {
+            if (editor.getValue() !== editorContent) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Listen for messages from iframe
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'switchToEditor') {
+                const editorView = document.querySelector('.editor-view');
+                const backupView = document.querySelector('.backup-view');
+
+                editorView.classList.remove('hidden');
+                backupView.classList.remove('active');
+
+                if (event.data.status) {
+                    updateStatus(event.data.status, 'success');
                 }
+            }
+        });
 
-                // Get the last region
-                const lastRegion = sequentialRegions.pop();
-                // Remove from the appropriate category in regionsData
-                const regionType = lastRegion.type;
+        // Listen for Escape key to exit fullscreen
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const container = document.getElementById('editorContainer');
+                if (container.classList.contains('fullwidth')) {
+                    toggleEditorFullWidth();
+                }
+            }
+        });
 
-                if (regionType === 'speaker1' || regionType === 'speaker2' || regionType === 'trash') {
-                    // Find and remove the region from the appropriate array
-                    const regionIndex = regionsData[regionType].findIndex(r =>
-                        r.start === lastRegion.start && r.end === lastRegion.end);
+        // Update resize handler to handle mobile menu state
+        window.addEventListener('resize', function() {
+            // Reset menu state on larger screens
+            if (window.innerWidth > 768) {
+                const menuPanel = document.getElementById('menuPanel');
+                const mainContainer = document.getElementById('mainContainer');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const body = document.body;
+                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
 
-                    if (regionIndex !== -1) {
-                        regionsData[regionType].splice(regionIndex, 1);
-                    }
+                menuPanel.classList.remove('active');
+                mainContainer.classList.remove('menu-active');
+                menuOverlay.classList.remove('active');
+                body.classList.remove('menu-active');
+                menuToggleIcon.classList.remove('fa-times');
+                menuToggleIcon.classList.add('fa-bars');
+            }
+        });
+    </script>
 
-                    // Remove the visual region from the waveform
-                    if (lastRegion.region) {
-                        lastRegion.region.remove();
-                    }
+    <script>
+        // We're removing all the duplicate code here
+        // The deleteSelected function is already properly defined in the main script
 
-                    // Update the regions log
-                    updateRegionsLog();
+        // Initialize event listeners when the page loads to make sure all buttons work
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up all event listeners properly
+            setupEventListeners();
+        });
+    </script>
+    <script>
+        // Add this function before your existing event listeners
+        function setupEventListeners() {
+            // Toggle mobile menu
+            document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+                const menuPanel = document.getElementById('menuPanel');
+                const mainContainer = document.getElementById('mainContainer');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const body = document.body;
+                const menuToggleIcon = document.querySelector('#mobileMenuToggle i');
 
-                    // Set the last end point to the previous region's end, or 0
-                    if (sequentialRegions.length > 0) {
-                        lastEndPoint = sequentialRegions[sequentialRegions.length - 1].end;
-                    } else {
-                        lastEndPoint = 0;
-                    }
+                menuPanel.classList.toggle('active');
+                mainContainer.classList.toggle('menu-active');
+                menuOverlay.classList.toggle('active');
+                body.classList.toggle('menu-active');
 
-                    updateStatus(`Removed ${regionType} region`, 'info');
+                // Update icon based on menu state
+                if (menuPanel.classList.contains('active')) {
+                    menuToggleIcon.classList.remove('fa-bars');
+                    menuToggleIcon.classList.add('fa-times');
+                } else {
+                    menuToggleIcon.classList.remove('fa-times');
+                    menuToggleIcon.classList.add('fa-bars');
                 }
             });
 
-            // Helper function to update the regions log
-            function updateRegionsLog() {
-                const regionsLogElement = document.getElementById('regions-log');
-                regionsLogElement.innerHTML = '';
-
-                sequentialRegions.forEach((region, index) => {
-                    const regionElement = document.createElement('div');
-                    regionElement.className = `region-entry ${region.type}`;
-                    regionElement.innerHTML = `<span>${index + 1}: ${region.type} (${region.start.toFixed(2)}s - ${region.end.toFixed(2)}s)</span>`;
-                    regionsLogElement.appendChild(regionElement);
-                });
-            }
-
-            // Add this to detect iframe and adjust positioning
-            function adjustPositioningForFrame() {
-                // Check if we're in an iframe
-                const inFrame = window !== window.top;
-
-                // Apply appropriate styles - maintain same width but adjust margins
-                document.body.style.maxWidth = '768px'; // Same width in both cases
-
-                if (inFrame) {
-                    document.body.style.margin = '0 0 0 20px'; // In iframe: left-justified with 20px margin
-                } else {
-                    document.body.style.margin = '0 auto'; // Not in iframe: centered
-                }
-
-                // Add a class to body for additional CSS targeting
-                document.body.classList.add(inFrame ? 'in-frame' : 'standalone');
-            }
-
-            // Call this function to adjust layout when the page loads
-            adjustPositioningForFrame();
-
-            // Add after your DOMContentLoaded event listener setup:
-            function initDragAndDrop() {
-                const statusBar = document.getElementById('status-messages');
-
-                if (!statusBar) {
-                    console.error('Status bar element not found for drag-and-drop');
-                    return;
-                }
-
-                statusBar.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    statusBar.classList.add('drag-over');
-                });
-
-                statusBar.addEventListener('dragleave', () => {
-                    statusBar.classList.remove('drag-over');
-                });
-
-                statusBar.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    statusBar.classList.remove('drag-over');
-                    if (e.dataTransfer.files.length > 0) {
-                        const file = e.dataTransfer.files[0];
-                        if (file.name.toLowerCase().endsWith('.wav')) {
-                            handleFile(file);
+            // Menu sort button
+            document.getElementById('menuSortBtn').addEventListener('click', function() {
+                fetch('main.php?toggleSort=1')
+                    .then(() => {
+                        refreshFileList();
+                        // Toggle the sort button icon
+                        const sortBtn = document.getElementById('menuSortBtn');
+                        const sortIcon = sortBtn.querySelector('i');
+                        if (sortIcon.classList.contains('fa-sort-alpha-down')) {
+                            sortIcon.classList.remove('fa-sort-alpha-down');
+                            sortIcon.classList.add('fa-clock');
+                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: by date)');
                         } else {
-                            updateStatus('Please drop a WAV file', 'error');
+                            sortIcon.classList.remove('fa-clock');
+                            sortIcon.classList.add('fa-sort-alpha-down');
+                            sortBtn.setAttribute('title', 'Toggle Sort (Currently: alphabetical)');
                         }
-                    }
-                });
-            }
+                    });
+            });
 
-            initDragAndDrop(); // Call this function to initialize drag and drop
-        });
+            // Menu delete button
+            document.getElementById('menuDeleteBtn').addEventListener('click', function() {
+                deleteSelected();
+            });
+
+            // Menu refresh button
+            document.getElementById('menuRefreshBtn').addEventListener('click', function() {
+                refreshFileList();
+            });
+
+            // Transfer files button
+            document.getElementById('menuUpdateBtn').addEventListener('click', function() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.onchange = async function(e) {
+                    const formData = new FormData();
+                    for (let file of e.target.files) {
+                        formData.append('files[]', file);
+                    }
+                    formData.append('action', 'transferFiles');
+
+                    fetch('main.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            updateStatus(result.message, result.status === 'success' ? 'success' : 'error');
+                            if (result.status === 'success' || result.status === 'partial') {
+                                refreshFileList();
+                            }
+                        });
+                };
+                input.click();
+            });
+
+            // Overlay click to close menu on mobile
+            document.getElementById('menuOverlay').addEventListener('click', function() {
+                const menuToggleButton = document.getElementById('mobileMenuToggle');
+                if (menuToggleButton) {
+                    menuToggleButton.click();
+                }
+            });
+
+            // Editor fullscreen toggle function
+            window.toggleEditorFullWidth = function() {
+                const container = document.getElementById('editorContainer');
+                const icon = document.getElementById('fullwidthIcon');
+
+                container.classList.toggle('fullwidth');
+
+                if (container.classList.contains('fullwidth')) {
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                } else {
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                }
+
+                editor.resize();
+            };
+
+            // Add navigation functions if they don't exist
+            window.scrollEditorTop = window.scrollEditorTop || function() {
+                editor.gotoLine(1);
+                editor.focus();
+                updateStatus('Scrolled to top', 'info');
+            };
+
+            window.scrollEditorBottom = window.scrollEditorBottom || function() {
+                const lastRow = editor.session.getLength();
+                editor.gotoLine(lastRow, editor.session.getLine(lastRow - 1).length);
+                editor.focus();
+                updateStatus('Scrolled to bottom', 'info');
+            };
+        }
     </script>
 </body>
 
