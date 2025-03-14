@@ -31,3 +31,21 @@
 [2025-03-14 19:52:04] FILES data: []
 [2025-03-14 19:52:04] ERROR: File upload failed: No file uploaded
 [2025-03-14 19:52:04] Stack trace: #0 {main}
+[2025-03-14 22:50:21] Script started - processing audio file
+[2025-03-14 22:50:22] POST data: {"regions":"{\"speaker1\":[{\"start\":0,\"end\":12.961534933241252}],\"speaker2\":[],\"trash\":[{\"start\":12.961534933241252,\"end\":13.619958333333333}]}","fileName":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav"}
+[2025-03-14 22:50:22] FILES data: {"audioFile":{"name":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav","full_path":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav","type":"audio\/wav","tmp_name":"C:\\Users\\info\\AppData\\Local\\Temp\\php7A1F.tmp","error":0,"size":1201327}}
+[2025-03-14 22:50:22] File saved to: uploads/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1_original.wav
+[2025-03-14 22:50:22] Regions data: {"speaker1":[{"start":0,"end":12.961534933241252}],"speaker2":[],"trash":[{"start":12.961534933241252,"end":13.619958333333333}]}
+[2025-03-14 22:50:22] Extracting regions from uploads/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1_original.wav to processed_audio/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1_speaker1.wav
+[2025-03-14 22:50:22] WAV Info: Channels=1, Rate=44100, Bits=16
+[2025-03-14 22:50:22] Extracted region: 0 - 12.961534933241 (12.961534933241 sec)
+[2025-03-14 22:50:22] Finished extracting to processed_audio/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1_speaker1.wav, size: 1143207 bytes
+[2025-03-14 23:12:32] Script started - processing audio file
+[2025-03-14 23:12:32] POST data: {"regions":"{\"speaker1\":[{\"start\":0,\"end\":11.869439917127071}],\"speaker2\":[],\"trash\":[{\"start\":11.869439917127071,\"end\":12.9615}]}","fileName":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1.wav"}
+[2025-03-14 23:12:33] FILES data: {"audioFile":{"name":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1.wav","full_path":"ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1.wav","type":"audio\/wav","tmp_name":"C:\\Users\\info\\AppData\\Local\\Temp\\phpC948.tmp","error":0,"size":1143251}}
+[2025-03-14 23:12:33] File saved to: uploads/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1_original.wav
+[2025-03-14 23:12:33] Regions data: {"speaker1":[{"start":0,"end":11.869439917127071}],"speaker2":[],"trash":[{"start":11.869439917127071,"end":12.9615}]}
+[2025-03-14 23:12:33] Extracting regions from uploads/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1_original.wav to processed_audio/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1_speaker1.wav
+[2025-03-14 23:12:33] WAV Info: Channels=1, Rate=44100, Bits=16
+[2025-03-14 23:12:33] Extracted region: 0 - 11.869439917127 (11.869439917127 sec)
+[2025-03-14 23:12:33] Finished extracting to processed_audio/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1_speaker1.wav, size: 1046884 bytes

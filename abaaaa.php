@@ -2301,6 +2301,63 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             };
         }
     </script>
-</body>
+    .scroll-nav {
+  position: fixed;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.scroll-nav-left {
+  left: 10px;
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.scroll-nav-right {
+  right: 10px;
+}
+
+.scroll-nav svg {
+  color: white;
+  width: 24px;
+  height: 24px;
+}
+<div class="scroll-nav scroll-nav-left" onclick="scrollToColumn('left')">
+  <svg viewBox="0 0 24 24">
+    <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/>
+  </svg>
+</div>
+
+<div class="scroll-nav scroll-nav-right" onclick="scrollToColumn('right')">
+  <svg viewBox="0 0 24 24">
+    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
+  </svg>
+</div>
+
+<script>
+function scrollToColumn(direction) {
+  const columns = document.querySelectorAll('.column');
+  const currentColumn = document.querySelector('.column.active');
+  const currentIndex = Array.from(columns).indexOf(currentColumn);
+
+  let targetIndex;
+  if (direction === 'left') {
+    targetIndex = Math.max(0, currentIndex - 1);
+  } else {
+    targetIndex = Math.min(columns.length - 1, currentIndex + 1);
+  }
+
+  columns[currentIndex].classList.remove('active');
+  columns[targetIndex].classList.add('active');
+  columns[targetIndex].scrollIntoView({ behavior: 'smooth' });
+}
+</script>
 
 </html>

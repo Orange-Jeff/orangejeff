@@ -222,15 +222,15 @@
         /* Make controls wrap better on mobile */
         @media (max-width: 576px) {
             .controls {
-            display: flex;
-            flex-wrap: nowrap;
-            align-items: center;
-            width: 100%;
-            overflow-x: auto;
-            padding: 0;
-            gap: 5px;
-            border-bottom: none;
-        }
+                display: flex;
+                flex-wrap: nowrap;
+                align-items: center;
+                width: 100%;
+                overflow-x: auto;
+                padding: 0;
+                gap: 5px;
+                border-bottom: none;
+            }
 
             .button-blue {
                 min-width: calc(25% - 10px);
@@ -396,9 +396,66 @@
                 gap: 10px;
             }
 
-            .waveform-header > * {
+            .waveform-header>* {
                 width: 100%;
             }
+        }
+
+        /* Fixed zoom controls with consistent spacing */
+        .waveform-header .zoom-buttons {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            /* Doubled spacing between zoom buttons */
+            justify-content: flex-end;
+            flex: 1;
+            min-width: fit-content;
+            padding-right: 10px;
+            /* Doubled from 5px for consistency */
+            margin-bottom: 10px;
+            /* Added space between buttons and waveform */
+        }
+
+        /* Single definition for header children */
+        .waveform-header>* {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            /* Doubled from 5px for consistent padding */
+        }
+
+        /* Keep whitespace handling without duplicate rule */
+        .waveform-header span {
+            white-space: nowrap;
+            margin-right: 20px;
+            /* Doubled from 10px for better spacing */
+        }
+
+        /* Button group spacing improvements */
+        .button-group {
+            display: flex;
+            gap: 20px;
+            /* Doubled from 10px for more breathing room */
+            flex-shrink: 0;
+            margin: 10px;
+            /* Doubled from 5px for consistent spacing */
+        }
+
+        /* Controls spacing and alignment */
+        .controls {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+            padding: 10px 5px;
+            /* Consistent padding */
+            gap: 15px;
+            /* Increased from 5px for better spacing */
+            border-bottom: none;
+            margin-bottom: 15px;
+            /* Add space below controls */
         }
 
         .waveform-header .zoom-controls {
@@ -410,7 +467,7 @@
             min-width: fit-content;
         }
 
-            .waveform-header > * {
+        .waveform-header>* {
             flex: 1;
             display: flex;
             align-items: center;
@@ -421,9 +478,9 @@
         }
 
 
-        
 
-        .waveform-header > * {
+
+        .waveform-header>* {
             flex: 1;
             display: flex;
             align-items: center;
@@ -437,6 +494,61 @@
         #processAudio {
             margin-top: 20px;
             width: 100%;
+        }
+
+        /* New styles for advanced save options section */
+        .save-options-container {
+            margin-top: 20px;
+            border-top: 2px solid #0056b3;
+            padding-top: 15px;
+            display: none;
+            /* Hidden by default, shown after processing */
+        }
+
+        .save-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .save-option-label {
+            font-weight: bold;
+            min-width: 120px;
+        }
+
+        .save-option select {
+            flex-grow: 1;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background-color: white;
+        }
+
+        .save-button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            min-width: 100px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .save-button:hover {
+            background-color: #004494;
+        }
+
+        .save-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
 
         /* Frame-specific adjustments */
@@ -805,8 +917,6 @@
             overflow-y: auto;
             margin-top: 15px;
         }
-
-        /*
     </style>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
@@ -859,7 +969,7 @@
                     <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
                 </div>
 
-                <div class="button-group" >
+                <div class="button-group">
                     <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
                         <i class="fas fa-user-circle"></i> 1
                     </button>
@@ -894,6 +1004,44 @@
             <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
             <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
             <a href="#" id="stereoFile" target="_blank" style="display:none;">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+        </div>
+
+        <!-- Advanced Save Options -->
+        <div id="saveOptionsContainer" class="save-options-container">
+            <h3>Advanced Save Options</h3>
+
+            <div class="save-option">
+                <span class="save-option-label">Speaker 1:</span>
+                <select id="speaker1SaveOption">
+                    <option value="clipped">Clipped speaker 1 regions only</option>
+                    <option value="silenced">Speaker 2 silenced in sync</option>
+                </select>
+                <button id="saveSpeaker1" class="save-button">
+                    <i class="fas fa-download"></i> Save
+                </button>
+            </div>
+
+            <div id="speaker2SaveOptions" class="save-option">
+                <span class="save-option-label">Speaker 2:</span>
+                <select id="speaker2SaveOption">
+                    <option value="clipped">Clipped speaker 2 regions only</option>
+                    <option value="silenced">Speaker 1 silenced in sync</option>
+                </select>
+                <button id="saveSpeaker2" class="save-button">
+                    <i class="fas fa-download"></i> Save
+                </button>
+            </div>
+
+            <div class="save-option">
+                <span class="save-option-label">Stereo Output:</span>
+                <select id="stereoSaveOption">
+                    <option value="no_trash">Without deleted sections</option>
+                    <option value="full">Full track</option>
+                </select>
+                <button id="saveStereo" class="save-button">
+                    <i class="fas fa-download"></i> Save
+                </button>
+            </div>
         </div>
 
         <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
@@ -1365,18 +1513,30 @@
                         if (data.status === 'success') {
                             updateStatus("Audio processing complete!", "success");
 
-                            // Update download links
+                            // Check if we have any speaker2 regions
+                            const hasSpeaker2Regions = allRegions.speaker2.length > 0;
+
+                            // Show advanced save options
+                            document.getElementById('saveOptionsContainer').style.display = 'block';
+
+                            // Show/hide Speaker 2 options based on regions
+                            document.getElementById('speaker2SaveOptions').style.display =
+                                hasSpeaker2Regions ? 'flex' : 'none';
+
+                            // Set up download links for basic options
                             if (data.speaker1) {
                                 speaker1File.href = data.speaker1;
                                 speaker1File.download = `${currentFileName}_speaker1.wav`;
                             }
 
-                            if (data.speaker2) {
+                            if (data.speaker2 && hasSpeaker2Regions) {
                                 speaker2File.href = data.speaker2;
                                 speaker2File.download = `${currentFileName}_speaker2.wav`;
+                            } else {
+                                speaker2File.style.display = 'none';
                             }
 
-                            if (data.stereo) {
+                            if (data.stereo && hasSpeaker2Regions) {
                                 stereoFile.href = data.stereo;
                                 stereoFile.style.display = 'block';
                                 stereoFile.download = `${currentFileName}_stereo.wav`;
@@ -1504,6 +1664,64 @@
             }
 
             initDragAndDrop(); // Call this function to initialize drag and drop
+
+            // Add these event listeners after your DOMContentLoaded setup
+            document.getElementById('saveSpeaker1').addEventListener('click', function() {
+                const option = document.getElementById('speaker1SaveOption').value;
+                saveProcessedAudio('speaker1', option);
+            });
+
+            document.getElementById('saveSpeaker2').addEventListener('click', function() {
+                const option = document.getElementById('speaker2SaveOption').value;
+                saveProcessedAudio('speaker2', option);
+            });
+
+            document.getElementById('saveStereo').addEventListener('click', function() {
+                const option = document.getElementById('stereoSaveOption').value;
+                saveProcessedAudio('stereo', option);
+            });
+
+            // Function to handle advanced save options
+            function saveProcessedAudio(speaker, option) {
+                // Create form data for submission
+                const formData = new FormData();
+                formData.append('speaker', speaker);
+                formData.append('option', option);
+                formData.append('fileName', currentFileName);
+                formData.append('regions', JSON.stringify(sequentialRegions));
+
+                // For processing, you'll need the original audio file
+                if (originalAudioFile) {
+                    formData.append('audioFile', originalAudioFile);
+                }
+
+                updateStatus(`Processing ${speaker} with option: ${option}...`, "info");
+
+                fetch('process_advanced_audio.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success' && data.file) {
+                            // Create a download link
+                            const link = document.createElement('a');
+                            link.href = data.file;
+                            link.download = data.filename || `${currentFileName}_${speaker}_${option}.wav`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+
+                            updateStatus(`${speaker} audio saved successfully!`, "success");
+                        } else {
+                            updateStatus(`Error saving ${speaker}: ${data.message}`, "error");
+                        }
+                    })
+                    .catch(error => {
+                        updateStatus(`Error: ${error.message}`, "error");
+                        console.error("Processing error:", error);
+                    });
+            }
         });
     </script>
 </body>

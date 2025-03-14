@@ -241,9 +241,6 @@ function generateFileListHTML($files, $currentFilename = '', $currentPath = '')
 
                 echo "<li class='file-entry " . ($isCurrentEdit ? "current-edit" : "") . "'>
                     <div class='file-controls'>
-                        <button onclick='loadFile(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\")' title='Edit File'>
-                            <i class='fas fa-pencil-alt'></i>
-                        </button>
                         <a href='#' onclick='openInNewTab(\"" . htmlspecialchars($relativePath, ENT_QUOTES) . "\"); return false;' title='Run File'>
                             <i class='fas fa-play'></i>
                         </a>
@@ -365,21 +362,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     // File save handler
     if ($action === 'save') {
+        // Ensure clean output buffer
+        ob_clean();
+        header('Content-Type: application/json');
+
         $filename = basename($_POST['filename'] ?? '');
         $content = $_POST['content'] ?? '';
         $isRename = isset($_POST['isRename']) && $_POST['isRename'] === 'true';
 
         if (empty($filename)) {
             echo json_encode(['status' => 'error', 'message' => 'Filename required']);
+            exit;
         } else {
             $filePath = $currentDir . '/' . $filename;
             $originalContent = file_exists($filePath) ? file_get_contents($filePath) : '';
 
-            if (file_exists($filePath) || $isRename) {
-                // Empty block
-            } else if ($content !== $originalContent) {
-                // Regular save with backup attempt for existing file
-                try {
+            if (file_exists($filePath) && $originalContent === $content) {
+                echo json_encode(['status' => 'info', 'message' => 'No changes detected, file not saved: ' . $filename]);
+                exit;
+            }
+
+            // Regular save with backup attempt for existing file
+            try {
+                if (file_exists($filePath)) {
                     $backupFilename = basename($filename);
                     $version = 1;
                     while (file_exists($backupDir . $backupFilename . '(V' . $version . ').php')) {
@@ -406,19 +411,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
                         }
                     }
-                } catch (Exception $e) {
-                    // Try to save anyway even if backup process had errors
+                } else {
+                    // New file, no backup needed
                     if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
-                        echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup process error: ' . $e->getMessage() . ')']);
+                        echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename]);
                     } else {
                         echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
                     }
                 }
-            } else {
-                echo json_encode(['status' => 'info', 'message' => 'No changes detected, file not saved: ' . $filename]);
+            } catch (Exception $e) {
+                // Try to save anyway even if backup process had errors
+                if (file_put_contents($filePath, $content, LOCK_EX) !== false) {
+                    echo json_encode(['status' => 'success', 'message' => 'File saved: ' . $filename . ' (backup process error: ' . $e->getMessage() . ')']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Save failed: ' . $filename]);
+                }
             }
+            exit;
         }
-        exit;
     }
     // Backup retrieval handler
     else if ($action === 'getBackup') {
@@ -515,17 +525,19 @@ $content = '';
 // Handle direct app loading
 $appToLoad = '';
 if (isset($_GET['app'])) {
-    $requestedApp = basename($_GET['app']);
-    // Only allow nb- prefixed files
-    if (strpos($requestedApp, 'nb-') === 0 && file_exists($currentDir . '/' . $requestedApp)) {
+    $requestedApp = $_GET['app'];
+    // Allow any PHP file to be loaded, not just nb- prefixed ones
+    if (
+        file_exists($currentDir . '/' . $requestedApp) &&
+        (pathinfo($requestedApp, PATHINFO_EXTENSION) === 'php' ||
+            pathinfo($requestedApp, PATHINFO_EXTENSION) === 'html')
+    ) {
         $appToLoad = $requestedApp;
     }
 }
 
 // Load file content if needed
-if (isset($_GET['file']) && !empty($_GET['file'])) {
-    $content = file_get_contents($currentDir . '/' . $_GET['file']);
-}
+
 
 // Get file list for initial display
 $files = getFileList($currentDir, $sortBy);
@@ -551,922 +563,12 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
     <title>NetBound Tools Menu</title>
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* Main Styles from main-styles.css */
-        html,
-
-        /* Folder and Breadcrumb Styles */
-        .folder-entry {
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            margin-bottom: 2px;
-        }
-
-        .folder-entry:hover {
-            background-color: #e9ecef;
-        }
-
-        .folder-normal {
-            color: #b8860b !important;
-        }
-
-        .folder-special {
-            color: #007bff !important;
-        }
-
-        .breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 15px;
-            margin: 0 -15px 15px -15px;
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #ddd;
-            font-size: 14px;
-        }
-
-        .breadcrumb a {
-            color: var(--primary-color);
-            text-decoration: none;
-        }
-
-        .breadcrumb a:hover {
-            text-decoration: underline;
-        }
-
-        .up-level {
-            margin-left: -5px;
-            padding: 5px;
-            color: var(--primary-color);
-            cursor: pointer;
-            text-decoration: none;
-        }
-
-        .up-level:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 4px;
-        }
-
-        .folder-name {
-            color: var(--primary-color);
-            font-weight: bold;
-        }
-
-
-        .breadcrumb .separator {
-            color: #6c757d;
-        }
-
-        body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #e9ecef;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        :root {
-            --primary-color: #0056b3;
-            --secondary-color: #f8f9fa;
-            --text-color: #333;
-            --background-color: #e9ecef;
-            --header-height: 40px;
-            --menu-width: 250px;
-            --button-padding-y: 6px;
-            --button-padding-x: 10px;
-            --button-border-radius: 4px;
-            --status-bar-padding: 8px 15px;
-            --status-bar-margin: 10px 0;
-            --success-color: #28a745;
-            --error-color: #dc3545;
-            --info-color: #17a2b8;
-            --transition-speed: 0.3s;
-        }
-
-        /* Header Styles */
-        .header {
-            width: 100%;
-            background-color: var(--primary-color);
-            color: white;
-            height: var(--header-height);
-            box-sizing: border-box;
-            align-items: center;
-            justify-content: space-between;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            padding: 0 20px;
-            display: flex;
-            box-shadow: 0 2px 5px rgb(0 0 0 / 10%);
-        }
-
-        .header .left-section,
-        .header .right-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .header .left-section .menu-title,
-        .header .right-section .editor-title {
-            font-size: 20px;
-            font-weight: bold;
-            line-height: 1;
-        }
-
-        /* File coloring */
-        .nb-file {
-            color: #007bff;
-            font-weight: bold;
-        }
-
-        .php-file {
-            color: #6f42c1;
-        }
-
-        .js-file {
-            color: #e9b64d;
-        }
-
-        .css-file {
-            color: #20c997;
-        }
-
-        .html-file {
-            color: #e34c26;
-        }
-
-        .other-file {
-            color: #6c757d;
-        }
-
-        .header .right-section button,
-        .header .left-section .header-button {
-            background-color: var(--secondary-color);
-            color: var(--primary-color);
-            border: none;
-            padding: 4px 8px;
-            border-radius: var(--button-border-radius);
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .header .right-section button:hover,
-        .header .left-section .header-button:hover {
-            background-color: #e0e0e0;
-        }
-
-        .header .left-section .header-button.disabled {
-            background-color: #ccc;
-            color: #666;
-            cursor: not-allowed;
-        }
-
-        /* Menu Layout */
-        .menu {
-            position: fixed;
-            left: 0;
-            top: var(--header-height);
-            width: var(--menu-width);
-            height: calc(100vh - var(--header-height));
-            background-color: #fff;
-            border-right: 1px solid #ddd;
-            box-shadow: 2px 0 5px rgb(0 0 0 / 10%);
-            z-index: 999;
-            overflow-y: auto;
-            transform: none !important;
-            /* Always visible */
-        }
-
-
-
-        /* Remove menu overlay */
-        .menu-overlay {
-            display: none !important;
-        }
-
-        /* Container Layout */
-        .container {
-            display: flex;
-            margin-left: var(--menu-width);
-            width: calc(100% - var(--menu-width));
-            height: calc(100vh - var(--header-height));
-            margin-top: var(--header-height);
-        }
-
-        .menu-overlay {
-            display: none;
-            position: fixed;
-            top: var(--header-height);
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 998;
-        }
-
-        .menu-overlay.active {
-            display: block;
-        }
-
-        .menu-container {
-            margin-top: 15px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 768px;
-            margin-left: 0;
-            margin-right: 0;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        .tool-iframe {
-            width: 100%;
-            height: calc(100vh - 160px);
-            border: none;
-            background: #fff;
-        }
-
-        .menu-tools {
-            position: sticky;
-            top: 0;
-            background: #fff;
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            z-index: 1003;
-            height: 32px;
-            margin-top: 5px;
-            display: flex;
-            gap: 8px;
-        }
-
-        .menu-content {
-            padding: 15px;
-            height: calc(100% - 52px);
-            overflow: hidden auto;
-            flex: 1;
-        }
-
-        .menu-header {
-            padding: 10px;
-            display: flex;
-            justify-content: flex-end;
-            position: sticky;
-            top: 0;
-            background: #fff;
-            z-index: 1003;
-        }
-
-        /* File List Styles */
-        .file-list {
-            padding: 10px 0;
-            margin: 0;
-            list-style: none;
-        }
-
-        .file-entry {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 0;
-        }
-
-        .file-entry:hover {
-            background-color: #e9ecef;
-        }
-
-        .file-entry.current-edit {
-            background-color: #d1ecf1;
-        }
-
-        .file-controls {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .file-controls button,
-        .file-controls a {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            font-size: 14px;
-            cursor: pointer;
-            padding: 2px;
-        }
-
-        .file-controls button:hover,
-        .file-controls a:hover {
-            color: #003d82;
-        }
-
-        .select-control {
-            margin-left: 10px;
-            display: flex;
-            align-items: center;
-        }
-
-        .delete-check {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
-
-        .filename {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            padding-left: 10px;
-            font-size: 14px;
-            color: var(--text-color);
-            text-decoration: none;
-            max-width: 160px;
-        }
-
-        /* Editor styles */
-        .editor {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            width: 100%;
-            max-width: 768px;
-            margin: 0;
-            box-sizing: border-box;
-            /* Remove fixed min-height, let it be flexible */
-            height: auto;
-            /* Ensure there's always room for buttons */
-            transition: max-width 0.3s ease;
-        }
-
-        .editor-container {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            /* Use flexible height approach */
-            height: auto;
-            /* Limit height to ensure buttons are visible */
-            max-height: calc(100vh - var(--header-height) - 220px);
-            /* Allow smaller height on smaller screens */
-            min-height: 100px;
-            margin: 10px 0;
-            overflow: hidden;
-        }
-
-        /* Ensure button row is always visible with stronger positioning */
-        .button-row {
-            position: sticky;
-            bottom: 0;
-            background: #e9ecef;
-            padding: 8px 0;
-            z-index: 1000;
-            margin-top: 10px;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Add general responsive layout approach that works for all devices */
-        .edit-form {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            /* Ensure the form takes at least space needed for buttons */
-            min-height: 220px;
-        }
-
-        /* Status bar adaptations */
-        .persistent-status-bar {
-            max-height: 100px;
-            overflow-y: auto;
-        }
-
-        /* Make the form layout more responsive */
-        @media (max-height: 600px) {
-            .editor {
-                padding: 5px;
-            }
-
-            .editor-container {
-                min-height: 80px;
-                max-height: calc(100vh - var(--header-height) - 180px);
-            }
-
-            .button-group {
-                margin-top: 2px;
-            }
-
-            .persistent-status-bar {
-                max-height: 60px;
-            }
-
-            .button-row .command-button,
-            .button-row .split-button {
-                /* Smaller buttons on very small screens */
-                padding: 4px 8px;
-                font-size: 12px;
-            }
-        }
-
-        /* Add intermediate size range for tablets */
-        @media (min-height: 601px) and (max-height: 800px) {
-            .editor-container {
-                max-height: calc(100vh - var(--header-height) - 200px);
-            }
-        }
-
-        .editor.fullscreen {
-            max-width: 100%;
-            width: 100%;
-            box-sizing: border-box;
-            /* Ensure padding is included in width calculation */
-        }
-
-        .editor-container {
-            position: relative;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            height: calc(100vh - var(--header-height) - 180px);
-            min-height: 400px;
-            margin: 20px 0;
-            overflow: hidden;
-        }
-
-        #editor {
-            flex: 1;
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-        }
-
-        .button-row {
-            position: sticky;
-            bottom: 0;
-            background: transparent;
-            padding: 5px 0;
-            z-index: 1000;
-        }
-
-        .editor-header {
-            margin-top: 10px;
-            padding: 5px 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .editor-title {
-            margin: 0 0 15px;
-            padding: 0;
-            line-height: 1.2;
-            color: var(--primary-color);
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .header-top {
-            display: flex;
-            width: 100%;
-            justify-content: space-between;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .editor-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            align-items: center;
-        }
-
-        .label-line {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 8px;
-            flex-wrap: nowrap;
-        }
-
-        .info-label {
-            color: var(--text-color);
-            font-weight: normal;
-            width: 80px;
-            font-size: 14px;
-        }
-
-        .info-input {
-            flex: 1;
-            font-size: 14px;
-            padding: 6px 8px;
-            border: 1px solid #ccc;
-            border-radius: var(--button-border-radius);
-        }
-
-        /* Button Styles */
-        .button-row {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: nowrap;
-            margin-top: 5px;
-        }
-
-        .button-group {
-            display: inline-flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-            margin-top: 15px;
-        }
-
-        .command-button,
-        .split-button {
-            font-size: 14px;
-            padding: var(--button-padding-y) var(--button-padding-x);
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: var(--button-border-radius);
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .command-button:hover,
-        .split-button:hover {
-            background-color: #003d82;
-        }
-
-        .split-button {
-            display: flex;
-            padding: 0;
-            gap: 1px;
-            background-color: white;
-            align-items: stretch;
-        }
-
-        .split-button .main-part,
-        .split-button .append-part {
-            background-color: var(--primary-color);
-            padding: var(--button-padding-y) var(--button-padding-x);
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .split-button .main-part {
-            border-radius: var(--button-border-radius) 0 0 var(--button-border-radius);
-        }
-
-        .split-button .append-part {
-            padding: var(--button-padding-y) 7px;
-            border-radius: 0 var(--button-border-radius) var(--button-border-radius) 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .split-button i {
-            margin-right: 5px;
-        }
-
-        .split-button .main-part:hover,
-        .split-button .append-part:hover {
-            background-color: #003d82;
-        }
-
-        /* Status Bar */
-        .persistent-status-bar {
-            width: 100%;
-            height: 84px;
-            min-height: 84px;
-            max-height: 84px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-            margin: 10px 0;
-            border-radius: 4px;
-            display: flex;
-            flex-direction: column-reverse;
-            box-sizing: border-box;
-        }
-
-        .status-message {
-            margin: 2px 0;
-            padding: 2px 5px;
-            border-radius: 3px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            font-size: 14px;
-            color: var(--text-color);
-        }
-
-        .persistent-status-bar .status-message:first-child.success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .persistent-status-bar .status-message:first-child.error {
-            background-color: var(--error-color);
-            color: white;
-        }
-
-        .persistent-status-bar .status-message:first-child.info {
-            background-color: var(--info-color);
-            color: white;
-        }
-
-        /* Editor navigation controls */
-        .editor-nav-controls {
-            position: absolute;
-            right: 25px;
-            top: 15px;
-            display: flex;
-            flex-direction: row;
-            z-index: 1000;
-            background-color: rgba(50, 50, 50, 0.8);
-            border-radius: 4px;
-            padding: 2px;
-        }
-
-        .editor-nav-controls button {
-            margin: 2px;
-            width: 34px;
-            height: 34px;
-            border: none;
-            border-radius: 4px;
-            background-color: rgba(80, 80, 80, 9);
-            color: #ffffff;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        }
-
-        .editor-nav-controls button:hover {
-            background-color: #0078d7;
-        }
-
-        /* Fullwidth mode */
-        .editor-container.fullwidth {
-            position: relative;
-            width: calc(100% - 40px);
-            /* 100% width minus 40px to prevent overflow */
-            max-width: calc(100% - 40px) !important;
-            margin-left: -20px;
-            margin-right: -20px;
-            padding: 0 20px;
-            z-index: 5;
-            background-color: #272822;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            box-sizing: border-box;
-            /* Ensure padding is included in width calculation */
-        }
-
-        .editor.fullscreen {
-            max-width: 100%;
-            width: 100%;
-            box-sizing: border-box;
-            /* Ensure padding is included in width calculation */
-        }
-
-        /* File type colors (specific) */
-        .file-nb {
-            color: #4287f5 !important;
-            font-weight: bold;
-        }
-
-        .file-php {
-            color: #9c27b0 !important;
-        }
-
-        .file-html {
-            color: #e91e63 !important;
-        }
-
-        .file-css {
-            color: #2196f3 !important;
-        }
-
-        .file-js {
-            color: #ffc107 !important;
-        }
-
-        .file-json {
-            color: #8bc34a !important;
-        }
-
-        .file-txt {
-            color: #607d8b !important;
-        }
-
-        .file-other {
-            color: #9e9e9e !important;
-        }
-
-        .empty-folder-message {
-            text-align: center;
-            padding: 30px 20px;
-            margin-top: 20px;
-            color: #666;
-            font-style: italic;
-            font-size: 15px;
-            border: 1px dashed #ccc;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-
-        .folder-controls {
-            display: flex;
-            gap: 4px;
-        }
-
-        /* Views */
-        .editor-view,
-        .backup-view {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: var(--header-height);
-            left: var(--menu-width);
-            right: 0;
-            transition: transform 0.3s ease-in-out, left 0.3s ease, visibility 0.3s;
-            visibility: visible;
-            z-index: 10;
-        }
-
-        .editor-view.hidden {
-            visibility: hidden !important;
-            z-index: -1 !important;
-            /* Ensure it's below everything else */
-        }
-
-        .backup-view {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: var(--header-height);
-            left: var(--menu-width);
-            right: 0;
-            z-index: 5;
-            visibility: hidden;
-            transition: visibility 0.3s;
-        }
-
-        .backup-view.active {
-            z-index: 20;
-            /* Higher than editor when active */
-            visibility: visible;
-        }
-
-        /* Fix for editor container when hidden */
-        .editor-view.hidden .editor-container,
-        .editor-view.hidden .editor-container * {
-            visibility: hidden !important;
-        }
-
-        /* Ensure the menu-container also slides with the menu */
-        .menu-container {
-            transition: margin-left 0.3s ease;
-        }
-
-        @media (max-width: 768px) {
-            .menu-container {
-                margin-left: 0;
-            }
-
-            .menu-active .menu-container {
-                margin-left: var(--menu-width);
-            }
-        }
-
-
-
-
-
-
-
-        /* Add responsive editor height */
-        @media (max-height: 700px) {
-            .editor {
-                height: calc(100vh - 220px);
-            }
-
-            .editor-container {
-                height: calc(100vh - 300px);
-            }
-        }
-
-        @media (max-height: 600px) {
-            .editor-container {
-                height: calc(100vh - var(--header-height) - 140px);
-            }
-        }
-
-        @media (max-height: 500px) {
-            .editor-container {
-                height: calc(100vh - var(--header-height) - 100px);
-            }
-        }
-
-        /* Add these styles to your existing CSS to fix mobile menu */
-        @media (max-width: 768px) {
-            .menu {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-                width: 80%;
-                /* Slightly narrower on mobile */
-                max-width: 300px;
-            }
-
-            .menu.active {
-                transform: translateX(0);
-            }
-
-            /* Make sure menu is visible in viewport */
-            #menuPanel {
-                height: calc(100vh - var(--header-height));
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                /* For iOS momentum scrolling */
-            }
-        }
-
-        /* Add inside your existing <style> tag */
-        .status-bar {
-            width: 100%;
-            height: 90px;
-            min-height: 90px;
-            max-height: 90px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            background: #fff;
-            padding: 5px;
-            margin: 10px 0;
-            border-radius: 4px;
-            display: flex;
-            flex-direction: column-reverse;
-            box-sizing: border-box;
-        }
-
-        .status-message {
-            padding: 5px;
-            margin: 2px 0;
-            border-radius: 3px;
-            color: #666;
-        }
-
-        .status-message:first-child {
-            color: white;
-        }
-
-        .status-message.info {
-            border-left: 3px solid #2196f3;
-        }
-
-        .status-message.info:first-child {
-            background: #2196f3;
-        }
-
-        .status-message.success {
-            border-left: 3px solid #4caf50;
-        }
-
-        .status-message.success:first-child {
-            background: #4caf50;
-        }
-
-        .status-message.error {
-            border-left: 3px solid #f44336;
-        }
-
-        .status-message.error:first-child {
-            background: #f44336;
-        }
-    </style>
+    <link href="main.css" rel="stylesheet">
+    
 </head>
 
 <body>
     <div class="header">
-        <button id="menuToggle" class="menu-toggle">
-            <i class="fas fa-bars"></i>
-        </button>
         <div class="left-section">
             <h2 class="menu-title">NetBound Tools</h2>
             <button id="menuUpdateBtn" class="header-button" title="Transfer files to server">
@@ -1487,7 +589,6 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             <button id="menuSortBtn" class="header-button" title="Toggle Sort (Currently: <?php echo $sortIcon === 'fa-clock' ? 'sorted by date' : 'sorted alphabetically'; ?>)">
                 <i class="fas <?php echo $sortIcon; ?>"></i>
             </button>
-            <!-- sort-button -->
             <button id="menuDeleteBtn" class="header-button" title="Delete Selected">
                 <i class="fas fa-trash-alt"></i>
             </button>
@@ -1625,6 +726,12 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
             }
         };
 
+        // Add this near the beginning of your script section, right after the STATUS_MESSAGES constant
+        const APP_PATHS = {
+            archiveManager: 'nb-archive-manager.php',
+            // Add other common tool paths here
+        };
+
         // Initialize Ace Editor
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");
@@ -1698,8 +805,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     setEditorMode(filename);
                 })
                 .catch(error => {
-                    status.update(`Error loading file: ${filename}`, 'error');
-                    console.error('Error loading file:', error);
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
                 });
         }
 
@@ -1752,7 +859,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     refreshFileList(); // Always refresh after save
                 })
                 .catch(error => {
-                    status.update('Error saving file: ' + error.message, 'error');
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
                 });
         }
 
@@ -1842,7 +950,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     }
                 })
                 .catch(error => {
-                    status.update('Error creating folder: ' + error.message, 'error');
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
                 });
         }
 
@@ -1890,7 +999,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     editorContent = text;
                     status.update(STATUS_MESSAGES.clipboard.paste(), 'success');
                 })
-                .catch(() => status.update('Failed to read clipboard', 'error'));
+                .catch(error => {
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
+                });
         }
 
         function appendClipboard() {
@@ -1900,13 +1012,19 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     editor.setValue(currentContent + '\n' + text, -1);
                     status.update(STATUS_MESSAGES.clipboard.append(), 'success');
                 })
-                .catch(() => status.update('Failed to read clipboard', 'error'));
+                .catch(error => {
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
+                });
         }
 
         function toClipboard() {
             navigator.clipboard.writeText(editor.getValue())
                 .then(() => status.update(STATUS_MESSAGES.clipboard.copy(), 'success'))
-                .catch(() => status.update('Failed to copy to clipboard', 'error'));
+                .catch(error => {
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
+                });
         }
 
         // Backup Functions
@@ -1955,7 +1073,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             editorView.classList.add('hidden');
             backupView.classList.add('active');
-            backupView.querySelector('iframe').src = 'nb-archive-manager.php'; // Changed from backup-manager.php
+            backupView.querySelector('iframe').src = APP_PATHS.archiveManager; // Changed from backup-manager.php
 
             status.update('Backup manager loaded', 'success');
         }
@@ -1988,22 +1106,22 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 return status.update(checkResult.message, 'error');
             }
 
-            const editorView = document.querySelector('.editor-view');
-            const backupView = document.querySelector('.backup-view');
             const currentFolder = new URLSearchParams(window.location.search).get('folder') || '';
             const filePath = currentFolder ? currentFolder + '/' + filename : filename;
 
-            // Only update URL for nb- files
-            if (filename.startsWith('nb-')) {
-                const url = new URL(window.location.href);
-                url.searchParams.set('app', filePath);
-                window.history.pushState({}, '', url);
-            }
+            // Update URL for any tool (not just nb- files)
+            const url = new URL(window.location.href);
+            url.searchParams.set('app', filePath);
+            window.history.pushState({}, '', url);
 
-            // Hide editor view completely with proper class
+            const editorView = document.querySelector('.editor-view');
+            const backupView = document.querySelector('.backup-view');
+
             editorView.classList.add('hidden');
             backupView.classList.add('active');
             backupView.querySelector('iframe').src = filePath;
+
+            status.update(`Opened ${filename} in viewer`, 'success');
         }
 
         function openInNewWindow(filename) {
@@ -2097,29 +1215,28 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     }
                 })
                 .catch(error => {
-                    status.update('Error during rename: ' + error.message, 'error');
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
                 });
         }
 
-        // Update the status function to keep 15 messages instead of 5
-        function updateStatus(message, type = 'info') {
-            const statusBar = document.getElementById('statusBar');
-            const statusMessage = document.createElement('div');
-            statusMessage.className = `status-message ${type}`;
-            statusMessage.textContent = message;
-            statusBar.insertBefore(statusMessage, statusBar.firstChild);
+        // Replace existing status functions with this consolidated version
+        const status = {
+            update(message, type = 'info') {
+                const container = document.getElementById('statusBar');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `status-message ${type}`;
+                messageDiv.textContent = message;
+                container.insertBefore(messageDiv, container.firstChild); // Insert at top
 
-            // Keep last 15 messages instead of 5
-            while (statusBar.children.length > 15) {
-                statusBar.removeChild(statusBar.lastChild);
+                // Keep last 15 messages
+                while (container.children.length > 15) {
+                    container.removeChild(container.lastChild);
+                }
+
+                container.scrollTop = 0; // Keep scrolled to top
             }
-        }
-
-        // Replace updateStatusById function with this:
-        function updateStatusById(id, message, type = 'info') {
-            // Direct call to updateStatus since we don't implement ID tracking
-            updateStatus(`${id}: ${message}`, type);
-        }
+        };
 
         // Add a debounce function to prevent rapid successive calls
         function debounce(func, wait) {
@@ -2162,7 +1279,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 .catch(error => {
                     console.error('Error refreshing file list:', error);
                     // Update with error message
-                    status.update('Failed to refresh file list: ' + error.message, 'error');
+                    status.update(`Error: ${error.message}`, 'error');
+                    console.error(error);
                 });
         }, 300); // 300ms debounce time
 
@@ -2220,27 +1338,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 // Show which item is being processed
                 status.update(`Deleting ${type}: ${name} (${currentItem + 1}/${deleteQueue.length})...`, 'info');
 
-                // Determine the action and parameter name based on type
-                const action = type === 'folder' ? 'deleteFolder' : 'delete';
-                const paramName = type === 'folder' ? 'folderName' : 'filename';
-
-                // Log the request we're about to make
-                console.log(`Sending request: action=${action}&${paramName}=${encodeURIComponent(name)}`);
-
-                // Send the request
-                fetch('main.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: `action=${action}&${paramName}=${encodeURIComponent(name)}`
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Server returned ${response.status}`);
-                        }
-                        return response.json();
-                    })
+                // Use our new robust delete function
+                processDelete(type, name)
                     .then(result => {
                         completed++;
                         console.log('Server response:', result);
@@ -2261,7 +1360,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                             status.update(`Error: ${result.message}`, 'error');
                         }
 
-                        // Process next item after a short delay to avoid overwhelming the server
+                        // Process next item after a short delay
                         setTimeout(() => {
                             currentItem++;
                             processNext();
@@ -2269,11 +1368,10 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                     })
                     .catch(error => {
                         console.error(`Error deleting ${type}: ${name}`, error);
-                        status.update(`Error deleting ${type}: ${name} - ${error.message}`, 'error');
+                        status.update(`Error: ${error.message}`, 'error');
                         failed++;
                         completed++;
 
-                        // Continue with next item even if this one failed
                         setTimeout(() => {
                             currentItem++;
                             processNext();
@@ -2283,6 +1381,65 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
 
             // Start processing
             processNext();
+        }
+
+        // Add this function in the <script> section, replacing the current fetch call in the deleteSelected function:
+
+        function processDelete(type, name) {
+            return new Promise((resolve, reject) => {
+                // Determine the action and parameter name based on type
+                const action = type === 'folder' ? 'deleteFolder' : 'delete';
+                const paramName = type === 'folder' ? 'folderName' : 'filename';
+
+                // Prevent caching by adding timestamp
+                const timestamp = new Date().getTime();
+
+                fetch(`main.php?nocache=${timestamp}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'XMLHttpRequest' // Add this to help server identify AJAX requests
+                        },
+                        body: `action=${action}&${paramName}=${encodeURIComponent(name)}`
+                    })
+                    .then(response => {
+                        // First check if response is ok
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}`);
+                        }
+
+                        // Then check content type
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.indexOf('application/json') !== -1) {
+                            return response.json();
+                        } else {
+                            // If not JSON, handle as text and create a JSON object
+                            return response.text().then(text => {
+                                try {
+                                    // Try to extract JSON from response if possible
+                                    const match = text.match(/\{.*\}/s);
+                                    if (match) {
+                                        return JSON.parse(match[0]);
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to parse JSON from response:", e);
+                                }
+
+                                // Return generic success response if we couldn't parse JSON
+                                return {
+                                    status: 'success',
+                                    message: `${type === 'folder' ? 'Folder' : 'File'} deleted: ${name}`
+                                };
+                            });
+                        }
+                    })
+                    .then(result => {
+                        resolve(result);
+                    })
+                    .catch(error => {
+                        reject(error);
+                    });
+            });
         }
 
         // Initialize event listeners when DOM is loaded
@@ -2358,14 +1515,9 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 valid: true
             };
         }
-    </script>
 
-    <script>
-        // We're removing all the duplicate code here
-        // The deleteSelected function is already properly defined in the main script
-        // ...
-    </script>
-    <script>
+
+
         // Add this function to your JavaScript
         function setupEventListeners() {
             // Set up the sort button functionality
@@ -2383,7 +1535,13 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 refreshBtn.addEventListener('click', refreshFileList);
             }
 
-            // Menu toggle button removed - no mobile functionality
+            // File transfer button
+            const updateBtn = document.getElementById('menuUpdateBtn');
+            if (updateBtn) {
+                updateBtn.addEventListener('click', function() {
+                    openFileRequester();
+                });
+            }
         }
 
         // Setup sort button handler with improved status messages
@@ -2430,11 +1588,13 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                                 });
                             })
                             .catch(error => {
-                                status.update('Failed to refresh file list: ' + error.message, 'error');
+                                status.update(`Error: ${error.message}`, 'error');
+                                console.error(error);
                             });
                     })
                     .catch(function(error) {
-                        status.update('Error toggling sort mode: ' + error.message, 'error');
+                        status.update(`Error: ${error.message}`, 'error');
+                        console.error(error);
                     });
             };
         }
