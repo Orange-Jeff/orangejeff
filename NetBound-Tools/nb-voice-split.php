@@ -1,6 +1,6 @@
 <?php
 // Debug and header management
-ob_start(function($buffer) {
+ob_start(function ($buffer) {
     if (strlen($buffer) === 0) {
         $error = "Empty output buffer detected\n";
         $error .= "Headers sent: " . (headers_sent() ? "Yes" : "No") . "\n";
@@ -33,7 +33,7 @@ foreach ([__FILE__, 'nb-voice-split.css', 'process_audio.php', 'process_advanced
     }
 }
 
-register_shutdown_function(function() {
+register_shutdown_function(function () {
     $error = error_get_last();
     if ($error !== null) {
         error_log("Fatal error: " . print_r($error, true));
@@ -190,7 +190,7 @@ ini_set('post_max_size', '500M');  // Set to 500M
             <div id="timeline-container" class="timeline-container"></div>
         </div>
         <!-- Advanced Save Options -->
-        <div id="saveOptionsContainer" class="save-options-container">
+        <div id="saveOptionsContainer" class="save-options-container" style="display: none;">
             <h3>Advanced Save Options</h3>
 
             <div class="save-option">
@@ -200,30 +200,29 @@ ini_set('post_max_size', '500M');  // Set to 500M
                     <option value="edited">Full track with muted parts deleted</option>
                     <option value="speaker1">Voice 1 only</option>
                     <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
                 </select>
                 <button id="saveSpeaker1" class="save-button">
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
+
             <div id="speaker2SaveOptions" class="save-option">
                 <span class="save-option-label">Voice 2:</span>
                 <select id="speaker2SaveOption">
                     <option value="default">Full track with voice 1 muted</option>
                     <option value="edited">Full track with muted parts deleted</option>
-                    <option value="speaker1">Voice 2 only</option>
+                    <option value="speaker2">Voice 2 only</option>
                     <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
                 </select>
                 <button id="saveSpeaker2" class="save-button">
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
+
             <div class="save-option">
                 <span class="save-option-label">Stereo Output:</span>
                 <select id="stereoSaveOption">
                     <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
                     <option value="default">Full track with all parts included</option>
                     <option value="edited">Full track with muted portions removed</option>
                 </select>
@@ -346,33 +345,33 @@ ini_set('post_max_size', '500M');  // Set to 500M
             // Add PHP server limits detection - update to higher values
             const phpLimits = {
                 maxUploadSize: <?php
-                    $upload_max_filesize = ini_get('upload_max_filesize');
-                    $post_max_size = ini_get('post_max_size');
-                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
-                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
-                    echo min(
-                        return_bytes($upload_max_filesize),
-                        return_bytes($post_max_size)
-                    ); ?>,
+                                $upload_max_filesize = ini_get('upload_max_filesize');
+                                $post_max_size = ini_get('post_max_size');
+                                $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                                $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                                echo min(
+                                    return_bytes($upload_max_filesize),
+                                    return_bytes($post_max_size)
+                                ); ?>,
                 maxUploadSizeMB: <?php
-                    $upload_max_filesize = ini_get('upload_max_filesize');
-                    $post_max_size = ini_get('post_max_size');
-                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
-                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
-                    echo min(
-                        return_bytes($upload_max_filesize),
-                        return_bytes($post_max_size)
-                    ) / (1024 * 1024); ?>,
+                                    $upload_max_filesize = ini_get('upload_max_filesize');
+                                    $post_max_size = ini_get('post_max_size');
+                                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                                    echo min(
+                                        return_bytes($upload_max_filesize),
+                                        return_bytes($post_max_size)
+                                    ) / (1024 * 1024); ?>,
                 // Add explicit check for 2MB restriction
                 has2MBRestriction: <?php
-                    $upload_max_filesize = ini_get('upload_max_filesize');
-                    $post_max_size = ini_get('post_max_size');
-                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
-                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
-                    echo (min(
-                        return_bytes($upload_max_filesize),
-                        return_bytes($post_max_size)
-                    ) / (1024 * 1024)) <= 2 ? 'true' : 'false'; ?>
+                                    $upload_max_filesize = ini_get('upload_max_filesize');
+                                    $post_max_size = ini_get('post_max_size');
+                                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                                    echo (min(
+                                        return_bytes($upload_max_filesize),
+                                        return_bytes($post_max_size)
+                                    ) / (1024 * 1024)) <= 2 ? 'true' : 'false'; ?>
             };
 
             function handleFile(file) {
@@ -1160,6 +1159,90 @@ ini_set('post_max_size', '500M');  // Set to 500M
             updateRegionsLog();
         });
     </script>
+    <style>
+        /* Loading indicator */
+        .loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Advanced Save Options */
+        .save-options-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            display: none;
+        }
+
+        .save-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .save-option-label {
+            width: 80px;
+            font-weight: 500;
+        }
+
+        .save-option select {
+            flex-grow: 1;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            background: #fff;
+            margin-right: 10px;
+        }
+
+        .save-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .save-button:hover {
+            background-color: #218838;
+        }
+
+        .save-button i {
+            margin-right: 5px;
+        }
+    </style>
 </body>
 
 </html>

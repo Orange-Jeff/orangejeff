@@ -15,45 +15,34 @@ ini_set('post_max_size', '100M');
 header('Content-Type: application/json; charset=utf-8');
 
 // Add required functions directly to avoid dependency
-function logMessage($message) {
-    $logFile = 'audio_processing.log';
-    $formattedMessage = date('[Y-m-d H:i:s] ') . $message . PHP_EOL;
-    file_put_contents($logFile, $formattedMessage, FILE_APPEND);
+function logMessage($message)
+{
+    file_put_contents('audio_splitter.log', date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
+}
+
+function logError($message)
+{
+    logMessage('ERROR: ' . $message);
 }
 
 // Get public URL for a file
-function getPublicPath($filePath) {
-    // Always return relative to output directory for consistency
-    $relativePath = 'output/' . basename($filePath);
-    logMessage("Generated public path: $relativePath for file: $filePath");
+function getPublicPath($filePath)
+{
+    // Convert server path to URL
+    $baseDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+    $relativePath = str_replace('\\', '/', substr($filePath, strlen($_SERVER['DOCUMENT_ROOT'])));
+
+    // Default to relative path if we can't determine the document root
+    if (empty($relativePath) || $relativePath === $filePath) {
+        $relativePath = 'output/' . basename($filePath);
+    }
+
     return $relativePath;
 }
 
-// Validate regions data
-function validateRegions($regions) {
-    if (!is_array($regions)) {
-        throw new Exception('Invalid regions format');
-    }
-
-    foreach (['speaker1', 'speaker2', 'trash'] as $type) {
-        if (!isset($regions[$type]) || !is_array($regions[$type])) {
-            throw new Exception("Missing or invalid $type regions array");
-        }
-
-        foreach ($regions[$type] as $region) {
-            if (!isset($region['start']) || !isset($region['end']) ||
-                !is_numeric($region['start']) || !is_numeric($region['end']) ||
-                $region['start'] >= $region['end']) {
-                throw new Exception("Invalid region data in $type");
-            }
-        }
-    }
-
-    return true;
-}
-
 // Generate output filenames based on input
-function generateOutputFilenames($outputDir, $fileBaseName) {
+function generateOutputFilenames($outputDir, $fileBaseName)
+{
     $timestamp = date('YmdHis');
     return [
         'speaker1' => $outputDir . '/speaker1_' . $timestamp . '_' . $fileBaseName,
@@ -63,7 +52,8 @@ function generateOutputFilenames($outputDir, $fileBaseName) {
 }
 
 // Extract a specific segment from a WAV file
-function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime) {
+function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime)
+{
     // Get file info
     $fileInfo = pathinfo($sourceFile);
     $extension = strtolower($fileInfo['extension']);
@@ -128,7 +118,8 @@ function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime) {
 }
 
 // Update WAV headers with new data size
-function updateWavHeaders($handle, $dataSize) {
+function updateWavHeaders($handle, $dataSize)
+{
     // Update data chunk size
     fseek($handle, 40);
     fwrite($handle, pack('V', $dataSize));
@@ -140,7 +131,8 @@ function updateWavHeaders($handle, $dataSize) {
 }
 
 // Concatenate multiple WAV files
-function concatenateWavFiles($outputFile, $inputFiles) {
+function concatenateWavFiles($outputFile, $inputFiles)
+{
     if (empty($inputFiles)) {
         throw new Exception("No input files provided for concatenation");
     }
@@ -217,7 +209,7 @@ function concatenateWavFiles($outputFile, $inputFiles) {
 // Main processing code
 try {
     // Verify request method
-    if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception("Invalid request method");
     }
 
@@ -225,12 +217,6 @@ try {
     if (!isset($_POST['regions']) || empty($_POST['regions'])) {
         throw new Exception("No regions data provided");
     }
-
-    $regions = json_decode($_POST['regions'], true);
-    if (!$regions || !validateRegions($regions)) {
-        throw new Exception("Invalid regions data format");
-    }
-    logMessage("Regions validation passed");
 
     // Create output directory
     $outputDir = __DIR__ . '/output';
@@ -241,55 +227,34 @@ try {
     }
 
     // Handle file upload
-    if (!isset($_FILES['audioFile'])) {
-        throw new Exception("No audio file uploaded");
+    $audioFile = null;
+    if (isset($_FILES['audioFile']) && $_FILES['audioFile']['error'] === UPLOAD_ERR_OK) {
+        // Use uploaded file
+        $audioFile = $_FILES['audioFile']['tmp_name'];
+        $originalFileName = $_FILES['audioFile']['name'];
+    } else {
+        // Check if we have a file name and the file exists in the output directory
+        if (isset($_POST['fileName']) && !empty($_POST['fileName'])) {
+            $potentialFile = $outputDir . '/' . basename($_POST['fileName']);
+            if (file_exists($potentialFile)) {
+                $audioFile = $potentialFile;
+                $originalFileName = basename($_POST['fileName']);
+            }
+        }
+
+        if (!$audioFile) {
+            throw new Exception("No audio file provided");
+        }
     }
 
-    if ($_FILES['audioFile']['error'] !== UPLOAD_ERR_OK) {
-        $errorMessages = [
-            UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize',
-            UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE',
-            UPLOAD_ERR_PARTIAL => 'Partial upload',
-            UPLOAD_ERR_NO_FILE => 'No file uploaded',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file',
-            UPLOAD_ERR_EXTENSION => 'Upload stopped by extension'
-        ];
-        throw new Exception(
-            'Upload error: ' . ($errorMessages[$_FILES['audioFile']['error']] ?? 'Unknown error')
-        );
+    // Parse regions data
+    $regions = json_decode($_POST['regions'], true);
+    if (!$regions || !is_array($regions)) {
+        throw new Exception("Invalid regions data format");
     }
-
-    $audioFile = $_FILES['audioFile']['tmp_name'];
-    $originalFileName = $_FILES['audioFile']['name'];
-    logMessage("Processing file: $originalFileName");
-
-    // Verify WAV format
-    $handle = fopen($audioFile, 'rb');
-    if (!$handle) {
-        throw new Exception("Could not open audio file");
-    }
-
-    $header = fread($handle, 12);
-    fclose($handle);
-
-    $riffHeader = unpack('NChunkID/VChunkSize/NFormat', $header);
-    if ($riffHeader['ChunkID'] !== 0x52494646 || $riffHeader['Format'] !== 0x57415645) { // "RIFF" and "WAVE"
-        throw new Exception("Invalid WAV file format");
-    }
-
-    logMessage(sprintf(
-        "WAV Info - ChunkID: 0x%X, Format: 0x%X, Size: %d bytes",
-        $riffHeader['ChunkID'],
-        $riffHeader['Format'],
-        $riffHeader['ChunkSize']
-    ));
-
-    logMessage("WAV format validation passed");
 
     // Generate output filenames
     $outputFiles = generateOutputFilenames($outputDir, pathinfo($originalFileName, PATHINFO_FILENAME) . '.wav');
-    logMessage("Generated output filenames");
 
     // Process regions by type
     $speakerFiles = [
@@ -299,27 +264,25 @@ try {
 
     foreach ($regions as $region) {
         if ($region['type'] === 'trash') {
-            logMessage("Skipping trash region");
+            // Skip trash regions
             continue;
         }
 
         // Create temporary file for the segment
         $tempFile = $outputDir . '/temp_' . uniqid() . '.wav';
 
-        logMessage("Extracting region: {$region['type']} ({$region['start']} - {$region['end']})");
-
+        // Extract the segment
         extractWavRegion($audioFile, $tempFile, $region['start'], $region['end']);
+
+        // Add to appropriate speaker array
         $speakerFiles[$region['type']][] = $tempFile;
     }
 
     // Create speaker files by concatenating segments
     $createdFiles = [];
 
-    logMessage("Processing speaker segments...");
-
     // Process speaker 1
     if (!empty($speakerFiles['speaker1'])) {
-        logMessage("Concatenating speaker1 segments");
         concatenateWavFiles($outputFiles['speaker1'], $speakerFiles['speaker1']);
         $createdFiles['speaker1'] = $outputFiles['speaker1'];
 
@@ -331,7 +294,6 @@ try {
 
     // Process speaker 2
     if (!empty($speakerFiles['speaker2'])) {
-        logMessage("Concatenating speaker2 segments");
         concatenateWavFiles($outputFiles['speaker2'], $speakerFiles['speaker2']);
         $createdFiles['speaker2'] = $outputFiles['speaker2'];
 
@@ -347,7 +309,6 @@ try {
         $urls[$type . 'Url'] = getPublicPath($file);
     }
 
-    logMessage("Audio processing completed successfully");
     // Return success response
     echo json_encode([
         'success' => true,
@@ -356,12 +317,10 @@ try {
         'speaker2Url' => isset($urls['speaker2Url']) ? $urls['speaker2Url'] : null,
         'stereoUrl' => isset($urls['stereoUrl']) ? $urls['stereoUrl'] : null,
     ]);
-
 } catch (Exception $e) {
-    logMessage("ERROR: " . $e->getMessage());
+    logError($e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
 }
-?>

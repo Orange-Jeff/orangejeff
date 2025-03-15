@@ -1,0 +1,10 @@
+[2025-03-15 21:46:43] Request received
+[2025-03-15 21:46:43] POST data: Array
+(
+)
+
+[2025-03-15 21:46:43] Files: Array
+(
+)
+
+[2025-03-15 21:46:43] Error: Only POST method is accepted

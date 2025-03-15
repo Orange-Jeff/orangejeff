@@ -1,414 +1,281 @@
-/* Base Styles */
+/* Main layout */
 body {
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    max-width: 768px;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #f4f4f9;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* Frame Modes */
-body.standalone {
-    margin: 0 auto;
-    opacity: 1;
-    max-width: 768px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-body.in-frame {
-    margin: 0 0 0 20px;
-    opacity: 1;
-    max-width: 768px !important;
-    margin-right: 0 !important;
-}
-
-/* Fallback for when classes haven't been applied */
-body:not(.in-frame):not(.standalone) {
-    opacity: 1;
-    margin: 0 auto;
-}
-
-/* Layout Components */
-.container {
-    background: #f4f4f9;
-    width: 100%;
+    font-family: system-ui, -apple-system, sans-serif;
     margin: 0;
-    box-sizing: border-box;
-    padding: 15px;
+    padding: 20px;
+    background: #f0f2f5;
 }
 
-/* Timeline Components */
-.timeline-container {
-    width: 100%;
-    height: 24px;
-    background: #eee;
-    margin: 10px 0;
-    position: relative;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.timeline-segment {
-    position: absolute;
-    height: 100%;
-    top: 0;
-}
-
-.timeline-segment.speaker1 {
-    background-color: rgba(247, 124, 8, 0.7);
-}
-
-.timeline-segment.speaker2 {
-    background-color: rgba(0, 255, 0, 0.7);
-}
-
-.timeline-segment.trash {
-    background-color: rgba(108, 117, 125, 0.7);
-}
-
-/* Error and Debug Styles */
-.error-message {
-    color: #c00;
-    background: #ffeeee;
-    border: 1px solid #c00;
-    padding: 12px;
-    margin: 10px 0;
-    border-radius: 5px;
-    line-height: 1.4;
-    white-space: pre-line;
-}
-
-.debug-info {
-    margin: 15px 0;
-    background: #f8f8f8;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 12px;
-    font-family: monospace;
-    line-height: 1.4;
-    white-space: pre-wrap;
-}
-
-.debug-info pre {
-    margin: 10px 0;
-    padding: 10px;
+#app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
     background: #fff;
-    border: 1px solid #eee;
-    border-radius: 4px;
-    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.debug-info button {
-    background: #0056b3;
-    color: white;
+/* Toolbar */
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.save-buttons {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+/* Audio file input */
+#audioFileInput {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Buttons */
+button {
+    padding: 8px 16px;
     border: none;
-    border-radius: 3px;
-    padding: 6px 12px;
+    border-radius: 4px;
+    background: #4F4A85;
+    color: white;
     cursor: pointer;
-    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
-.debug-info button:hover {
-    background-color: #004494;
+button:not(:disabled):hover {
+    background: #383351;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Editor Components */
-.editor-header {
-    background: #f4f4f9;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0;
-    margin-bottom: 0;
-    border-bottom: none;
+button:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-.editor-title {
-    margin: 10px 0 8px 0;
-    color: #0056b3;
-    line-height: 1.2;
-    font-weight: bold;
-    font-size: 18px;
-}
-
-/* Waveform Styles */
-#waveform-container {
-    position: relative;
-    margin: 5px 0;
-    padding: 5px;
-    background: #f4f4f9;
-    border-radius: 4px;
+button:disabled {
+    background: #aaa !important;
+    opacity: 0.7;
+    pointer-events: none;
+    color: rgba(255,255,255,0.7);
+    cursor: not-allowed;
+    transform: none;
     box-shadow: none;
-    transition: all 0.3s ease;
-    width: 100%;
-    box-sizing: border-box;
 }
 
-.waveform-wrapper {
+/* Region controls */
+#region-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.region-btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
     position: relative;
-    width: 100%;
-    min-height: 150px;
-    background: #f4f4f9;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 5px;
-    transition: min-height 0.3s ease;
-    padding: 0;
-    box-sizing: border-box;
+}
+
+.region-btn.speaker1 {
+    background: #4169E1;
+}
+
+.region-btn.speaker2 {
+    background: #32CD32;
+}
+
+.region-btn.trash {
+    background: #DC3545;
+}
+
+.region-btn.delete {
+    background: #6c757d;
+}
+
+.region-btn.active:not(:disabled) {
+    filter: brightness(1.2);
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    transform: scale(1.02);
+    border: 2px solid #000;
+}
+
+/* Save buttons */
+#save-speaker1, #save-speaker2, #save-stereo {
+    font-weight: 600;
+}
+
+/* Waveform container */
+#waveform-container {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
 }
 
 #waveform {
-    width: 100%;
-    height: 150px;
-    background-color: #e0f0ff;
-    border: 2px solid #0056b3;
-    position: relative;
-    transition: all 0.3s ease;
-    overflow: hidden;
-    box-sizing: border-box;
-}
-
-#waveform.stereo {
-    height: 180px;
-}
-
-.waveform-wrapper.stereo {
-    min-height: 180px;
-}
-
-/* Channel Labels */
-.channel-label {
-    position: absolute;
-    left: 5px;
-    font-size: 12px;
-    color: #666;
-    z-index: 2;
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 2px 5px;
-    border-radius: 3px;
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s ease;
-}
-
-#waveform.stereo .channel-label {
-    opacity: 1;
-}
-
-.channel-label.left {
-    top: 5px;
-}
-
-.channel-label.right {
-    bottom: 5px;
-}
-
-/* Button Controls */
-.button-controls,
-.button-group {
-    display: flex;
-    gap: 2px;
-    flex-shrink: 0;
-}
-
-.button-blue {
-    background-color: #0056b3;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    min-width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 10px;
-    font-size: 14px;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.button-blue:hover {
-    background-color: #004494;
-}
-
-.button-blue:active,
-.button-blue.playing {
-    transform: translateY(1px);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    background-color: #004494;
-}
-
-.button-blue.warning {
-    background-color: #6c757d;
-}
-
-.button-blue.warning:hover {
-    background-color: #5a6268;
-}
-
-/* Play Button */
-#playPause {
-    width: 40px;
-}
-
-#playPause i.fas {
-    transition: all 0.2s ease;
-}
-
-#playPause.playing i.fas {
-    transform: scale(1.1);
-}
-
-/* Controls Layout */
-.controls {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: 100%;
-    overflow-x: auto;
-    padding: 0;
-    gap: 5px;
-    border-bottom: none;
-    margin-bottom: 15px;
-}
-
-/* Status Bar */
-.persistent-status-bar,
-.status-bar {
-    width: 100%;
-    height: 120px;
-    min-height: 120px;
-    max-height: 120px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    background: #fff;
-    padding: 8px;
-    margin: 10px 0;
+    background: white;
     border-radius: 4px;
-    display: flex;
-    flex-direction: column-reverse;
-    box-sizing: border-box;
-    scrollbar-width: thin;
+    margin-bottom: 10px;
 }
 
-.status-bar.drag-over {
-    background: #e3f2fd;
-    border-color: #2196f3;
-    border-style: dashed;
+#timeline {
+    background: white;
+    border-radius: 4px;
+}
+
+/* Status messages */
+#status-messages {
+    margin: 20px 0;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .status-message {
-    margin: 0;
-    font-size: 13px;
-    color: #666;
-    padding: 4px 8px;
+    padding: 12px;
+    margin: 5px 0;
+    border-radius: 4px;
+    font-size: 14px;
     line-height: 1.4;
-    min-height: 24px;
-    height: auto;
-    white-space: pre-line;
-    border-left: 3px solid transparent;
+    animation: fadeIn 0.3s ease;
 }
 
-.status-message.info {
-    border-left-color: #2196f3;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .status-message.success {
-    border-left-color: #4caf50;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
 }
 
 .status-message.error {
-    border-left-color: #f44336;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
 }
 
-.status-message:first-child {
-    background-color: #2196f3;
-    color: white;
-    border-left: none;
+.status-message.info {
+    background-color: #cce5ff;
+    border: 1px solid #b8daff;
+    color: #004085;
 }
 
-.status-message:first-child.error {
-    background-color: #f44336;
+/* Loading indicator */
+.loading-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    text-align: center;
+    z-index: 1000;
 }
 
-.status-message:first-child.success {
-    background-color: #4caf50;
+.loading-indicator p {
+    margin: 10px 0 0;
+    color: #333;
+    font-weight: 500;
 }
 
-/* Regions Log */
-.regions-log {
-    margin-top: 15px;
-    border: 1px solid #ddd;
-    padding: 10px;
-    font-family: monospace;
-    max-height: 200px;
-    overflow-y: auto;
-    width: 100%;
-    box-sizing: border-box;
+.spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4F4A85;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-.region-entry {
-    padding: 5px;
-    border-bottom: 1px solid #eee;
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
-.region-entry.speaker1 {
-    color: #ff8c00;
-    border-left-color: rgba(247, 124, 8, 0.7);
+/* Wavesurfer regions */
+.wavesurfer-region {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
 }
 
-.region-entry.speaker2 {
-    color: #28a745;
-    border-left-color: rgba(0, 255, 0, 0.7);
+.wavesurfer-region:hover {
+    opacity: 0.9;
 }
 
-.region-entry.trash {
-    color: #6c757d;
-    border-left-color: rgba(108, 117, 125, 0.7);
+.wavesurfer-region[data-type="speaker1"] {
+    background-color: rgba(65, 105, 225, 0.3) !important;
 }
 
-/* Process Controls */
-.process-controls .command-button {
-    width: auto !important;
+.wavesurfer-region[data-type="speaker2"] {
+    background-color: rgba(50, 205, 50, 0.3) !important;
 }
 
-#processAudio {
-    margin-top: 0;
-    margin-left: 30px;
-    width: auto !important;
+.wavesurfer-region[data-type="trash"] {
+    background-color: rgba(255, 0, 0, 0.3) !important;
 }
 
-/* Responsive Styles */
-@media (max-width: 576px) {
-    .controls {
-        flex-wrap: nowrap;
-        padding: 0;
-        gap: 5px;
+.wavesurfer-region.selected {
+    border: 2px solid #000 !important;
+    z-index: 5 !important;
+    opacity: 1;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
     }
 
-    .button-blue {
-        min-width: calc(25% - 10px);
-        flex-grow: 1;
+    #app-container {
+        padding: 15px;
     }
 
-    .command-button {
-        flex: 1 1 calc(50% - 5px);
-        justify-content: center;
-        white-space: normal;
-    }
-
-    .waveform-header {
+    #toolbar {
         flex-direction: column;
-        align-items: flex-start;
         gap: 10px;
     }
 
-    .waveform-header > * {
+    .save-buttons {
+        margin-left: 0;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    #region-controls {
+        flex-wrap: wrap;
+    }
+
+    .region-btn {
+        flex: 1 1 calc(50% - 5px);
+        min-width: auto;
+    }
+
+    #audioFileInput {
         width: 100%;
     }
 }
