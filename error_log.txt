@@ -49,3 +49,13 @@
 [2025-03-14 23:12:33] WAV Info: Channels=1, Rate=44100, Bits=16
 [2025-03-14 23:12:33] Extracted region: 0 - 11.869439917127 (11.869439917127 sec)
 [2025-03-14 23:12:33] Finished extracting to processed_audio/ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav_speaker1_speaker1.wav, size: 1046884 bytes
+[2025-03-14 23:26:54] Script started - processing audio file
+[2025-03-14 23:26:54] POST data: []
+[2025-03-14 23:26:55] FILES data: []
+[2025-03-14 23:26:55] ERROR: File upload failed: No file uploaded
+[2025-03-14 23:26:55] Stack trace: #0 {main}
+[2025-03-15 01:56:54] Script started - processing audio file
+[2025-03-15 01:56:54] POST data: []
+[2025-03-15 01:56:54] FILES data: []
+[2025-03-15 01:56:54] ERROR: File upload failed: No file uploaded
+[2025-03-15 01:56:54] Stack trace: #0 {main}

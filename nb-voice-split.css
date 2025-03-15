@@ -1,0 +1,693 @@
+/* General Styles */
+body {
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f4f4f9;
+    width: 100%;
+    max-width: 768px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* Layout Components */
+.container {
+    background: #f4f4f9;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 15px;
+}
+
+.editor-header {
+    background: #f4f4f9;
+    padding: 0;
+    border-bottom: none;
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 0;
+    padding-right: 0;
+    margin-bottom: 0;
+}
+
+.editor-title {
+    margin: 10px 0 8px 0;
+    color: #0056b3;
+    line-height: 1.2;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* Waveform Styles */
+#waveform-container {
+    position: relative;
+    margin: 5px 0;
+    padding: 5px;
+    background: #f4f4f9;
+    border-radius: 4px;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.waveform-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 150px;
+    background: #f4f4f9;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+    transition: min-height 0.3s ease;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+#waveform {
+    width: 100%;
+    height: 150px;
+    background-color: #e0f0ff;
+    border: 2px solid #0056b3;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+#waveform.stereo {
+    height: 180px;
+}
+
+.waveform-wrapper.stereo {
+    min-height: 180px;
+}
+
+/* Channel labels */
+.channel-label {
+    position: absolute;
+    left: 5px;
+    font-size: 12px;
+    color: #666;
+    z-index: 2;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 2px 5px;
+    border-radius: 3px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+#waveform.stereo .channel-label {
+    opacity: 1;
+}
+
+.channel-label.left {
+    top: 5px;
+}
+
+.channel-label.right {
+    bottom: 5px;
+}
+
+/* Button and controls styling */
+.button-controls,
+.button-group {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.button-blue {
+    background-color: #0056b3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 10px;
+    font-size: 14px;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.button-blue:hover {
+    background-color: #004494;
+}
+
+.button-blue:active,
+.button-blue.playing {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    background-color: #004494;
+}
+
+.button-blue.warning {
+    background-color: #6c757d;
+}
+
+.button-blue.warning:hover {
+    background-color: #5a6268;
+}
+
+/* Play button special styling */
+#playPause {
+    width: 40px;
+}
+
+#playPause i.fas {
+    transition: all 0.2s ease;
+}
+
+#playPause.playing i.fas {
+    transform: scale(1.1);
+}
+
+/* Controls responsive layout */
+.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 10px 5px;
+    gap: 30px;
+    border-bottom: none;
+    margin-bottom: 15px;
+}
+
+/* Make controls wrap better on mobile */
+@media (max-width: 576px) {
+    .controls {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        width: 100%;
+        overflow-x: auto;
+        padding: 0;
+        gap: 5px;
+        border-bottom: none;
+    }
+
+    .button-blue {
+        min-width: calc(25% - 10px);
+        flex-grow: 1;
+    }
+}
+
+/* Status bar and logs */
+.persistent-status-bar {
+    width: 100%;
+    height: 84px;
+    min-height: 84px;
+    max-height: 84px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 5px;
+    margin: 5px 0;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column-reverse;
+    box-sizing: border-box;
+}
+
+.status-message {
+    margin: 0;
+    font-size: 13px;
+    color: #666;
+    padding: 2px 5px;
+    line-height: 24px;
+    height: 24px;
+}
+
+.status-message:first-child {
+    background-color: #0056b3;
+    color: white;
+}
+
+.status-message:first-child.error {
+    background-color: #dc3545;
+    color: white;
+}
+
+.status-message:first-child.success {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Region entries */
+.regions-log {
+    margin-top: 20px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    font-family: monospace;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 0;
+    padding-right: 0;
+    margin-bottom: 0;
+}
+
+.region-entry {
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.region-entry.speaker1 {
+    color: #ff8c00;
+}
+
+.region-entry.speaker2 {
+    color: #28a745;
+}
+
+.region-entry.trash {
+    color: #6c757d;
+}
+
+/* Processed files */
+.processed-files {
+    margin-top: 20px;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    margin-bottom: 0;
+}
+
+.processed-files a {
+    display: block;
+    margin: 10px 0;
+    color: #0056b3;
+    text-decoration: none;
+}
+
+/* Command button */
+.command-button {
+    background: #0056b3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.command-button:hover {
+    background-color: #004494;
+}
+
+.command-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Make buttons more responsive */
+@media (max-width: 576px) {
+    .command-button {
+        flex: 1 1 calc(50% - 5px);
+        justify-content: center;
+        white-space: normal;
+    }
+}
+
+/* Waveform header */
+.waveform-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    background-color: transparent;
+    width: 100%;
+}
+
+.waveform-header span {
+    flex: 1;
+    white-space: nowrap;
+}
+
+.waveform-header .zoom-controls {
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: fit-content;
+}
+
+.waveform-header .zoom-controls .button-blue {
+    padding: 0 8px;
+}
+
+/* Responsive layout for waveform header */
+@media (max-width: 576px) {
+    .waveform-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .waveform-header>* {
+        width: 100%;
+    }
+}
+
+/* Zoom buttons */
+.waveform-header .zoom-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: fit-content;
+    padding-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Header children */
+.waveform-header>* {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+}
+
+/* Waveform header span */
+.waveform-header span {
+    white-space: nowrap;
+    margin-right: 20px;
+}
+
+/* Button group */
+.button-group {
+    display: flex;
+    gap: 20px;
+    flex-shrink: 0;
+    margin: 10px;
+}
+
+/* Save options */
+.save-options-container {
+    margin-top: 20px;
+    border-top: 2px solid #0056b3;
+    padding-top: 15px;
+    display: none;
+}
+
+.save-option {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.save-option-label {
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.save-option select {
+    flex-grow: 1;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background-color: white;
+}
+
+.save-button {
+    background: #0056b3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.save-button:hover {
+    background-color: #004494;
+}
+
+.save-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Frame adjustments */
+body.in-frame {
+    max-width: 768px !important;
+    margin-left: 20px !important;
+    margin-right: 0 !important;
+}
+
+body.standalone {
+    max-width: 768px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+body {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+body.in-frame,
+body.standalone {
+    opacity: 1;
+}
+
+/* Status bar */
+.status-bar {
+    width: 100%;
+    height: 90px;
+    min-height: 90px;
+    max-height: 90px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 5px;
+    margin: 10px 0;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column-reverse;
+    box-sizing: border-box;
+}
+
+.status-message {
+    padding: 5px;
+    margin: 2px 0;
+    border-radius: 3px;
+    color: #666;
+}
+
+.status-message:first-child {
+    color: white;
+}
+
+.status-message.info {
+    border-left: 3px solid #2196f3;
+}
+
+.status-message.info:first-child {
+    background: #2196f3;
+}
+
+.status-message.success {
+    border-left: 3px solid #4caf50;
+}
+
+.status-message.success:first-child {
+    background: #4caf50;
+}
+
+.status-message.error {
+    border-left: 3px solid #f44336;
+}
+
+.status-message.error:first-child {
+    background: #f44336;
+}
+
+.status-bar.drag-over {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    border-style: dashed;
+}
+
+/* Button controls */
+.button.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    gap: 5px;
+    border-bottom: none;
+}
+
+/* Container */
+.container {
+    padding: 0 20px;
+}
+
+/* Button group spacing */
+.button-group[style="margin-left: 10px;"] {
+    margin-left: 5px !important;
+}
+
+/* Ensure equal padding */
+.editor-header,
+.waveform-container,
+.regions-log,
+.processed-files {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Fix controls layout */
+.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    gap: 5px;
+    border-bottom: none;
+}
+
+/* Add extra space before speaker buttons */
+.button-group+.button-group {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* Remove visual separator */
+.button-group+.button-group::before {
+    display: none;
+}
+
+/* Consistent alignment and padding */
+.container {
+    padding: 15px;
+}
+
+.editor-header,
+.waveform-container,
+.process-controls,
+.regions-log,
+.processed-files {
+    padding-left: 0;
+    padding-right: 0;
+    margin-bottom: 0;
+}
+
+/* Fix waveform header */
+.waveform-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    background-color: transparent;
+    width: 100%;
+}
+
+.waveform-header span {
+    flex: 1;
+    white-space: nowrap;
+}
+
+.waveform-header .zoom-controls {
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: fit-content;
+}
+
+/* Fix bottom row buttons */
+.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    gap: 5px;
+    border-bottom: none;
+}
+
+.button-group {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.button-group:not(:last-child) {
+    margin-right: 10px;
+}
+
+/* Remove the separator */
+.button-group+.button-group::before {
+    display: none;
+}
+
+/* Process and Save buttons */
+.process.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    gap: 5px;
+    border-bottom: none;
+}
+
+.process-controls .command-button {
+    width: auto !important;
+}
+
+#processAudio {
+    margin-top: 0;
+    width: auto !important;
+}
+
+/* Log scrolling */
+.regions-log {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 15px;
+}
+
+.waveform-header .zoom-controls .button-blue {
+    padding: 0 8px;
+}
+
+/* Add margin to process audio button for better spacing */
+#processAudio {
+    margin-left: 30px;
+}

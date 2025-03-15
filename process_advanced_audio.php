@@ -1,36 +1,166 @@
 <?php
 
 /**
- * NetBound Tools: Speaker Audio Splitter
+ * NetBound Tools: Speaker Audio Splitter Advanced Processing
  * Version: 1.4
  * Created by: NetBound Team
  *
- * DEPENDENCIES:
- * - Frontend:
- *   - WaveSurfer.js v6.6.4 (https://unpkg.com/wavesurfer.js@6.6.4)
- *   - WaveSurfer Regions Plugin (https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js)
- *   - Font Awesome 6.4.0 (https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)
- *   - nb-voice-split.css
- *
- * - Backend:
- *   - process_audio.php - Handles server-side audio processing
- *   - PHP 7.0+ with file handling capabilities
- *
- * DESCRIPTION:
- * This tool provides a browser-based interface for splitting audio recordings into
- * separate tracks based on speaker segments. Users can mark regions for Speaker 1,
- * Speaker 2, or mark sections as trash. The tool then processes these regions and
- * generates separate audio files for each speaker.
- *
- * FEATURES:
- * - Audio visualization with waveform display
- * - Speaker region marking and management
- * - Audio playback controls with zoom functionality
- * - Drag and drop file upload
- * - Responsive design for desktop and mobile use
+ * This file handles advanced audio processing options for the Speaker Splitter tool.
  */
-?>
 
+// Set higher PHP limits for audio processing
+ini_set('memory_limit', '256M');
+ini_set('max_execution_time', '300');
+ini_set('max_input_time', '300');
+ini_set('upload_max_filesize', '50M');
+
+// Set content type for JSON response
+header('Content-Type: application/json');
+
+// Helper function for logging
+function logMessage($message)
+{
+    $logFile = __DIR__ . '/audio_processing.log';
+    file_put_contents($logFile, date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
+}
+
+function logError($message)
+{
+    logMessage("ERROR: " . $message);
+}
+
+/**
+ * Extract a portion of a WAV file
+ * @param string $sourceFile Path to source WAV file
+ * @param string $outputFile Path to output WAV file
+ * @param float $startTime Start time in seconds
+ * @param float $endTime End time in seconds
+ */
+function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime)
+{
+    logMessage("Extracting from $sourceFile to $outputFile");
+
+    // Open the source file
+    $handle = fopen($sourceFile, 'rb');
+    if (!$handle) {
+        throw new Exception("Failed to open source file: $sourceFile");
+    }
+
+    // Read WAV header (44 bytes for standard WAV format)
+    $header = fread($handle, 44);
+
+    // Extract important WAV parameters from header
+    $channels = ord($header[22]) | (ord($header[23]) << 8);
+    $sampleRate = ord($header[24]) | (ord($header[25]) << 8) | (ord($header[26]) << 16) | (ord($header[27]) << 24);
+    $bytesPerSample = (ord($header[34]) | (ord($header[35]) << 8)) / 8;
+
+    // Calculate positions
+    $bytesPerSecond = $sampleRate * $channels * $bytesPerSample;
+    $startPos = (int)($startTime * $bytesPerSecond) + 44; // Add header size
+    $endPos = (int)($endTime * $bytesPerSecond) + 44;
+
+    // Create output file
+    $outputHandle = fopen($outputFile, 'wb');
+    if (!$outputHandle) {
+        fclose($handle);
+        throw new Exception("Failed to create output file: $outputFile");
+    }
+
+    // Write header (we'll update this later)
+    fwrite($outputHandle, $header);
+
+    // Seek to start position
+    fseek($handle, $startPos);
+
+    // Calculate bytes to read
+    $bytesLeft = $endPos - $startPos;
+    $chunkSize = 8192; // Read in chunks
+    $totalDataBytes = 0;
+
+    logMessage("Extracting from $startTime to $endTime ($bytesLeft bytes)");
+
+    // Read and write data
+    while ($bytesLeft > 0) {
+        $readSize = min($bytesLeft, $chunkSize);
+        $data = fread($handle, $readSize);
+        fwrite($outputHandle, $data);
+        $bytesLeft -= strlen($data);
+        $totalDataBytes += strlen($data);
+    }
+
+    logMessage("Extracted from $startTime to $endTime ($totalDataBytes bytes)");
+
+    // Update file size in header
+    $fileSize = ftell($outputHandle) - 8; // File size minus 8 bytes for RIFF header
+    fseek($outputHandle, 4);
+    fwrite($outputHandle, pack('V', $fileSize));
+
+    // Update header with correct data size
+    $dataSize = $totalDataBytes;
+    fseek($outputHandle, 40);
+    fwrite($outputHandle, pack('V', $dataSize));
+
+    // Close files
+    fclose($handle);
+    fclose($outputHandle);
+}
+
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception("Only POST method is accepted");
+    }
+
+    if (empty($_FILES['audioFile']) || $_FILES['audioFile']['error'] > 0) {
+        throw new Exception("No audio file uploaded or upload error");
+    }
+
+    if (empty($_POST['regions']) || empty($_POST['speaker']) || empty($_POST['option'])) {
+        throw new Exception("Missing required parameters");
+    }
+
+    // Get parameters
+    $speaker = $_POST['speaker'];
+    $option = $_POST['option'];
+    $fileName = $_POST['fileName'];
+    $regions = json_decode($_POST['regions'], true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception("Invalid regions JSON data");
+    }
+
+    // Process the uploaded file
+    $tempFile = $_FILES['audioFile']['tmp_name'];
+
+    // Create directory for output files if it doesn't exist
+    $outputDir = __DIR__ . '/processed_audio';
+    if (!is_dir($outputDir)) {
+        mkdir($outputDir, 0755, true);
+    }
+
+    // Generate output filename based on speaker and option
+    $fileBaseName = pathinfo($fileName, PATHINFO_FILENAME);
+    $outputFile = "$outputDir/{$fileBaseName}_{$speaker}_{$option}.wav";
+
+    // Basic implementation - just copy the file for now as a placeholder
+    // In a real implementation, you would process regions differently based on option
+    if (!copy($tempFile, $outputFile)) {
+        throw new Exception("Failed to create output file");
+    }
+
+    // Output response
+    echo json_encode([
+        'status' => 'success',
+        'file' => "processed_audio/{$fileBaseName}_{$speaker}_{$option}.wav",
+        'filename' => "{$fileBaseName}_{$speaker}_{$option}.wav"
+    ]);
+} catch (Exception $e) {
+    logError($e->getMessage());
+    echo json_encode([
+        'status' => 'error',
+        'message' => $e->getMessage()
+    ]);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -40,7 +170,6 @@
     <title>NetBound Tools: Audio Splitter</title>
     <link rel="stylesheet" href="nb-voice-split.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
 </head>
@@ -63,9 +192,7 @@
                 </div>
             </div>
         </div>
-
         <input type="file" id="fileInput" accept=".wav" style="display: none;">
-
         <div id="waveform-container">
             <div class="waveform-header">
                 <span id="duration-display">Duration: 0:00</span>
@@ -91,7 +218,6 @@
                     <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
                     <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
                 </div>
-
                 <div class="button-group">
                     <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
                         <i class="fas fa-user-circle"></i> 1
@@ -102,91 +228,94 @@
                     <button id="mutedRegion" class="button-blue muted-btn" title="No Voice">
                         <i class="fas fa-microphone-slash"></i>
                     </button>
-                    <button id="undoRegion" class="button-blue" title="Undo Last Region" style="margin-right: 40px;">
+                    <button id="undoRegion" class="button-blue" title="Undo Last Region">
                         <i class="fas fa-undo"></i>
-                    </button>
-                    <button id="processAudio" class="button-blue" title="Process Audio">
-                        Process Audio
                     </button>
                 </div>
             </div>
-
+            <div class="button-group" style="margin-left: 30px;">
+                <button type="button" id="processAudio" class="command-button">
+                    <i class="fas fa-cogs"></i> Process Audio
+                </button>
+            </div>
         </div>
-
-        <!-- Process and Save buttons section -->
-
-        <!-- Log section -->
+        <div class="button-group">
+            <button type="button" id="saveRegions" class="command-button">
+                <i class="fas fa-save"></i> Save Regions
+            </button>
+        </div>
         <div id="regions-log" class="regions-log"></div>
-
-        <!-- Advanced Save Options -->
+        <div class="processed-files" id="processedFiles" style="display:none;">
+            <h3>Processed Files:</h3>
+            <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
+            <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
+            <a href="#" id="stereoFile" target="_blank" style="display:none;">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+        </div>
         <div id="saveOptionsContainer" class="save-options-container">
             <h3>Advanced Save Options</h3>
-
             <div class="save-option">
-                <span class="save-option-label">Voice 1:</span>
+                <span class="save-option-label">Speaker 1:</span>
                 <select id="speaker1SaveOption">
-                    <option value="default">Full track with voice 2 muted</option>
-                    <option value="edited">Full track with muted parts deleted</option>
-                    <option value="speaker1">Voice 1 only</option>
-                    <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
+                    <option value="default">Full track with non speaking parts included</option>
+                    <option value="edited">Edited track with muted portions removed</option>
+                    <option value="speaker1">Speaker 1 segments only</option>
+                    <option value="full_lr">Full track with L/R separated voices</option>
+                    <option value="edited_lr">Edited track with muted sections deleted</option>
                 </select>
                 <button id="saveSpeaker1" class="save-button">
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
-
             <div id="speaker2SaveOptions" class="save-option">
-                <span class="save-option-label">Voice 2:</span>
+                <span class="save-option-label">Speaker 2:</span>
                 <select id="speaker2SaveOption">
-                    <option value="default">Full track with voice 1 muted</option>
-                    <option value="edited">Full track with muted parts deleted</option>
-                    <option value="speaker1">Voice 2 only</option>
-                    <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
+                    <option value="default">Full track with non speaking parts included</option>
+                    <option value="edited">Edited track with muted portions removed</option>
+                    <option value="speaker1">Speaker 1 segments only</option>
+                    <option value="full_lr">Full track with L/R separated voices</option>
+                    <option value="edited_lr">Edited track with muted sections deleted</option>
                 </select>
                 <button id="saveSpeaker2" class="save-button">
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
-
             <div class="save-option">
                 <span class="save-option-label">Stereo Output:</span>
                 <select id="stereoSaveOption">
-                    <option value="full_lr">Full track with R/L separated voices</option>
-                    <option value="edited_lr">Full track with R/L voices, muted parts deleted</option>
-                    <option value="default">Full track with all parts included</option>
-                    <option value="edited">Full track with muted portions removed</option>
+                    <option value="default">Full track with non speaking parts included</option>
+                    <option value="edited">Edited track with muted portions removed</option>
+                    <option value="speaker1">Speaker 1 segments only</option>
+                    <option value="full_lr">Full track with L/R separated voices</option>
+                    <option value="edited_lr">Edited track with muted sections deleted</option>
                 </select>
                 <button id="saveStereo" class="save-button">
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
         </div>
-
         <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
             <input type="hidden" name="regions" id="regions">
             <input type="hidden" name="fileName" id="fileName">
             <input type="file" name="audioFile" id="audioFileUpload">
         </form>
     </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize elements
             const statusBar = document.getElementById('statusBar');
             const btnOpen = document.getElementById('btnOpen');
             const fileInput = document.getElementById('fileInput');
             const regionsInput = document.getElementById('regions');
             const fileNameInput = document.getElementById('fileName');
+            const processedFiles = document.getElementById('processedFiles');
+            const speaker1File = document.getElementById('speaker1File');
+            const speaker2File = document.getElementById('speaker2File');
+            const stereoFile = document.getElementById('stereoFile');
             const durationDisplay = document.getElementById('duration-display');
             const windowDisplay = document.getElementById('window-display');
             const playPauseButton = document.getElementById('playPause');
             const playPauseIcon = playPauseButton.querySelector('i.fas');
             const waveformContainer = document.getElementById('waveform-container');
             const waveformWrapper = document.querySelector('.waveform-wrapper');
-
-            // Initialize data
             let currentFileName = '',
                 lastEndPoint = 0,
                 lastRegion = null,
@@ -197,11 +326,7 @@
                 trash: []
             };
             let sequentialRegions = [];
-
-            // Keep track of the original file
             let originalAudioFile = null;
-
-            // Initialize WaveSurfer with optimized stereo support
             const wavesurfer = WaveSurfer.create({
                 container: '#waveform',
                 waveColor: 'blue',
@@ -210,14 +335,14 @@
                 height: 150,
                 scrollParent: true,
                 minPxPerSec: 50,
-                fillParent: true, // Ensure the waveform fits the container initially
+                fillParent: true,
                 normalize: true,
                 splitChannels: true,
                 splitChannelsOptions: {
                     channels: [{
                             waveColor: 'blue',
                             progressColor: 'darkblue',
-                            height: 65, // Adjusted for better fit
+                            height: 65,
                             label: 'Left'
                         },
                         {
@@ -230,13 +355,11 @@
                 },
                 plugins: [
                     WaveSurfer.regions.create({
-                        // dragSelection: false, // Remove dragSelection
                         slop: 5
                     })
                 ]
             });
 
-            // Functions
             function formatTime(seconds) {
                 if (!seconds || isNaN(seconds)) return '0:00';
                 const minutes = Math.floor(seconds / 60);
@@ -246,20 +369,14 @@
 
             function updateStatus(message, type = 'info') {
                 const statusBar = document.getElementById('status-messages');
-
                 if (!statusBar) {
                     console.error('Status bar element not found');
                     return;
                 }
-
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `status-message ${type}`;
                 messageDiv.textContent = message;
-
-                // Insert at top (newest messages appear at top)
                 statusBar.insertBefore(messageDiv, statusBar.firstChild);
-
-                // Keep scrolled to top to see newest messages
                 statusBar.scrollTop = 0;
             }
 
@@ -271,11 +388,9 @@
                     const scrollLeft = wrapper.scrollLeft;
                     const viewWidth = wrapper.clientWidth;
                     const pixelsPerSecond = wavesurfer.params.minPxPerSec;
-
                     const startTime = scrollLeft / pixelsPerSecond;
                     const viewDuration = viewWidth / pixelsPerSecond;
                     const endTime = Math.min(startTime + viewDuration, duration);
-
                     durationDisplay.textContent = `Duration: ${formatTime(duration)}  `;
                     windowDisplay.textContent = `Viewable: ${formatTime(startTime)} - ${formatTime(endTime)}`;
                 } catch (err) {
@@ -288,20 +403,14 @@
                     updateStatus('Please select a valid WAV file', 'error');
                     return;
                 }
-
-                // Store the original file for later processing
                 originalAudioFile = file;
-
                 const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
                 currentFileName = file.name;
                 fileNameInput.value = file.name;
-
                 const audioUrl = URL.createObjectURL(file);
                 wavesurfer.load(audioUrl);
                 lastEndPoint = 0;
-
-                // Clear previous regions
                 wavesurfer.clearRegions();
                 regionsData = {
                     speaker1: [],
@@ -310,7 +419,6 @@
                 };
                 sequentialRegions = [];
                 document.getElementById('regions-log').innerHTML = '';
-
                 wavesurfer.once('ready', () => {
                     URL.revokeObjectURL(audioUrl);
                 });
@@ -319,23 +427,54 @@
             function createSpeakerRegion(type) {
                 const currentTime = wavesurfer.getCurrentTime();
                 const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
-
-
                 if (currentTime <= startTime) {
                     updateStatus('Please move the playhead forward before creating a region', 'error');
                     return;
                 }
+                let color, label, regionType;
+                if (type === 1) {
+                    color = 'rgba(255,165,0,0.3)';
+                    label = 'Speaker 1';
+                    regionType = 'speaker1';
+                } else if (type === 2) {
+                    color = 'rgba(0,255,0,0.3)';
+                    label = 'Speaker 2';
+                    regionType = 'speaker2';
+                } else if (type === 'trash') {
+                    color = 'rgba(108,117,125,0.3)';
+                    label = 'Trash';
+                    regionType = 'trash';
+                }
+                const region = wavesurfer.addRegion({
+                    start: startTime,
+                    end: currentTime,
+                    color: color,
+                    drag: false,
+                    resize: false,
+                    data: {
+                        type: regionType
+                    }
+                });
+                const regionObj = {
+                    start: startTime,
+                    end: currentTime,
+                    type: regionType,
+                    region: region
+                };
+                if (regionType === 'trash') {
+                    regionsData.trash.push(regionObj);
+                } else {
+                    regionsData[regionType].push(regionObj);
+                }
+                sequentialRegions.push(regionObj);
+                lastEndPoint = currentTime;
+                updateStatus(`${label} region created (${startTime.toFixed(2)} - ${currentTime.toFixed(2)})`, 'success');
+                updateRegionsLog();
+            }
 
-                // Use shared createRegionAtCursor with appropriate type
-                selectedRegionType = type === 1 ? 'speaker1' : type === 2 ? 'speaker2' : 'trash';
-                createRegionAtCursor();
-            } // Add missing closing brace
-
-            // Handle stereo/mono switching
             wavesurfer.on('ready', () => {
                 const audioInfo = wavesurfer.backend.buffer;
                 const isStereo = audioInfo.numberOfChannels === 2;
-                // Toggle stereo mode and adjust container
                 if (isStereo) {
                     waveformContainer.classList.add('stereo');
                     waveformWrapper.classList.add('stereo');
@@ -349,29 +488,31 @@
                     wavesurfer.drawer.params.height = 150;
                     wavesurfer.drawBuffer();
                 }
-
-                // Calculate proper zoom level to fit entire audio in view
                 const duration = wavesurfer.getDuration();
-                const containerWidth = waveformContainer.clientWidth - 20; // Subtract padding
+                const containerWidth = waveformContainer.clientWidth - 20;
                 const pixelsPerSecond = containerWidth / duration;
-
-                // Set zoom level to fit entire audio
                 wavesurfer.zoom(pixelsPerSecond);
-
-                // Setup scroll handler and update displays
                 const wrapper = wavesurfer.drawer.wrapper;
                 if (wrapper) {
                     wrapper.addEventListener('scroll', () => requestAnimationFrame(updateDisplays));
                 }
-
                 updateDisplays();
                 const durationText = wavesurfer.getDuration().toFixed(2);
                 updateStatus(`Loaded ${isStereo ? 'stereo' : 'mono'} audio: ${durationText}s`, 'success');
             });
 
-            // Prevent overlapping selections; if region-created intersects existing, remove it
+            wavesurfer.on('ready', () => {
+                const audioInfo = wavesurfer.backend.buffer;
+                if (audioInfo.numberOfChannels === 2) {
+                    updateStatus('File is stereo. Converted to mono', 'info');
+                    wavesurfer.setOptions({
+                        splitChannels: false
+                    });
+                    wavesurfer.drawBuffer();
+                }
+            });
+
             wavesurfer.on('region-created', (region) => {
-                // Check for overlapping regions
                 for (const r of Object.values(wavesurfer.regions.list)) {
                     if (r.id !== region.id) {
                         const overlap = Math.max(0, Math.min(r.end, region.end) - Math.max(r.start, region.start));
@@ -382,29 +523,54 @@
                         }
                     }
                 }
-            });
-
-            // Handle region updates
-            wavesurfer.on('region-update-end', (region) => {
-                if (region) {
-                    region.update({
-                        drag: false,
-                        resize: false,
-                        data: {
-                            type: selectedRegionType
-                        }
-                    });
+                let regionType;
+                if (document.getElementById('speaker1Region').classList.contains('active')) {
+                    regionType = 'speaker1';
+                } else if (document.getElementById('speaker2Region').classList.contains('active')) {
+                    regionType = 'speaker2';
+                } else if (document.getElementById('mutedRegion').classList.contains('active')) {
+                    regionType = 'trash';
+                } else {
+                    regionType = 'speaker1';
                 }
+                let color;
+                switch (regionType) {
+                    case 'speaker1':
+                        color = 'rgba(255,165,0,0.3)';
+                        break;
+                    case 'speaker2':
+                        color = 'rgba(0,255,0,0.3)';
+                        break;
+                    case 'trash':
+                        color = 'rgba(108,117,125,0.3)';
+                        break;
+                    default:
+                        color = 'rgba(255,165,0,0.3)';
+                        break;
+                }
+                region.update({
+                    drag: false,
+                    resize: false,
+                    color: color,
+                    data: {
+                        type: regionType
+                    }
+                });
+                const regionObj = {
+                    start: region.start,
+                    end: region.end,
+                    type: regionType,
+                    region: region
+                };
+                sequentialRegions.push(regionObj);
+                updateRegionsLog();
             });
 
-            // Event listeners for display updates
             ['audioprocess', 'seek', 'zoom', 'interaction'].forEach(event => {
                 wavesurfer.on(event, () => requestAnimationFrame(updateDisplays));
             });
 
-            // Play/Pause handling
             playPauseButton.addEventListener('click', () => wavesurfer.playPause());
-
             wavesurfer.on('play', () => {
                 playPauseButton.classList.add('playing');
                 playPauseIcon.classList.remove('fa-play');
@@ -412,7 +578,6 @@
                 isPlaying = true;
                 updateDisplays();
             });
-
             wavesurfer.on('pause', () => {
                 playPauseButton.classList.remove('playing');
                 playPauseIcon.classList.remove('fa-pause');
@@ -421,138 +586,110 @@
                 updateDisplays();
             });
 
-            // File handling
             btnOpen.addEventListener('click', e => {
                 e.preventDefault();
                 fileInput.click();
             });
-
             fileInput.addEventListener('change', e => {
                 if (e.target.files && e.target.files[0]) {
                     handleFile(e.target.files[0]);
                 }
             });
 
-            // Clear regions with confirmation
             document.getElementById('clearRegions').addEventListener('click', () => {
                 if (confirm('Are you sure you want to clear all segments?')) {
-                    resetAudioState();
+                    wavesurfer.clearRegions();
+                    regionsData = {
+                        speaker1: [],
+                        speaker2: [],
+                        trash: []
+                    };
+                    sequentialRegions = [];
+                    lastEndPoint = 0;
+                    lastRegion = null;
+                    document.getElementById('regions-log').innerHTML = '';
                     updateStatus('All segments cleared', 'info');
                 }
             });
 
-            // Navigation controls
             document.getElementById('jumpBack').addEventListener('click', () => wavesurfer.skip(-0.5));
             document.getElementById('jumpForward').addEventListener('click', () => wavesurfer.skip(0.5));
             document.getElementById('jumpStart').addEventListener('click', () => {
-                wavesurfer.seekTo(0); // Use seekTo(0) instead of setTime(0)
+                wavesurfer.seekTo(0);
                 updateDisplays();
             });
             document.getElementById('jumpEnd').addEventListener('click', () => {
-                // Get the total duration
                 const duration = wavesurfer.getDuration();
-
-                // Zoom out to fit entire waveform first
                 const containerWidth = waveformContainer.clientWidth - 20;
                 const pixelsPerSecond = containerWidth / duration;
                 wavesurfer.zoom(pixelsPerSecond);
-
-                // Allow zoom to complete and then scroll to end and set cursor
                 setTimeout(() => {
-                    // Calculate the position to scroll to (all the way to the right)
                     const wrapper = wavesurfer.drawer.wrapper;
                     const scrollWidth = wrapper.scrollWidth;
                     const clientWidth = wrapper.clientWidth;
-
-                    // Scroll to the end
                     wrapper.scrollLeft = scrollWidth - clientWidth;
-
-                    // Set the cursor position to the end (use seekTo(1) to go to end)
                     wavesurfer.seekTo(1);
-
                     updateDisplays();
                 }, 100);
             });
 
-            // Zoom controls
             document.getElementById('zoomIn').addEventListener('click', () => {
                 wavesurfer.zoom(wavesurfer.params.minPxPerSec + 10);
             });
-
             document.getElementById('zoomOut').addEventListener('click', () => {
                 wavesurfer.zoom(Math.max(wavesurfer.params.minPxPerSec - 10, 1));
             });
-
             document.getElementById('zoomFit').addEventListener('click', () => {
-                // Calculate proper zoom level based on audio duration
                 const duration = wavesurfer.getDuration();
                 const containerWidth = waveformContainer.clientWidth - 20;
                 const pixelsPerSecond = containerWidth / duration;
-
-                // Apply calculated zoom level
                 wavesurfer.zoom(pixelsPerSecond);
-
-                // Reset scroll position
                 requestAnimationFrame(() => {
                     wavesurfer.drawer.wrapper.scrollLeft = 0;
                     updateDisplays();
                 });
             });
-
             document.getElementById('btnRestart').addEventListener('click', () => {
                 location.href = location.pathname;
             });
 
-            // Fix the processing function to handle zoom state properly
+            document.getElementById('speaker1Region').addEventListener('click', () => createSpeakerRegion(1));
+            document.getElementById('speaker2Region').addEventListener('click', () => createSpeakerRegion(2));
+            document.getElementById('mutedRegion').addEventListener('click', () => createSpeakerRegion('trash'));
+
             document.getElementById('processAudio').addEventListener('click', function() {
-                // Check if we need to zoom out first
                 const currentZoom = wavesurfer.params.minPxPerSec;
                 const duration = wavesurfer.getDuration();
                 const containerWidth = waveformContainer.clientWidth;
                 const visibleDuration = containerWidth / currentZoom;
-
-                // More generous threshold - if at least 90% is visible, consider it zoomed out enough
                 if (visibleDuration < duration * 0.9) {
                     const confirmProcess = confirm(
                         "The waveform is currently zoomed in and you may not see all regions. " +
                         "Would you like to zoom out to see the entire audio before processing, or proceed anyway?\n\n" +
                         "Click 'OK' to zoom out first, or 'Cancel' to process with current view."
                     );
-
                     if (confirmProcess) {
-                        // Zoom out to fit the entire audio - with a slight adjustment factor
-                        const fitZoom = (containerWidth / duration) * 0.95; // Slightly less than full width
+                        const fitZoom = (containerWidth / duration) * 0.95;
                         wavesurfer.zoom(fitZoom);
                         wavesurfer.drawer.wrapper.scrollLeft = 0;
                         updateDisplays();
-                        return; // Don't process yet, let the user see the full waveform first
+                        return;
                     }
-                    // Otherwise continue with processing
                 }
-
-                // Process the audio
                 processAudioRegions();
             });
 
-            // Revised processing function to ensure all regions are included
             function processAudioRegions() {
-                // Check if we have an audio file loaded
                 if (!originalAudioFile) {
                     updateStatus("Please load an audio file first.", "error");
                     return;
                 }
-
-                // Update status
                 updateStatus("Processing audio regions...", "info");
-
-                // Collect all regions from sequentialRegions array instead of wavesurfer.regions.list
                 const allRegions = {
                     speaker1: [],
                     speaker2: [],
                     trash: []
                 };
-
-                // Use the sequentialRegions array which has all regions regardless of view
                 sequentialRegions.forEach(region => {
                     const type = region.type;
                     if (type === 'speaker1' || type === 'speaker2' || type === 'trash') {
@@ -562,70 +699,40 @@
                         });
                     }
                 });
-
-                // Clean and validate regions data before sending
-                const cleanedRegions = {
-                    speaker1: allRegions.speaker1.map(r => ({
-                        start: parseFloat(r.start.toFixed(3)),
-                        end: parseFloat(r.end.toFixed(3))
-                    })),
-                    speaker2: allRegions.speaker2.map(r => ({
-                        start: parseFloat(r.start.toFixed(3)),
-                        end: parseFloat(r.end.toFixed(3))
-                    })),
-                    trash: allRegions.trash.map(r => ({
-                        start: parseFloat(r.start.toFixed(3)),
-                        end: parseFloat(r.end.toFixed(3))
-                    }))
-                };
-
-                // Create form data for submission
                 const formData = new FormData();
-                formData.append('regions', JSON.stringify(cleanedRegions));
+                formData.append('regions', JSON.stringify(allRegions));
                 formData.append('fileName', currentFileName);
                 formData.append('audioFile', originalAudioFile);
-
-                updateStatus("Starting audio processing...", "info");
-
-                // Process the data but instead of setting up download links, just show the save options
                 fetch('process_audio.php', {
                         method: 'POST',
                         body: formData
                     })
-                    .then(response => {
-                        // Check if the response is valid before trying to parse JSON
-                        if (!response.ok) {
-                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                        }
-
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                            // Return response.text() and throw an error with the text content
-                            return response.text().then(text => {
-                                throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}...`);
-                            });
-                        }
-
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
                             updateStatus("Audio processing complete!", "success");
-
-                            // Check if we have any speaker2 regions
-                            const hasVoice2Regions = allRegions.speaker2.length > 0;
-
-                            // Show advanced save options
+                            const hasSpeaker2Regions = allRegions.speaker2.length > 0;
                             document.getElementById('saveOptionsContainer').style.display = 'block';
-
-                            // Show/hide Voice 2 options based on regions
                             document.getElementById('speaker2SaveOptions').style.display =
-                                hasVoice2Regions ? 'flex' : 'none';
-
-                            // Show a success message encouraging users to use the advanced save options
-                            updateStatus("Please use the Advanced Save Options below to download your files", "info");
-
+                                hasSpeaker2Regions ? 'flex' : 'none';
+                            if (data.speaker1) {
+                                speaker1File.href = data.speaker1;
+                                speaker1File.download = `${currentFileName}_speaker1.wav`;
+                            }
+                            if (data.speaker2 && hasSpeaker2Regions) {
+                                speaker2File.href = data.speaker2;
+                                speaker2File.download = `${currentFileName}_speaker2.wav`;
+                            } else {
+                                speaker2File.style.display = 'none';
+                            }
+                            if (data.stereo && hasSpeaker2Regions) {
+                                stereoFile.href = data.stereo;
+                                stereoFile.style.display = 'block';
+                                stereoFile.download = `${currentFileName}_stereo.wav`;
+                            } else {
+                                stereoFile.style.display = 'none';
+                            }
+                            processedFiles.style.display = 'block';
                         } else {
                             updateStatus(`Processing error: ${data.message}`, "error");
                         }
@@ -636,104 +743,69 @@
                     });
             }
 
-            // Add undo region functionality
             document.getElementById('undoRegion').addEventListener('click', () => {
-                // Make sure we have regions to undo
                 if (sequentialRegions.length === 0) {
                     updateStatus('Nothing to undo', 'info');
                     return;
                 }
-
-                // Get the last region
                 const lastRegion = sequentialRegions.pop();
-                // Remove from the appropriate category in regionsData
                 const regionType = lastRegion.type;
-
                 if (regionType === 'speaker1' || regionType === 'speaker2' || regionType === 'trash') {
-                    // Find and remove the region from the appropriate array
                     const regionIndex = regionsData[regionType].findIndex(r =>
                         r.start === lastRegion.start && r.end === lastRegion.end);
-
                     if (regionIndex !== -1) {
                         regionsData[regionType].splice(regionIndex, 1);
                     }
-
-                    // Remove the visual region from the waveform
                     if (lastRegion.region) {
                         lastRegion.region.remove();
                     }
-
-                    // Update the regions log
                     updateRegionsLog();
-
-                    // Set the last end point to the previous region's end, or 0
                     if (sequentialRegions.length > 0) {
                         lastEndPoint = sequentialRegions[sequentialRegions.length - 1].end;
                     } else {
                         lastEndPoint = 0;
                     }
-
                     updateStatus(`Removed ${regionType} region`, 'info');
                 }
             });
 
-            // Helper function to update the regions log
             function updateRegionsLog() {
                 const regionsLogElement = document.getElementById('regions-log');
                 regionsLogElement.innerHTML = '';
-
                 sequentialRegions.forEach((region, index) => {
-                    // Convert speaker1/speaker2 to voice1/voice2 for display
-                    let displayType = region.type;
-                    if (displayType === 'speaker1') displayType = 'voice1';
-                    if (displayType === 'speaker2') displayType = 'voice2';
-
                     const regionElement = document.createElement('div');
                     regionElement.className = `region-entry ${region.type}`;
-                    regionElement.innerHTML = `<span>${index + 1}: ${displayType} (${region.start.toFixed(2)}s - ${region.end.toFixed(2)}s)</span>`;
+                    regionElement.innerHTML = `<span>${index + 1}: ${region.type} (${region.start.toFixed(2)}s - ${region.end.toFixed(2)}s)</span>`;
                     regionsLogElement.appendChild(regionElement);
                 });
             }
 
-            // Add this to detect iframe and adjust positioning
             function adjustPositioningForFrame() {
-                // Check if we're in an iframe
                 const inFrame = window !== window.top;
-
-                // Apply appropriate styles - maintain same width but adjust margins
-                document.body.style.maxWidth = '768px'; // Same width in both cases
-
+                document.body.style.maxWidth = '768px';
                 if (inFrame) {
-                    document.body.style.margin = '0 0 0 20px'; // In iframe: left-justified with 20px margin
+                    document.body.style.margin = '0 0 0 20px';
                 } else {
-                    document.body.style.margin = '0 auto'; // Not in iframe: centered
+                    document.body.style.margin = '0 auto';
                 }
-
-                // Add a class to body for additional CSS targeting
                 document.body.classList.add(inFrame ? 'in-frame' : 'standalone');
             }
 
-            // Call this function to adjust layout when the page loads
             adjustPositioningForFrame();
 
-            // Add after your DOMContentLoaded event listener setup:
             function initDragAndDrop() {
                 const statusBar = document.getElementById('status-messages');
-
                 if (!statusBar) {
                     console.error('Status bar element not found for drag-and-drop');
                     return;
                 }
-
                 statusBar.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     statusBar.classList.add('drag-over');
                 });
-
                 statusBar.addEventListener('dragleave', () => {
                     statusBar.classList.remove('drag-over');
                 });
-
                 statusBar.addEventListener('drop', (e) => {
                     e.preventDefault();
                     statusBar.classList.remove('drag-over');
@@ -747,66 +819,44 @@
                     }
                 });
             }
+            initDragAndDrop();
 
-            initDragAndDrop(); // Call this function to initialize drag and drop
-
-            // Add these event listeners after your DOMContentLoaded setup
-            const speakers = ['speaker1', 'speaker2', 'stereo'];
-            speakers.forEach(speaker => {
-                document.getElementById(`save${speaker.charAt(0).toUpperCase() + speaker.slice(1)}`).addEventListener('click', function() {
-                    const option = document.getElementById(`${speaker}SaveOption`).value;
-                    saveProcessedAudio(speaker, option);
-                });
+            document.getElementById('saveSpeaker1').addEventListener('click', function() {
+                const option = document.getElementById('speaker1SaveOption').value;
+                saveProcessedAudio('speaker1', option);
+            });
+            document.getElementById('saveSpeaker2').addEventListener('click', function() {
+                const option = document.getElementById('speaker2SaveOption').value;
+                saveProcessedAudio('speaker2', option);
+            });
+            document.getElementById('saveStereo').addEventListener('click', function() {
+                const option = document.getElementById('stereoSaveOption').value;
+                saveProcessedAudio('stereo', option);
             });
 
-
-            // Function to handle advanced save options
             function saveProcessedAudio(speaker, option) {
-                // Create form data for submission
                 const formData = new FormData();
                 formData.append('speaker', speaker);
                 formData.append('option', option);
                 formData.append('fileName', currentFileName);
                 formData.append('regions', JSON.stringify(sequentialRegions));
-
-                // For processing, you'll need the original audio file
                 if (originalAudioFile) {
                     formData.append('audioFile', originalAudioFile);
                 }
-
                 updateStatus(`Processing ${speaker} with option: ${option}...`, "info");
-
                 fetch('process_advanced_audio.php', {
                         method: 'POST',
                         body: formData
                     })
-                    .then(response => {
-                        // Check if the response is valid before trying to parse JSON
-                        if (!response.ok) {
-                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                        }
-
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                            // Return response.text() and throw an error with the text content
-                            return response.text().then(text => {
-                                throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}...`);
-                            });
-                        }
-
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success' && data.file) {
-                            // Create a download link
                             const link = document.createElement('a');
                             link.href = data.file;
                             link.download = data.filename || `${currentFileName}_${speaker}_${option}.wav`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
-
                             updateStatus(`${speaker} audio saved successfully!`, "success");
                         } else {
                             updateStatus(`Error saving ${speaker}: ${data.message}`, "error");
@@ -818,117 +868,101 @@
                     });
             }
 
-            // Handle keydown events for region shortcuts
             document.addEventListener('keydown', (e) => {
-                if (e.key === '1' || e.key === '2') {
-                    selectedRegionType = e.key === '1' ? 'speaker1' : 'speaker2';
-                    createRegionAtCursor();
-                } else if (e.key === 'm') {
-                    selectedRegionType = 'trash';
-                    createRegionAtCursor();
+                if ((e.key === '1' || e.key === '2') && wavesurfer) {
+                    const recentRegion = Object.values(wavesurfer.regions.list).pop();
+                    if (!recentRegion) return;
+                    let startPoint = lastEndPoint || 0;
+                    if (sequentialRegions.length === 0) {
+                        startPoint = 0;
+                    }
+                    if (sequentialRegions.length === 0 && wavesurfer.getCurrentTime() <= startPoint) {
+                        recentRegion.remove();
+                        updateStatus('Invalid selection', 'error');
+                        return;
+                    }
+                    recentRegion.update({
+                        start: startPoint,
+                        end: wavesurfer.getCurrentTime()
+                    });
+                    sequentialRegions.push({
+                        start: startPoint,
+                        end: wavesurfer.getCurrentTime(),
+                        type: 'muted',
+                        region: recentRegion
+                    });
+                    lastEndPoint = wavesurfer.getCurrentTime();
+                    updateStatus(`Created muted section (${startPoint.toFixed(2)}s - ${lastEndPoint.toFixed(2)}s)`, 'success');
                 }
             });
 
-            // Helper function to get region color based on type
-            function getRegionColor(type) {
-                switch (type) {
-                    case 'speaker1':
-                        return 'rgba(247, 124, 8, 0.3)';
-                    case 'speaker2':
-                        return 'rgba(0,255,0,0.3)';
-                    case 'trash':
-                        return 'rgba(108,117,125,0.3)';
-                    default:
-                        return 'rgba(255,165,0,0.3)';
-                }
-            }
+            let selectedRegionType = 'speaker1';
+            document.getElementById('speaker1Region').addEventListener('click', () => {
+                selectedRegionType = 'speaker1';
+                createRegionAtCursor();
+            });
+            document.getElementById('speaker2Region').addEventListener('click', () => {
+                selectedRegionType = 'speaker2';
+                createRegionAtCursor();
+            });
+            document.getElementById('mutedRegion').addEventListener('click', () => {
+                selectedRegionType = 'trash';
+                createRegionAtCursor();
+            });
 
-            // Helper function to create region metadata
-            function createRegionMetadata(startTime, currentTime) {
+            function createRegionAtCursor() {
+                const currentTime = wavesurfer.getCurrentTime();
+                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
+                if (currentTime <= startTime) {
+                    updateStatus('Please move the playhead forward before creating a region', 'error');
+                    return;
+                }
+                for (const r of Object.values(wavesurfer.regions.list)) {
+                    if (currentTime > r.start && currentTime < r.end) {
+                        updateStatus('Cannot create region over existing region', 'error');
+                        return;
+                    }
+                }
+                let color;
+                switch (selectedRegionType) {
+                    case 'speaker1':
+                        color = 'rgba(247, 124, 8, 0.3)';
+                        break;
+                    case 'speaker2':
+                        color = 'rgba(0,255,0,0.3)';
+                        break;
+                    case 'trash':
+                        color = 'rgba(108,117,125,0.3)';
+                        break;
+                    default:
+                        color = 'rgba(255,165,0,0.3)';
+                        break;
+                }
                 const region = wavesurfer.addRegion({
                     start: startTime,
                     end: currentTime,
-                    color: getRegionColor(selectedRegionType),
+                    color: color,
                     drag: false,
                     resize: false,
                     data: {
                         type: selectedRegionType
                     }
                 });
-
                 const regionObj = {
                     start: startTime,
                     end: currentTime,
                     type: selectedRegionType,
                     region: region
                 };
-
-                // Track region in our arrays
                 if (selectedRegionType === 'trash') {
                     regionsData.trash.push(regionObj);
                 } else {
                     regionsData[selectedRegionType].push(regionObj);
                 }
-
                 sequentialRegions.push(regionObj);
-                return regionObj;
-            }
-
-            // Define a single set of event handlers for speaker buttons
-            const buttonMappings = {
-                'speaker1Region': 'speaker1',
-                'speaker2Region': 'speaker2',
-                'mutedRegion': 'trash'
-            };
-
-            Object.entries(buttonMappings).forEach(([buttonId, type]) => {
-                const btn = document.getElementById(buttonId);
-                if (btn) {
-                    if (buttonId === 'speaker1Region') {
-                        btn.title = "Mark Voice 1 Region";
-                    } else if (buttonId === 'speaker2Region') {
-                        btn.title = "Mark Voice 2 Region";
-                    }
-
-                    btn.addEventListener('click', () => {
-                        selectedRegionType = type;
-                        createRegionAtCursor();
-                    });
-                }
-            });
-
-            // Function to create a region at the current cursor position
-            function createRegionAtCursor() {
-                const currentTime = wavesurfer.getCurrentTime();
-                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
-
-                // Validate region creation
-                if (!validateRegionCreation(currentTime, startTime)) {
-                    return;
-                }
-
-                createRegionMetadata(startTime, currentTime);
-
                 lastEndPoint = currentTime;
                 updateStatus(`${selectedRegionType} region created (${startTime.toFixed(2)}s - ${currentTime.toFixed(2)}s)`, 'success');
                 updateRegionsLog();
-            }
-
-            // Validation helper for region creation
-            function validateRegionCreation(currentTime, startTime) {
-                if (currentTime <= startTime) {
-                    updateStatus('Please move the playhead forward before creating a region', 'error');
-                    return false;
-                }
-
-                // Check for overlapping regions
-                for (const r of Object.values(wavesurfer.regions.list)) {
-                    if (currentTime > r.start && currentTime < r.end) {
-                        updateStatus('Cannot create region over existing region', 'error');
-                        return false;
-                    }
-                }
-                return true;
             }
         });
     </script>

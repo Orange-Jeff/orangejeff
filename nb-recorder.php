@@ -25,15 +25,21 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: var(--background-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
 
         #recorder-container {
-            max-width: 600px;
-            margin: 0;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 0 17px;
             background: var(--background-color);
             border-radius: 8px;
             box-shadow: none;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
@@ -53,16 +59,34 @@
         .content {
             padding: 0 17px;
             text-align: left;
-            max-width: 700px;
-            margin: 0;
-            padding: 0 17px;
-            background: #ffffff;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Video container styles */
+        #video-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            margin: 10px 0;
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #main-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
         }
 
         .button-group {
             display: flex;
             gap: 10px;
             padding: 10px 0;
+            flex-wrap: wrap;
         }
 
         button {
@@ -74,6 +98,7 @@
             cursor: pointer;
             font-size: 14px;
             transition: background 0.2s;
+            min-width: 100px;
         }
 
         button:hover:not(:disabled) {
@@ -90,10 +115,12 @@
             font-size: 24px;
             font-weight: bold;
             color: var(--secondary-color);
+            min-width: 80px;
         }
 
         #audioPlayers {
             margin: 20px 0;
+            flex: 1;
         }
 
         #audioPlayers div {
@@ -125,6 +152,102 @@
             width: 100%;
             margin: 5px 0;
             border: 1px solid #ccc;
+            background-color: #e0f0ff;
+            border: 2px solid #0056b3;
+            height: 150px;
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* Camera selection styles */
+        .camera-selection {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        .camera-option {
+            padding: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .camera-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .camera-option.active {
+            background: rgba(0, 150, 255, 0.4);
+        }
+
+        /* Recording indicator */
+        .recording-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .recording-indicator.active {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .camera-controls {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-group {
+            margin: 5px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin: 2px 0;
+        }
+
+        .control-group select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 3px;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -138,27 +261,56 @@
             <div id="mobile-blocker">
                 Notice: This tool does not work on mobile devices. Please use a desktop computer.
             </div>
+            <div id="video-container">
+                <video id="main-video" autoplay playsinline muted></video>
+                <div class="recording-indicator">REC</div>
+                <div class="camera-selection">
+                    <div id="camera-list"></div>
+                    <div class="camera-controls">
+                        <div class="control-group">
+                            <label for="camera-quality">Quality:</label>
+                            <select id="camera-quality">
+                                <option value="qvga">Low (QVGA)</option>
+                                <option value="vga">Medium (VGA)</option>
+                                <option value="hd" selected>High (HD)</option>
+                                <option value="fhd">Full HD</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="camera-zoom">Zoom:</label>
+                            <input type="range" id="camera-zoom" min="100" max="400" value="100" step="10">
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="button-group">
                 <button id="startRecording">Start Recording</button>
                 <button id="stopRecording" disabled>Stop Recording</button>
                 <button id="btnReset">Reset</button>
+                <button id="flip-video">Flip Camera</button>
                 <span id="timer">00:00</span>
             </div>
             <div id="status"></div>
             <div id="audioPlayers"></div>
             <div id="mergeOption">
                 <h3>Download Options:</h3>
-                <button id="downloadSeparate" disabled>Download Separate Files</button>
-                <button id="downloadCombined" disabled>Download Combined File</button>
+                <div class="button-group">
+                    <button id="downloadSeparate" disabled>Download Separate Audio Files</button>
+                    <button id="downloadCombined" disabled>Download Combined Audio</button>
+                    <button id="downloadVideo" disabled>Download Silent Video</button>
+                </div>
             </div>
         </div>
         <script>
-            let micRecorder, tabRecorder;
-            let micStream, tabStream;
+            let micRecorder, tabRecorder, videoRecorder;
+            let micStream, tabStream, videoStream;
             let isRecording = false;
-            let micBlob, tabBlob;
+            let micBlob, tabBlob, videoBlob;
             let timerInterval;
             let startTime;
+            let cameras = [];
+            let currentCameraIndex = 0;
+            let isFlipped = false;
 
             function detectMobile() {
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -181,6 +333,7 @@
                 const stopRecordingButton = document.getElementById('stopRecording');
                 const downloadSeparateButton = document.getElementById('downloadSeparate');
                 const downloadCombinedButton = document.getElementById('downloadCombined');
+                const downloadVideoButton = document.getElementById('downloadVideo');
                 const timerElement = document.getElementById('timer');
                 const statusElement = document.getElementById('status');
                 const audioPlayersElement = document.getElementById('audioPlayers');
@@ -189,6 +342,7 @@
                 stopRecordingButton.addEventListener('click', stopRecording);
                 downloadSeparateButton.addEventListener('click', downloadSeparateFiles);
                 downloadCombinedButton.addEventListener('click', downloadCombinedFile);
+                downloadVideoButton.addEventListener('click', downloadVideo);
 
                 async function startRecording() {
                     if (isRecording) {
@@ -203,6 +357,10 @@
                             audio: true,
                             video: true
                         });
+                        // Ensure we have video stream
+                        if (!videoStream) {
+                            await startCamera();
+                        }
                         statusElement.textContent = "Permissions granted. Starting recording...";
 
                         micRecorder = new RecordRTC(micStream, {
@@ -215,13 +373,20 @@
                             mimeType: 'audio/wav',
                             recorderType: RecordRTC.StereoAudioRecorder
                         });
+                        videoRecorder = new RecordRTC(videoStream, {
+                            type: 'video',
+                            mimeType: 'video/webm',
+                            recorderType: RecordRTC.MediaStreamRecorder
+                        });
 
                         micRecorder.startRecording();
                         tabRecorder.startRecording();
+                        videoRecorder.startRecording();
 
                         isRecording = true;
                         startRecordingButton.disabled = true;
                         stopRecordingButton.disabled = false;
+                        document.querySelector('.recording-indicator').classList.add('active');
                         startTimer();
                         statusElement.textContent = "Recording in progress...";
                     } catch (error) {
@@ -240,17 +405,23 @@
                         tabBlob = tabRecorder.getBlob();
                         createAudioPlayer(tabBlob, 'Tab Audio Recording', 'wav');
                     });
+                    videoRecorder.stopRecording(() => {
+                        videoBlob = videoRecorder.getBlob();
+                    });
 
                     isRecording = false;
                     startRecordingButton.disabled = false;
                     stopRecordingButton.disabled = true;
+                    document.querySelector('.recording-indicator').classList.remove('active');
                     stopTimer();
 
                     micStream.getTracks().forEach(track => track.stop());
                     tabStream.getTracks().forEach(track => track.stop());
+                    // Don't stop videoStream as we want to keep the preview running
 
                     downloadSeparateButton.disabled = false;
                     downloadCombinedButton.disabled = false;
+                    downloadVideoButton.disabled = false;
                     statusElement.textContent = "Recording stopped.";
                 }
 
@@ -424,6 +595,28 @@
                     }
                 }
 
+                async function downloadVideo() {
+                    if (videoBlob) {
+                        downloadVideoButton.textContent = 'Downloading...';
+                        downloadVideoButton.style.backgroundColor = '#004494';
+                        try {
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(videoBlob);
+                            a.download = `${baseName}-video.mp4`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(a.href);
+                        } catch (error) {
+                            console.error('Error downloading video:', error);
+                            statusElement.textContent = "Error downloading video: " + error.message;
+                        } finally {
+                            downloadVideoButton.textContent = 'Download Silent Video';
+                            downloadVideoButton.style.backgroundColor = '';
+                        }
+                    }
+                }
+
                 function downloadBlob(blob, fileName) {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -511,10 +704,244 @@
                 audioPlayersElement.innerHTML = '';
                 downloadSeparateButton.disabled = true;
                 downloadCombinedButton.disabled = true;
+                downloadVideoButton.disabled = true;
                 startRecordingButton.disabled = false;
                 stopRecordingButton.disabled = true;
                 timerElement.textContent = "00:00";
                 statusElement.textContent = "Reset complete";
+            });
+
+            // Add cookie handling functions
+            function setCookie(name, value, days = 30) {
+                const d = new Date();
+                d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = "expires=" + d.toUTCString();
+                document.cookie = name + "=" + value + ";" + expires + ";path=/";
+            }
+
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            }
+
+            // Enhance camera label formatting
+            function formatCameraLabel(label, index) {
+                if (!label) return `Camera ${index + 1}`;
+
+                // Extract facing direction
+                const facingMatch = label.match(/facing\s+(front|back)/i);
+                const facingDir = facingMatch ? facingMatch[1].charAt(0).toUpperCase() + facingMatch[1].slice(1) : '';
+
+                // Look for resolution info
+                const resMatch = label.match(/(\d+)x(\d+)/);
+                let resolution = '';
+                if (resMatch) {
+                    const width = parseInt(resMatch[1]);
+                    if (width > 3000) {
+                        resolution = ' (High Res)';
+                    } else if (width > 1500) {
+                        resolution = ' (Medium)';
+                    }
+                }
+
+                // Look for special camera types
+                let cameraType = '';
+                if (label.toLowerCase().includes('ultra') || label.toLowerCase().includes('wide')) {
+                    cameraType = ' Ultra-Wide';
+                } else if (label.toLowerCase().includes('tele') || label.toLowerCase().includes('zoom')) {
+                    cameraType = ' Telephoto';
+                }
+
+                // Combine all information
+                if (facingDir) {
+                    return `${facingDir}${cameraType || ''}${resolution} Camera`;
+                }
+
+                // If no specific info found, use a cleaned up version of the label
+                const cleanLabel = label.split(',')[0].replace(/\([^)]*\)/g, '').trim();
+                return cleanLabel || `Camera ${index + 1}`;
+            }
+
+            async function getCameras() {
+                try {
+                    console.log("Enumerating media devices...");
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                    if (videoDevices.length > 0 && !videoDevices[0].label) {
+                        console.log("Unlabeled cameras detected. Requesting permission first...");
+                        try {
+                            const stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    facingMode: {
+                                        ideal: "environment"
+                                    }
+                                }
+                            });
+                            window.tempStream = stream;
+                            const newDevices = await navigator.mediaDevices.enumerateDevices();
+                            cameras = newDevices.filter(device => device.kind === 'videoinput');
+                        } catch (permErr) {
+                            console.error("Could not get camera permission:", permErr);
+                        }
+                    } else {
+                        cameras = videoDevices;
+                    }
+
+                    // Try to restore last used camera
+                    const lastUsedId = getCookie('lastUsedCamera');
+                    if (lastUsedId) {
+                        const lastUsedIndex = cameras.findIndex(cam => cam.deviceId === lastUsedId);
+                        if (lastUsedIndex >= 0) {
+                            currentCameraIndex = lastUsedIndex;
+                        }
+                    }
+
+                    updateCameraList();
+                    if (cameras.length > 0) {
+                        await startCamera(cameras[currentCameraIndex].deviceId);
+                    }
+                    return cameras;
+                } catch (err) {
+                    console.error("Error enumerating devices:", err);
+                    return [];
+                }
+            }
+
+            function updateCameraList() {
+                const cameraList = document.getElementById('camera-list');
+                cameraList.innerHTML = '';
+                cameras.forEach((camera, index) => {
+                    const div = document.createElement('div');
+                    div.className = `camera-option ${index === currentCameraIndex ? 'active' : ''}`;
+                    div.textContent = formatCameraLabel(camera.label, index);
+                    div.onclick = () => switchToCamera(index);
+                    cameraList.appendChild(div);
+                });
+            }
+
+            async function startCamera(deviceId = null) {
+                try {
+                    if (videoStream) {
+                        videoStream.getTracks().forEach(track => track.stop());
+                    }
+
+                    const quality = document.getElementById('camera-quality').value;
+                    let constraints = {
+                        video: {
+                            deviceId: deviceId ? {
+                                exact: deviceId
+                            } : undefined
+                        }
+                    };
+
+                    // Add quality constraints
+                    switch (quality) {
+                        case 'qvga':
+                            constraints.video.width = {
+                                ideal: 320
+                            };
+                            constraints.video.height = {
+                                ideal: 240
+                            };
+                            break;
+                        case 'vga':
+                            constraints.video.width = {
+                                ideal: 640
+                            };
+                            constraints.video.height = {
+                                ideal: 480
+                            };
+                            break;
+                        case 'hd':
+                            constraints.video.width = {
+                                ideal: 1280
+                            };
+                            constraints.video.height = {
+                                ideal: 720
+                            };
+                            break;
+                        case 'fhd':
+                            constraints.video.width = {
+                                ideal: 1920
+                            };
+                            constraints.video.height = {
+                                ideal: 1080
+                            };
+                            break;
+                    }
+
+                    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    const mainVideo = document.getElementById('main-video');
+                    mainVideo.srcObject = videoStream;
+                    mainVideo.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+
+                    // Try to set zoom if available
+                    const videoTrack = videoStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        const capabilities = videoTrack.getCapabilities();
+                        if (capabilities.zoom) {
+                            const zoomSlider = document.getElementById('camera-zoom');
+                            zoomSlider.min = capabilities.zoom.min * 100;
+                            zoomSlider.max = capabilities.zoom.max * 100;
+                            zoomSlider.value = 100;
+                            zoomSlider.style.display = 'block';
+                        } else {
+                            document.getElementById('camera-zoom').style.display = 'none';
+                        }
+                    }
+
+                    return videoStream;
+                } catch (err) {
+                    console.error("Camera access error:", err);
+                    return null;
+                }
+            }
+
+            async function switchToCamera(index) {
+                if (index >= 0 && index < cameras.length) {
+                    currentCameraIndex = index;
+                    const camera = cameras[index];
+                    await startCamera(camera.deviceId);
+                    updateCameraList();
+                    // Save camera preference
+                    setCookie('lastUsedCamera', camera.deviceId);
+                }
+            }
+
+            function toggleFlipVideo() {
+                isFlipped = !isFlipped;
+                const mainVideo = document.getElementById('main-video');
+                mainVideo.style.transform = isFlipped ? 'scaleX(-1)' : 'scaleX(1)';
+            }
+
+            // Initialize camera on load
+            window.addEventListener('DOMContentLoaded', () => {
+                getCameras();
+                document.getElementById('flip-video').addEventListener('click', toggleFlipVideo);
+            });
+
+            // Add event listeners for controls
+            document.getElementById('camera-quality').addEventListener('change', () => {
+                startCamera(cameras[currentCameraIndex].deviceId);
+            });
+
+            document.getElementById('camera-zoom').addEventListener('input', (e) => {
+                const zoomLevel = e.target.value / 100;
+                const videoTrack = videoStream?.getVideoTracks()[0];
+                if (videoTrack) {
+                    try {
+                        videoTrack.applyConstraints({
+                            advanced: [{
+                                zoom: zoomLevel
+                            }]
+                        });
+                    } catch (err) {
+                        console.error("Could not apply zoom:", err);
+                    }
+                }
             });
         </script>
 </body>

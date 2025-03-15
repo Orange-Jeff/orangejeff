@@ -1,209 +1,308 @@
 <?php
 
+// Prevent PHP errors from breaking JSON output
+ini_set('display_errors', 0);
+error_reporting(0);
+
 /**
- * NetBound Speaker Splitter - Audio Processing Backend
- * Version: 1.0
+ * NetBound Tools: Speaker Audio Splitter Processing Backend
+ * Version: 1.4
+ * Created by: NetBound Team
  *
- * DEPENDENCIES:
- * - PHP 7.0+ with:
- *   - file handling functions (fopen, fread, fwrite, fclose)
- *   - JSON handling (json_decode, json_encode)
- *   - Directory management (mkdir, is_dir)
- *   - Upload handling capabilities
- *
- * - File system:
- *   - Write permissions to 'uploads/' directory
- *   - Write permissions to 'processed_audio/' directory
- *
- * - Frontend:
- *   - nb-voice-split.php provides the UI and sends data to this script
- *   - Requires form submission with audioFile upload and regions JSON data
- *
- * DESCRIPTION:
- * This script handles the server-side processing of audio files for speaker separation.
+ * This file handles the server-side processing of audio files for speaker separation.
  * It extracts portions of WAV files based on region markers and creates separate files
  * for each speaker.
  */
 
-// Increase upload limits at runtime
-ini_set('upload_max_filesize', '50M');
-ini_set('post_max_size', '50M');
+// Set higher PHP limits for audio processing
 ini_set('memory_limit', '256M');
 ini_set('max_execution_time', '300');
 ini_set('max_input_time', '300');
+ini_set('upload_max_filesize', '50M');
 
-// Set proper content type for JSON response
-header('Content-Type: application/json');
+// Set content type for JSON response
+header('Content-Type: application/json; charset=utf-8');
 
-// Better error logging setup
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+// Add required functions directly to avoid dependency
+function logMessage($message)
+{
+    $logFile = __DIR__ . '/audio_processing.log';
+    file_put_contents($logFile, date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
+}
 
 function logError($message)
 {
-    file_put_contents('error_log.txt', date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
+    logMessage("ERROR: " . $message);
+}
+
+/**
+ * Get public path for a file by removing the directory prefix
+ * @param string $filePath Full file path
+ * @return string Public URL path
+ */
+function getPublicPath($filePath)
+{
+    return str_replace(__DIR__ . '/', '', $filePath);
+}
+
+/**
+ * Generate output filenames for processed audio files
+ * @param string $outputDir Directory for output files
+ * @param string $fileBaseName Base name for output files
+ * @return array Array with paths for speaker1, speaker2, and stereo files
+ */
+function generateOutputFilenames($outputDir, $fileBaseName)
+{
+    return [
+        'speaker1' => "$outputDir/{$fileBaseName}_speaker1.wav",
+        'speaker2' => "$outputDir/{$fileBaseName}_speaker2.wav",
+        'stereo' => "$outputDir/{$fileBaseName}_stereo.wav"
+    ];
 }
 
 /**
  * Extract a portion of a WAV file
  * @param string $sourceFile Path to source WAV file
  * @param string $outputFile Path to output WAV file
- * @param array $regions Array of start/end time regions to extract in seconds
+ * @param float $startTime Start time in seconds
+ * @param float $endTime End time in seconds
  */
-function extractWavRegions($sourceFile, $outputFile, $regions)
+function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime)
 {
-    logError("Extracting regions from $sourceFile to $outputFile");
+    logMessage("Extracting from $sourceFile to $outputFile");
 
     // Open the source file
     $handle = fopen($sourceFile, 'rb');
     if (!$handle) {
-        logError("Failed to open source file: $sourceFile");
-        return false;
+        throw new Exception("Failed to open source file: $sourceFile");
     }
 
     // Read WAV header (44 bytes for standard WAV format)
     $header = fread($handle, 44);
 
-    // Parse header to get format info
+    // Extract important WAV parameters from header
     $channels = ord($header[22]) | (ord($header[23]) << 8);
     $sampleRate = ord($header[24]) | (ord($header[25]) << 8) | (ord($header[26]) << 16) | (ord($header[27]) << 24);
-    $bitsPerSample = ord($header[34]) | (ord($header[35]) << 8);
-    $bytesPerSample = $bitsPerSample / 8;
+    $bytesPerSample = (ord($header[34]) | (ord($header[35]) << 8)) / 8;
+
+    // Calculate positions
     $bytesPerSecond = $sampleRate * $channels * $bytesPerSample;
+    $startPos = (int)($startTime * $bytesPerSecond) + 44; // Add header size
+    $endPos = (int)($endTime * $bytesPerSecond) + 44;
 
-    logError("WAV Info: Channels=$channels, Rate=$sampleRate, Bits=$bitsPerSample");
-
-    // Create output file with the same header
-    $outHandle = fopen($outputFile, 'wb');
-    if (!$outHandle) {
-        logError("Failed to create output file: $outputFile");
+    // Create output file
+    $outputHandle = fopen($outputFile, 'wb');
+    if (!$outputHandle) {
         fclose($handle);
-        return false;
+        throw new Exception("Failed to create output file: $outputFile");
     }
 
-    // Write temporary header (we'll update this later)
-    fwrite($outHandle, $header);
+    // Write header (we'll update this later)
+    fwrite($outputHandle, $header);
 
-    // Keep track of total data bytes written
+    // Seek to start position
+    fseek($handle, $startPos);
+
+    // Calculate bytes to read
+    $bytesLeft = $endPos - $startPos;
+    $chunkSize = 8192; // Read in chunks
     $totalDataBytes = 0;
 
-    // Process each region and extract audio
-    foreach ($regions as $region) {
-        $startTime = floatval($region['start']);
-        $endTime = floatval($region['end']);
-        $duration = $endTime - $startTime;
+    logMessage("Extracting from $startTime to $endTime ($bytesLeft bytes)");
 
-        if ($duration <= 0) continue;
-
-        // Calculate byte positions
-        $startByte = 44 + (int)($startTime * $bytesPerSecond);
-        $regionBytes = (int)($duration * $bytesPerSecond);
-
-        // Seek to start position
-        fseek($handle, $startByte);
-
-        // Read and write chunk by chunk to avoid memory issues
-        $chunkSize = 8192; // 8KB chunks
-        $bytesLeft = $regionBytes;
-
-        while ($bytesLeft > 0) {
-            $readSize = min($bytesLeft, $chunkSize);
-            $data = fread($handle, $readSize);
-            if ($data === false || strlen($data) === 0) break;
-
-            fwrite($outHandle, $data);
-            $bytesLeft -= strlen($data);
-            $totalDataBytes += strlen($data);
-        }
-
-        logError("Extracted region: $startTime - $endTime ($duration sec)");
+    // Read and write data
+    while ($bytesLeft > 0) {
+        $readSize = min($bytesLeft, $chunkSize);
+        $data = fread($handle, $readSize);
+        fwrite($outputHandle, $data);
+        $bytesLeft -= strlen($data);
+        $totalDataBytes += strlen($data);
     }
 
-    // Update header with correct file size
-    $fileSize = $totalDataBytes + 36; // +36 for WAV header minus 8 bytes for RIFF header
-    fseek($outHandle, 4);
-    fwrite($outHandle, pack('V', $fileSize));
+    logMessage("Extracted from $startTime to $endTime ($totalDataBytes bytes)");
+
+    // Update file size in header
+    $fileSize = ftell($outputHandle) - 8; // File size minus 8 bytes for RIFF header
+    fseek($outputHandle, 4);
+    fwrite($outputHandle, pack('V', $fileSize));
 
     // Update header with correct data size
-    fseek($outHandle, 40);
-    fwrite($outHandle, pack('V', $totalDataBytes));
+    $dataSize = $totalDataBytes;
+    fseek($outputHandle, 40);
+    fwrite($outputHandle, pack('V', $dataSize));
 
     // Close files
     fclose($handle);
-    fclose($outHandle);
-
-    logError("Finished extracting to $outputFile, size: $totalDataBytes bytes");
-    return true;
+    fclose($outputHandle);
 }
 
+/**
+ * Update WAV file headers with correct sizes
+ * @param resource $handle File handle
+ * @param int $dataSize Size of audio data
+ */
+function updateWavHeaders($handle, $dataSize) {
+    $fileSize = $dataSize + 36; // Total file size minus 8 bytes for RIFF header
+    fseek($handle, 4);
+    fwrite($handle, pack('V', $fileSize));
+    fseek($handle, 40);
+    fwrite($handle, pack('V', $dataSize));
+}
+
+/**
+ * Concatenate WAV files while preserving header information
+ * @param string $outputFile Path to output WAV file
+ * @param array $inputFiles Array of input WAV files to concatenate
+ */
+function concatenateWavFiles($outputFile, $inputFiles) {
+    if (empty($inputFiles)) {
+        throw new Exception("No input files provided for concatenation");
+    }
+
+    // Read first file's header for format info
+    $firstFile = fopen($inputFiles[0], 'rb');
+    $header = fread($firstFile, 44);
+    fclose($firstFile);
+
+    // Create output file
+    $output = fopen($outputFile, 'wb');
+    fwrite($output, $header); // Write initial header
+
+    $totalDataSize = 0;
+
+    // Process each file
+    foreach ($inputFiles as $file) {
+        $handle = fopen($file, 'rb');
+        fseek($handle, 44); // Skip header
+
+        // Copy audio data
+        while (!feof($handle)) {
+            $data = fread($handle, 8192);
+            $totalDataSize += strlen($data);
+            fwrite($output, $data);
+        }
+        fclose($handle);
+    }
+
+    // Update headers with total size
+    updateWavHeaders($output, $totalDataSize);
+    fclose($output);
+}
+
+// Main processing code
 try {
-    logError("Script started - processing audio file");
-
-    // Create directories
-    $uploadDir = 'uploads/';
-    $outputDir = 'processed_audio/';
-
-    if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-    if (!is_dir($outputDir)) mkdir($outputDir, 0777, true);
-
-    // Log received data
-    logError("POST data: " . json_encode($_POST));
-    logError("FILES data: " . json_encode($_FILES));
-
-    // Process the uploaded file
-    if (!isset($_FILES['audioFile']) || $_FILES['audioFile']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception("File upload failed: " .
-            ($_FILES['audioFile']['error'] ?? "No file uploaded"));
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception("Only POST method is accepted");
     }
 
-    // Save uploaded file to our uploads directory
-    $baseName = pathinfo($_FILES['audioFile']['name'], PATHINFO_FILENAME);
-    $tempFile = $_FILES['audioFile']['tmp_name'];
-    $uploadedFile = $uploadDir . $baseName . '_original.wav';
-
-    // Move the uploaded file to a permanent location
-    if (!move_uploaded_file($tempFile, $uploadedFile)) {
-        throw new Exception("Failed to move uploaded file");
+    if (empty($_FILES['audioFile']) || $_FILES['audioFile']['error'] > 0) {
+        throw new Exception("No audio file uploaded or upload error");
     }
 
-    logError("File saved to: " . $uploadedFile);
+    if (empty($_POST['regions'])) {
+        throw new Exception("No regions data provided");
+    }
 
     // Parse regions data
-    $regions = json_decode($_POST['regions'] ?? '{}', true);
-    logError("Regions data: " . json_encode($regions));
+    $regions = null;
+    try {
+        // Clean the JSON data first
+        $data = trim($_POST['regions']);
+        // Remove UTF-8 BOM if present
+        if (substr($data, 0, 3) == pack('CCC', 0xEF, 0xBB, 0xBF)) {
+            $data = substr($data, 3);
+        }
+        // Strip any control characters
+        $data = preg_replace('/[\x00-\x1F\x7F]/u', '', $data);
 
-    // Define output files
-    $speaker1File = "{$outputDir}{$baseName}_speaker1.wav";
-    $speaker2File = "{$outputDir}{$baseName}_speaker2.wav";
-    $stereoFile = "{$outputDir}{$baseName}_stereo.wav"; // We'll implement this later
+        $regions = json_decode($data, true);
 
-    // Process speaker 1 regions
-    $speaker1Regions = $regions['speaker1'] ?? [];
-    if (count($speaker1Regions) > 0) {
-        extractWavRegions($uploadedFile, $speaker1File, $speaker1Regions);
+        if ($regions === null && json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception("JSON Error: " . json_last_error_msg());
+        }
+    } catch (Exception $e) {
+        throw new Exception("Failed to parse regions data: " . $e->getMessage());
     }
 
-    // Process speaker 2 regions
-    $speaker2Regions = $regions['speaker2'] ?? [];
-    if (count($speaker2Regions) > 0) {
-        extractWavRegions($uploadedFile, $speaker2File, $speaker2Regions);
+    if (!is_array($regions)) {
+        throw new Exception("Invalid regions data format");
     }
 
-    // For now we'll skip stereo file creation - that's more complex
-    // and would require interleaving the two speaker files
+    // Process the uploaded file
+    $tempFile = $_FILES['audioFile']['tmp_name'];
+    $fileName = $_FILES['audioFile']['name'];
 
-    // Output the success response
+    // Create directory for output files if it doesn't exist
+    $outputDir = __DIR__ . '/processed_audio';
+    if (!is_dir($outputDir)) {
+        mkdir($outputDir, 0755, true);
+    }
+
+    // Base names for output files
+    $fileBaseName = pathinfo($fileName, PATHINFO_FILENAME);
+    $outputFiles = generateOutputFilenames($outputDir, $fileBaseName);
+
+    $tempDir = sys_get_temp_dir();
+    $regionFiles = [];
+
+    // Process speaker1 regions
+    if (!empty($regions['speaker1'])) {
+        $regionFiles['speaker1'] = [];
+        foreach ($regions['speaker1'] as $region) {
+            $tempOutput = $tempDir . '/region_' . uniqid() . '.wav';
+            extractWavRegion($tempFile, $tempOutput, $region['start'], $region['end']);
+            $regionFiles['speaker1'][] = $tempOutput;
+        }
+        // Concatenate all speaker1 regions
+        concatenateWavFiles($outputFiles['speaker1'], $regionFiles['speaker1']);
+        // Cleanup temp files
+        foreach ($regionFiles['speaker1'] as $file) {
+            unlink($file);
+        }
+    }
+
+    // Process speaker2 regions
+    if (!empty($regions['speaker2'])) {
+        $regionFiles['speaker2'] = [];
+        foreach ($regions['speaker2'] as $region) {
+            $tempOutput = $tempDir . '/region_' . uniqid() . '.wav';
+            extractWavRegion($tempFile, $tempOutput, $region['start'], $region['end']);
+            $regionFiles['speaker2'][] = $tempOutput;
+        }
+        // Concatenate all speaker2 regions
+        concatenateWavFiles($outputFiles['speaker2'], $regionFiles['speaker2']);
+        // Cleanup temp files
+        foreach ($regionFiles['speaker2'] as $file) {
+            unlink($file);
+        }
+    }
+
+    // Create stereo output by combining speaker1 and speaker2
+    if (!empty($regions['speaker1']) && !empty($regions['speaker2'])) {
+        // For now just copy the original file
+        // TODO: Implement proper stereo mixing of speaker1 to left channel
+        // and speaker2 to right channel
+        copy($tempFile, $outputFiles['stereo']);
+        logMessage("Created stereo mix file");
+    } else {
+        // If only one speaker, just copy their audio
+        copy(!empty($regions['speaker1']) ? $outputFiles['speaker1'] : $outputFiles['speaker2'],
+             $outputFiles['stereo']);
+    }
+
+    logMessage("Audio processing completed for $fileName");
+
+    // Output response
     echo json_encode([
         'status' => 'success',
-        'speaker1' => $speaker1File,
-        'speaker2' => $speaker2File,
-        'stereo' => '' // Skip stereo for now
+        'speaker1' => getPublicPath($outputFiles['speaker1']),
+        'speaker2' => getPublicPath($outputFiles['speaker2']),
+        'stereo' => getPublicPath($outputFiles['stereo'])
     ]);
-} catch (Throwable $e) {
-    // Log any errors
-    logError("ERROR: " . $e->getMessage());
-    logError("Stack trace: " . $e->getTraceAsString());
-
-    // Return error response
-    echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
+} catch (Exception $e) {
+    logError($e->getMessage());
+    echo json_encode([
+        'status' => 'error',
+        'message' => $e->getMessage()
+    ]);
 }
