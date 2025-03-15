@@ -515,80 +515,406 @@
                     <button id="jumpStart" class="button-blue" title="Jump to start"><i class="fas fa-step-backward"></i></button>
                     <button id="jumpBack" class="button-blue" title="Jump back"><i class="fas fa-backward"></i></button>
                     <button id="playPause" class="button-blue" title="Play/Pause"><i class="fas fa-play-pause"></i></button>
-                    <button id="jumpForward"
+                    <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
+                    <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
+                </div>
 
-</final_file_content>
+                <div class="button-group" style="margin-left: 10px;">
+                    <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">1</button>
+                    <button id="speaker2Region" class="button-blue speaker2-btn" title="Mark Speaker 2 Region">2</button>
+                    <button id="trashRegion" class="button-blue trash-btn" title="Mark Trash Region"><i class="fas fa-trash"></i></button>
+                    <button id="undoRegion" class="button-blue" title="Undo Last Region"><i class="fas fa-undo"></i></button>
+                </div>
+            </div>
+        </div>
 
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+        <div id="regions-log" class="regions-log"></div>
 
-<environment_details>
-# VSCode Visible Files
-nb-voice-split-fixed.php
+        <button type="button" id="processAudio" class="command-button">Process Audio</button>
 
-# VSCode Open Tabs
-abaaaa.php
-nb-voice-split-fixed.php
+        <div class="processed-files" id="processedFiles" style="display:none;">
+            <h3>Processed Files:</h3>
+            <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
+            <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
+            <a href="#" id="stereoFile" target="_blank" style="display:none;">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+        </div>
 
-# Current Time
-3/15/2025, 3:32:08 AM (America/Vancouver, UTC-7:00)
+        <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
+            <input type="hidden" name="regions" id="regions">
+            <input type="hidden" name="fileName" id="fileName">
+            <input type="file" name="audioFile" id="audioFileUpload">
+        </form>
+    </div>
 
-# Current Mode
-ACT MODE
-</environment_details>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize elements
+            const statusBar = document.getElementById('status-messages');
+            const btnOpen = document.getElementById('btnOpen');
+            const fileInput = document.getElementById('fileInput');
+            const regionsInput = document.getElementById('regions');
+            const fileNameInput = document.getElementById('fileName');
+            const processedFiles = document.getElementById('processedFiles');
+            const speaker1File = document.getElementById('speaker1File');
+            const speaker2File = document.getElementById('speaker2File');
+            const stereoFile = document.getElementById('stereoFile');
+            const durationDisplay = document.getElementById('duration-display');
+            const windowDisplay = document.getElementById('window-display');
+            const playPauseButton = document.getElementById('playPause');
+            const playPauseIcon = playPauseButton.querySelector('i.fas');
+            const waveformContainer = document.getElementById('waveform');
+            const waveformWrapper = document.querySelector('.waveform-wrapper');
 
-</final_file_content>
+            // Initialize data
+            let currentFileName = '',
+                lastEndPoint = 0,
+                lastRegion = null,
+                isPlaying = false;
+            let regionsData = {
+                speaker1: [],
+                speaker2: [],
+                trash: []
+            };
+            let sequentialRegions = [];
 
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+            // Keep track of the original file
+            let originalAudioFile = null;
 
-<environment_details>
-# VSCode Visible Files
-nb-voice-split-fixed.php
+            // Initialize WaveSurfer with optimized stereo support
+            const wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: 'blue',
+                progressColor: 'darkblue',
+                responsive: true,
+                height: 150,
+                scrollParent: true,
+                minPxPerSec: 50,
+                fillParent: true, // Ensure the waveform fits the container initially
+                normalize: true,
+                splitChannels: true,
+                splitChannelsOptions: {
+                    channels: [{
+                            waveColor: 'blue',
+                            progressColor: 'darkblue',
+                            height: 65, // Adjusted for better fit
+                            label: 'Left'
+                        },
+                        {
+                            waveColor: '#4488cc',
+                            progressColor: '#2266aa',
+                            height: 65,
+                            label: 'Right'
+                        }
+                    ]
+                },
+                plugins: [
+                    WaveSurfer.regions.create({
+                        dragSelection: true,
+                        slop: 5
+                    })
+                ]
+            });
 
-# VSCode Open Tabs
-abaaaa.php
-nb-voice-split-fixed.php
+            // Functions
+            function formatTime(seconds) {
+                if (!seconds || isNaN(seconds)) return '0:00';
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
 
-# Current Time
-3/15/2025, 3:32:05 AM (America/Vancouver, UTC-7:00)
+            function updateStatus(message, type = 'info') {
+                const statusBar = document.getElementById('status-messages');
 
-# Current Mode
-ACT MODE
-</environment_details>
+                if (!statusBar) {
+                    console.error('Status bar element not found');
+                    return;
+                }
 
-</final_file_content>
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `status-message ${type}`;
+                messageDiv.textContent = message;
 
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+                // Insert at top (newest messages appear at top)
+                statusBar.insertBefore(messageDiv, statusBar.firstChild);
 
-<environment_details>
-# VSCode Visible Files
-nb-voice-split-fixed.php
+                // Keep scrolled to top to see newest messages
+                statusBar.scrollTop = 0;
+            }
 
-# VSCode Open Tabs
-abaaaa.php
-nb-voice-split-fixed.php
+            function updateDisplays() {
+                try {
+                    if (!wavesurfer.drawer?.wrapper) return;
+                    const duration = wavesurfer.getDuration() || 0;
+                    const wrapper = wavesurfer.drawer.wrapper;
+                    const scrollLeft = wrapper.scrollLeft;
+                    const viewWidth = wrapper.clientWidth;
+                    const pixelsPerSecond = wavesurfer.params.minPxPerSec;
 
-# Current Time
-3/15/2025, 3:32:29 AM (America/Vancouver, UTC-7:00)
+                    const startTime = scrollLeft / pixelsPerSecond;
+                    const viewDuration = viewWidth / pixelsPerSecond;
+                    const endTime = Math.min(startTime + viewDuration, duration);
 
-# Current Mode
-ACT MODE
-</environment_details>
+                    durationDisplay.textContent = `Duration: ${formatTime(duration)}`;
+                    windowDisplay.textContent = `Viewable: ${formatTime(startTime)} - ${formatTime(endTime)}`;
+                } catch (err) {
+                    console.error('Display update error:', err);
+                }
+            }
 
-</final_file_content>
+            function handleFile(file) {
+                if (!file || !(file.name.toLowerCase().endsWith('.wav'))) {
+                    updateStatus('Please select a valid WAV file', 'error');
+                    return;
+                }
 
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+                // Store the original file for later processing
+                originalAudioFile = file;
 
-<environment_details>
-# VSCode Visible Files
-nb-voice-split-fixed.php
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
+                currentFileName = file.name;
+                fileNameInput.value = file.name;
 
-# VSCode Open Tabs
-abaaaa.php
-nb-voice-split-fixed.php
+                const audioUrl = URL.createObjectURL(file);
+                wavesurfer.load(audioUrl);
+                lastEndPoint = 0;
 
-# Current Time
-3/15/2025, 3:32:51 AM (America/Vancouver, UTC-7:00)
+                // Clear previous regions
+                wavesurfer.clearRegions();
+                regionsData = {
+                    speaker1: [],
+                    speaker2: [],
+                    trash: []
+                };
+                sequentialRegions = [];
+                document.getElementById('regions-log').innerHTML = '';
 
-# Current Mode
-ACT MODE
-</environment_details>
+                wavesurfer.once('ready', () => {
+                    URL.revokeObjectURL(audioUrl);
+                });
+            }
+
+            function createSpeakerRegion(speakerType) {
+                const currentTime = wavesurfer.getCurrentTime();
+                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
+
+                if (currentTime <= startTime) {
+                    updateStatus('Please move playhead forward to create region', 'error');
+                    return;
+                }
+
+                // Fill gaps with trash regions automatically
+                if (sequentialRegions.length > 0) {
+                    const lastRegionEnd = sequentialRegions[sequentialRegions.length - 1].end;
+                    if (startTime > lastRegionEnd) {
+                        const trashRegion = wavesurfer.addRegion({
+                            start: lastRegionEnd,
+                            end: startTime,
+                            color: 'rgba(108, 117, 125, 0.3)',
+                            drag: false,
+                            resize: false
+                        });
+
+                        const trashData = {
+                            start: lastRegionEnd,
+                            end: startTime,
+                            type: 'trash',
+                            region: trashRegion
+                        };
+
+                        regionsData.trash.push(trashData);
+                        sequentialRegions.push(trashData);
+                    }
+                }
+
+                // Create region
+                const color = speakerType === 1 ? 'rgba(255, 165, 0, 0.3)' :
+                    speakerType === 2 ? 'rgba(0, 255, 0, 0.3)' :
+                    'rgba(108, 117, 125, 0.3)';
+                const label = speakerType === 'trash' ? 'Unlabeled' : `Speaker ${speakerType}`;
+
+                const region = wavesurfer.addRegion({
+                    start: startTime,
+                    end: currentTime,
+                    color: color,
+                    drag: false,
+                    resize: false
+                });
+
+                const regionData = {
+                    start: startTime,
+                    end: currentTime,
+                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`,
+                    region: region
+                };
+
+                if (speakerType === 'trash') {
+                    regionsData.trash.push(regionData);
+                } else {
+                    regionsData[`speaker${speakerType}`].push(regionData);
+                }
+
+                sequentialRegions.push(regionData);
+
+                const logEntry = document.createElement('div');
+                logEntry.className = `region-entry ${speakerType === 'trash' ? 'trash' : 'speaker' + speakerType}`;
+                logEntry.textContent = `${label}: ${formatTime(startTime)} - ${formatTime(currentTime)}`;
+                document.getElementById('regions-log').appendChild(logEntry);
+                document.getElementById('regions-log').scrollTop = document.getElementById('regions-log').scrollHeight;
+
+                lastEndPoint = currentTime;
+                lastRegion = region;
+                updateStatus(`${label} region created`, 'success');
+                updateDisplays();
+
+                if (isPlaying) {
+                    wavesurfer.pause();
+                }
+            }
+
+            // Handle stereo/mono switching
+            wavesurfer.on('ready', () => {
+                const audioInfo = wavesurfer.backend.buffer;
+                const isStereo = audioInfo.numberOfChannels === 2;
+
+                // Toggle stereo mode and adjust container
+                if (isStereo) {
+                    waveformContainer.classList.add('stereo');
+                    waveformWrapper.classList.add('stereo');
+                    wavesurfer.setHeight(180);
+                    wavesurfer.drawer.params.height = 180;
+                    wavesurfer.drawBuffer();
+                } else {
+                    waveformContainer.classList.remove('stereo');
+                    waveformWrapper.classList.remove('stereo');
+                    wavesurfer.setHeight(150);
+                    wavesurfer.drawer.params.height = 150;
+                    wavesurfer.drawBuffer();
+                }
+
+                // Calculate proper zoom level to fit entire audio in view
+                const duration = wavesurfer.getDuration();
+                const containerWidth = waveformContainer.clientWidth - 20; // Subtract padding
+                const pixelsPerSecond = containerWidth / duration;
+
+                // Set zoom level to fit entire audio
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Setup scroll handler and update displays
+                const wrapper = wavesurfer.drawer.wrapper;
+                if (wrapper) {
+                    wrapper.addEventListener('scroll', () => requestAnimationFrame(updateDisplays));
+                }
+
+                updateDisplays();
+                const durationText = wavesurfer.getDuration().toFixed(2);
+                updateStatus(`Loaded ${isStereo ? 'stereo' : 'mono'} audio: ${durationText}s`, 'success');
+            });
+
+            // Event listeners for display updates
+            ['audioprocess', 'seek', 'zoom', 'interaction'].forEach(event => {
+                wavesurfer.on(event, () => requestAnimationFrame(updateDisplays));
+            });
+
+            // Play/Pause handling
+            playPauseButton.addEventListener('click', () => wavesurfer.playPause());
+
+            wavesurfer.on('play', () => {
+                playPauseButton.classList.add('playing');
+                playPauseIcon.classList.remove('play-pause');
+                playPauseIcon.classList.add('fa-pause');
+                isPlaying = true;
+                updateDisplays();
+            });
+
+            wavesurfer.on('pause', () => {
+                playPauseButton.classList.remove('playing');
+                playPauseIcon.classList.remove('fa-pause');
+                playPauseIcon.classList.add('fa-play-pause');
+                isPlaying = false;
+                updateDisplays();
+            });
+
+            // File handling
+            btnOpen.addEventListener('click', e => {
+                e.preventDefault();
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', e => {
+                if (e.target.files && e.target.files[0]) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // Clear regions with confirmation
+            document.getElementById('clearRegions').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all segments?')) {
+                    wavesurfer.clearRegions();
+                    regionsData = {
+                        speaker1: [],
+                        speaker2: [],
+                        trash: []
+                    };
+                    sequentialRegions = [];
+                    lastEndPoint = 0;
+                    lastRegion = null;
+                    document.getElementById('regions-log').innerHTML = '';
+                    updateStatus('All segments cleared', 'info');
+                }
+            });
+
+            // Navigation controls
+            document.getElementById('jumpBack').addEventListener('click', () => wavesurfer.skip(-0.5));
+            document.getElementById('jumpForward').addEventListener('click', () => wavesurfer.skip(0.5));
+            document.getElementById('jumpStart').addEventListener('click', () => {
+                wavesurfer.seekTo(0); // Use seekTo(0) instead of setTime(0)
+                updateDisplays();
+            });
+            document.getElementById('jumpEnd').addEventListener('click', () => {
+                // Get the total duration
+                const duration = wavesurfer.getDuration();
+
+                // Zoom out to fit entire waveform first
+                const containerWidth = waveformContainer.clientWidth - 20;
+                const pixelsPerSecond = containerWidth / duration;
+                wavesurfer.zoom(pixelsPerSecond);
+
+                // Allow zoom to complete and then scroll to end and set cursor
+                setTimeout(() => {
+                    // Calculate the position to scroll to (all the way to the right)
+                    const wrapper = wavesurfer.drawer.wrapper;
+                    const scrollWidth = wrapper.scrollWidth;
+                    const clientWidth = wrapper.clientWidth;
+
+                    // Scroll to the end
+                    wrapper.scrollLeft = scrollWidth - clientWidth;
+
+                    // Set the cursor position to the end (use seekTo(1);
+
+                    updateDisplays();
+                }, 100);
+            });
+
+            // Zoom controls
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                wavesurfer.zoom(wavesurfer.params.minPxPerSec + 10);
+            });
+
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                wavesurfer.zoom(Math.max(wavesurfer.params.minPxPerSec - 10, 1));
+            });
+
+            document.getElementById('zoomFit').addEventListener('click', () => {
+                wavesurfer.zoom(wavesurfer.params.minPxPerSec);
+                requestAnimationFrame(() => {
+                    wavesurfer.drawer.wrapper.scrollLeft = 0;
+                    updateDisplays();
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

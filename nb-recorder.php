@@ -94,11 +94,11 @@
                         <button id="playBothSync" class="command-button" disabled>
                             <i class="fas fa-play-circle"></i> Play Both In Sync
                         </button>
-                        <button id="pauseBoth" class="command-button" disabled>
-                            <i class="fas fa-pause-circle"></i> Pause
-                        </button>
                         <button id="stopBoth" class="command-button" disabled>
                             <i class="fas fa-stop-circle"></i> Stop
+                        </button>
+                        <button id="saveBoth" class="command-button" disabled>
+                            <i class="fas fa-save"></i> Save Both
                         </button>
                     </div>
                 </div>
@@ -375,6 +375,7 @@
                     const percentage = x / rect.width;
 
                     audio.currentTime = audio.duration * percentage;
+                    if (!                    audio.currentTime = audio.duration * percentage;
                     if (!isPlaying && !isPlayingSync) {
                         playButton.click();
                     }
@@ -409,8 +410,8 @@
                 // Enable sync controls if we have both recordings
                 if (audioPlayers.length === 2) {
                     document.getElementById('playBothSync').disabled = false;
-                    document.getElementById('pauseBoth').disabled = false;
                     document.getElementById('stopBoth').disabled = false;
+                    document.getElementById('saveBoth').disabled = false;
                 }
 
                 audioPlayersElement.appendChild(container);
@@ -475,8 +476,19 @@
                 }
             });
 
-            document.getElementById('pauseBoth').addEventListener('click', pauseSyncedPlayback);
             document.getElementById('stopBoth').addEventListener('click', stopSyncedPlayback);
+
+            // Add save both functionality
+            document.getElementById('saveBoth').addEventListener('click', () => {
+                if (micBlob && tabBlob) {
+                    status.update("Downloading both audio files...", 'info');
+                    downloadBlob(micBlob, 'microphone-recording.wav');
+                    downloadBlob(tabBlob, 'tab-audio-recording.wav');
+                    status.update("Both audio files downloaded successfully.", 'success');
+                    hasUnsavedRecordings = false;
+                    startRecordingButton.disabled = false;
+                }
+            });
 
             async function drawWaveform(blob, canvas) {
                 const audioContext = new AudioContext();
@@ -742,6 +754,7 @@
             let resolution = '';
             if (resMatch) {
                 const width = parseInt(resMatch[1]);
+                const width = parseInt(resMatch[1]);
                 if (width > 3000) {
                     resolution = ' (High Res)';
                 } else if (width > 1500) {
@@ -947,3 +960,4 @@
 </body>
 
 </html>
+
