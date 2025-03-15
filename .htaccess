@@ -1,0 +1,12 @@
+# Increase PHP limits for handling large audio files
+
+# PHP values
+php_value upload_max_filesize 500M
+php_value post_max_size 500M
+php_value max_execution_time 900
+php_value max_input_time 900
+php_value memory_limit 1024M
+
+# Enable error display for debugging
+php_flag display_errors on
+php_value error_reporting E_ALL

@@ -1,8 +1,8 @@
 <?php
 
 // Prevent PHP errors from breaking JSON output
-ini_set('display_errors', 0);
-error_reporting(0);
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 /**
  * NetBound Tools: Speaker Audio Splitter Processing Backend
@@ -14,11 +14,12 @@ error_reporting(0);
  * for each speaker.
  */
 
-// Set higher PHP limits for audio processing
-ini_set('memory_limit', '256M');
-ini_set('max_execution_time', '300');
-ini_set('max_input_time', '300');
-ini_set('upload_max_filesize', '50M');
+// Set higher PHP limits for audio processing - increased to handle larger files
+ini_set('memory_limit', '512M');
+ini_set('max_execution_time', '600');
+ini_set('max_input_time', '600');
+ini_set('upload_max_filesize', '100M');
+ini_set('post_max_size', '100M');
 
 // Set content type for JSON response
 header('Content-Type: application/json; charset=utf-8');
@@ -141,7 +142,8 @@ function extractWavRegion($sourceFile, $outputFile, $startTime, $endTime)
  * @param resource $handle File handle
  * @param int $dataSize Size of audio data
  */
-function updateWavHeaders($handle, $dataSize) {
+function updateWavHeaders($handle, $dataSize)
+{
     $fileSize = $dataSize + 36; // Total file size minus 8 bytes for RIFF header
     fseek($handle, 4);
     fwrite($handle, pack('V', $fileSize));
@@ -154,7 +156,8 @@ function updateWavHeaders($handle, $dataSize) {
  * @param string $outputFile Path to output WAV file
  * @param array $inputFiles Array of input WAV files to concatenate
  */
-function concatenateWavFiles($outputFile, $inputFiles) {
+function concatenateWavFiles($outputFile, $inputFiles)
+{
     if (empty($inputFiles)) {
         throw new Exception("No input files provided for concatenation");
     }
@@ -286,8 +289,10 @@ try {
         logMessage("Created stereo mix file");
     } else {
         // If only one speaker, just copy their audio
-        copy(!empty($regions['speaker1']) ? $outputFiles['speaker1'] : $outputFiles['speaker2'],
-             $outputFiles['stereo']);
+        copy(
+            !empty($regions['speaker1']) ? $outputFiles['speaker1'] : $outputFiles['speaker2'],
+            $outputFiles['stereo']
+        );
     }
 
     logMessage("Audio processing completed for $fileName");
@@ -306,3 +311,4 @@ try {
         'message' => $e->getMessage()
     ]);
 }
+?>

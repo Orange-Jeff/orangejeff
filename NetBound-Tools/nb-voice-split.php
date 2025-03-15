@@ -1,4 +1,65 @@
 <?php
+// Debug and header management
+ob_start(function($buffer) {
+    if (strlen($buffer) === 0) {
+        $error = "Empty output buffer detected\n";
+        $error .= "Headers sent: " . (headers_sent() ? "Yes" : "No") . "\n";
+        if (headers_sent($file, $line)) {
+            $error .= "Headers sent in $file on line $line\n";
+        }
+        $error .= "PHP memory usage: " . memory_get_usage(true) / 1024 / 1024 . " MB\n";
+        $error .= "Peak memory usage: " . memory_get_peak_usage(true) / 1024 / 1024 . " MB\n";
+        $error .= "Error reporting level: " . error_reporting() . "\n";
+        $error .= "Display errors: " . ini_get('display_errors') . "\n";
+
+        error_log($error);
+
+        echo "<div style='color:red; position:fixed; top:0; left:0; padding:10px; background:white; z-index:9999; white-space:pre;'>";
+        echo htmlspecialchars($error);
+        echo "</div>";
+    }
+    return $buffer;
+});
+
+// Check for UTF-8 BOM and other output issues
+foreach ([__FILE__, 'nb-voice-split.css', 'process_audio.php', 'process_advanced_audio.php'] as $file) {
+    if (file_exists($file)) {
+        $content = file_get_contents($file);
+        if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+            error_log("UTF-8 BOM detected in $file");
+            $content = substr($content, 3);
+            file_put_contents($file, $content);
+        }
+    }
+}
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null) {
+        error_log("Fatal error: " . print_r($error, true));
+        if (ini_get('display_errors')) {
+            echo "<div style='color:red; position:fixed; top:0; left:0; padding:10px; background:white; z-index:9999; white-space:pre;'>";
+            echo "Fatal error: " . htmlspecialchars(print_r($error, true));
+            echo "</div>";
+        }
+    }
+});
+
+// Helper function to convert PHP ini settings to bytes
+function return_bytes($val)
+{
+    $val = trim($val);
+    $last = strtolower($val[strlen($val) - 1]);
+    switch ($last) {
+        case 'g':
+            $val *= 1024;
+        case 'm':
+            $val *= 1024;
+        case 'k':
+            $val *= 1024;
+    }
+    return $val;
+}
 
 /**
  * NetBound Tools: Speaker Audio Splitter
@@ -29,8 +90,19 @@
  * - Drag and drop file upload
  * - Responsive design for desktop and mobile use
  */
-?>
 
+// Set higher PHP limits for audio processing - increased to handle larger files
+// Set PHP error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Set higher PHP limits for audio processing
+ini_set('memory_limit', '1024M');  // Increased to handle larger files
+ini_set('max_execution_time', '900');  // Increased for longer processing
+ini_set('max_input_time', '900');  // Increased for longer uploads
+ini_set('upload_max_filesize', '500M');  // Set to 500M
+ini_set('post_max_size', '500M');  // Set to 500M
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -40,9 +112,11 @@
     <title>NetBound Tools: Audio Splitter</title>
     <link rel="stylesheet" href="nb-voice-split.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://unpkg.com/wavesurfer.js@6.6.4"></script>
     <script src="https://unpkg.com/wavesurfer.js@6.6.4/dist/plugin/wavesurfer.regions.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 </head>
 
 <body>
@@ -63,9 +137,7 @@
                 </div>
             </div>
         </div>
-
         <input type="file" id="fileInput" accept=".wav" style="display: none;">
-
         <div id="waveform-container">
             <div class="waveform-header">
                 <span id="duration-display">Duration: 0:00</span>
@@ -91,7 +163,6 @@
                     <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
                     <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
                 </div>
-
                 <div class="button-group">
                     <button id="speaker1Region" class="button-blue speaker1-btn" title="Mark Speaker 1 Region">
                         <i class="fas fa-user-circle"></i> 1
@@ -110,14 +181,14 @@
                     </button>
                 </div>
             </div>
-
         </div>
-
         <!-- Process and Save buttons section -->
 
         <!-- Log section -->
-        <div id="regions-log" class="regions-log"></div>
-
+        <div id="regions-log" class="regions-log">
+            <!-- Add timeline visual here -->
+            <div id="timeline-container" class="timeline-container"></div>
+        </div>
         <!-- Advanced Save Options -->
         <div id="saveOptionsContainer" class="save-options-container">
             <h3>Advanced Save Options</h3>
@@ -135,7 +206,6 @@
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
-
             <div id="speaker2SaveOptions" class="save-option">
                 <span class="save-option-label">Voice 2:</span>
                 <select id="speaker2SaveOption">
@@ -149,7 +219,6 @@
                     <i class="fas fa-download"></i> Save
                 </button>
             </div>
-
             <div class="save-option">
                 <span class="save-option-label">Stereo Output:</span>
                 <select id="stereoSaveOption">
@@ -163,18 +232,16 @@
                 </button>
             </div>
         </div>
-
         <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
             <input type="hidden" name="regions" id="regions">
             <input type="hidden" name="fileName" id="fileName">
             <input type="file" name="audioFile" id="audioFileUpload">
         </form>
     </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize elements
-            const statusBar = document.getElementById('statusBar');
+            const statusMessages = document.getElementById('status-messages');
             const btnOpen = document.getElementById('btnOpen');
             const fileInput = document.getElementById('fileInput');
             const regionsInput = document.getElementById('regions');
@@ -185,22 +252,20 @@
             const playPauseIcon = playPauseButton.querySelector('i.fas');
             const waveformContainer = document.getElementById('waveform-container');
             const waveformWrapper = document.querySelector('.waveform-wrapper');
-
             // Initialize data
             let currentFileName = '',
                 lastEndPoint = 0,
                 lastRegion = null,
-                isPlaying = false;
+                isPlaying = false,
+                selectedRegionType = 'speaker1'; // Default region type
             let regionsData = {
                 speaker1: [],
                 speaker2: [],
                 trash: []
             };
             let sequentialRegions = [];
-
             // Keep track of the original file
             let originalAudioFile = null;
-
             // Initialize WaveSurfer with optimized stereo support
             const wavesurfer = WaveSurfer.create({
                 container: '#waveform',
@@ -235,7 +300,6 @@
                     })
                 ]
             });
-
             // Functions
             function formatTime(seconds) {
                 if (!seconds || isNaN(seconds)) return '0:00';
@@ -246,19 +310,17 @@
 
             function updateStatus(message, type = 'info') {
                 const statusBar = document.getElementById('status-messages');
-
                 if (!statusBar) {
                     console.error('Status bar element not found');
                     return;
                 }
-
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `status-message ${type}`;
-                messageDiv.textContent = message;
+                // Handle newlines in messages by converting them to <br> tags
+                messageDiv.innerHTML = message.replace(/\n/g, '<br>');
 
                 // Insert at top (newest messages appear at top)
                 statusBar.insertBefore(messageDiv, statusBar.firstChild);
-
                 // Keep scrolled to top to see newest messages
                 statusBar.scrollTop = 0;
             }
@@ -271,7 +333,6 @@
                     const scrollLeft = wrapper.scrollLeft;
                     const viewWidth = wrapper.clientWidth;
                     const pixelsPerSecond = wavesurfer.params.minPxPerSec;
-
                     const startTime = scrollLeft / pixelsPerSecond;
                     const viewDuration = viewWidth / pixelsPerSecond;
                     const endTime = Math.min(startTime + viewDuration, duration);
@@ -282,6 +343,37 @@
                     console.error('Display update error:', err);
                 }
             }
+            // Add PHP server limits detection - update to higher values
+            const phpLimits = {
+                maxUploadSize: <?php
+                    $upload_max_filesize = ini_get('upload_max_filesize');
+                    $post_max_size = ini_get('post_max_size');
+                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                    echo min(
+                        return_bytes($upload_max_filesize),
+                        return_bytes($post_max_size)
+                    ); ?>,
+                maxUploadSizeMB: <?php
+                    $upload_max_filesize = ini_get('upload_max_filesize');
+                    $post_max_size = ini_get('post_max_size');
+                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                    echo min(
+                        return_bytes($upload_max_filesize),
+                        return_bytes($post_max_size)
+                    ) / (1024 * 1024); ?>,
+                // Add explicit check for 2MB restriction
+                has2MBRestriction: <?php
+                    $upload_max_filesize = ini_get('upload_max_filesize');
+                    $post_max_size = ini_get('post_max_size');
+                    $upload_max_filesize = is_numeric(return_bytes($upload_max_filesize)) ? $upload_max_filesize : '100M';
+                    $post_max_size = is_numeric(return_bytes($post_max_size)) ? $post_max_size : '100M';
+                    echo (min(
+                        return_bytes($upload_max_filesize),
+                        return_bytes($post_max_size)
+                    ) / (1024 * 1024)) <= 2 ? 'true' : 'false'; ?>
+            };
 
             function handleFile(file) {
                 if (!file || !(file.name.toLowerCase().endsWith('.wav'))) {
@@ -289,9 +381,41 @@
                     return;
                 }
 
+                // Check file size against PHP limits
+                if (file.size > phpLimits.maxUploadSize) {
+                    let errorMsg;
+
+                    // Check if we have the 2MB restriction
+                    if (phpLimits.has2MBRestriction || phpLimits.maxUploadSizeMB <= 2) {
+                        errorMsg = `The file is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). ` +
+                            `Your PHP configuration is limiting uploads to 2MB.\n\n` +
+                            `To fix this, these lines need to be added to php.ini ` +
+                            `(usually at /etc/php/X.X/apache2/php.ini or /etc/php.ini):\n\n` +
+                            `upload_max_filesize = 500M\n` +
+                            `post_max_size = 500M\n\n` +
+                            `After adding these lines, restart Apache/PHP-FPM.`;
+                    } else {
+                        errorMsg = `The file is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). ` +
+                            `Server currently allows up to ${phpLimits.maxUploadSizeMB.toFixed(2)} MB uploads.`;
+                    }
+
+                    // Add debugging info
+                    errorMsg += `\n\nDebug info: upload_max_filesize=${phpLimits.maxUploadSizeMB}MB, ` +
+                        `post_max_size=${phpLimits.maxUploadSizeMB}MB`;
+
+                    updateStatus(errorMsg, 'error');
+
+                    // Create a more visible error message
+                    const errorEl = document.createElement('div');
+                    errorEl.className = 'error-message';
+                    errorEl.innerHTML = `<b>Error:</b> ${errorMsg.replace(/\n/g, '<br>')}`;
+                    document.getElementById('regions-log').innerHTML = '';
+                    document.getElementById('regions-log').appendChild(errorEl);
+                    return;
+                }
+
                 // Store the original file for later processing
                 originalAudioFile = file;
-
                 const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
                 currentFileName = file.name;
@@ -310,26 +434,26 @@
                 };
                 sequentialRegions = [];
                 document.getElementById('regions-log').innerHTML = '';
-
                 wavesurfer.once('ready', () => {
                     URL.revokeObjectURL(audioUrl);
                 });
             }
 
-            function createSpeakerRegion(type) {
-                const currentTime = wavesurfer.getCurrentTime();
-                const startTime = sequentialRegions.length === 0 ? 0 : lastEndPoint;
-
-
-                if (currentTime <= startTime) {
-                    updateStatus('Please move the playhead forward before creating a region', 'error');
-                    return;
-                }
-
-                // Use shared createRegionAtCursor with appropriate type
-                selectedRegionType = type === 1 ? 'speaker1' : type === 2 ? 'speaker2' : 'trash';
+            // Add event listeners for speaker region buttons
+            document.getElementById('speaker1Region').addEventListener('click', () => {
+                selectedRegionType = 'speaker1';
                 createRegionAtCursor();
-            } // Add missing closing brace
+            });
+
+            document.getElementById('speaker2Region').addEventListener('click', () => {
+                selectedRegionType = 'speaker2';
+                createRegionAtCursor();
+            });
+
+            document.getElementById('mutedRegion').addEventListener('click', () => {
+                selectedRegionType = 'trash';
+                createRegionAtCursor();
+            });
 
             // Handle stereo/mono switching
             wavesurfer.on('ready', () => {
@@ -363,7 +487,6 @@
                 if (wrapper) {
                     wrapper.addEventListener('scroll', () => requestAnimationFrame(updateDisplays));
                 }
-
                 updateDisplays();
                 const durationText = wavesurfer.getDuration().toFixed(2);
                 updateStatus(`Loaded ${isStereo ? 'stereo' : 'mono'} audio: ${durationText}s`, 'success');
@@ -469,7 +592,6 @@
 
                     // Set the cursor position to the end (use seekTo(1) to go to end)
                     wavesurfer.seekTo(1);
-
                     updateDisplays();
                 }, 100);
             });
@@ -587,27 +709,77 @@
 
                 updateStatus("Starting audio processing...", "info");
 
-                // Process the data but instead of setting up download links, just show the save options
+                // Create a debugging function to help diagnose server response issues
+                function createDebugLink(text, debugData) {
+                    const debugEl = document.createElement('div');
+                    debugEl.classList.add('debug-info');
+
+                    // Check for PHP content-length error pattern
+                    if (debugData && debugData.includes("Content-Length") && debugData.includes("exceeds the limit")) {
+                        const match = debugData.match(/(\d+) bytes exceeds the limit of (\d+) bytes/);
+                        if (match) {
+                            const uploadedSize = parseInt(match[1]) / (1024 * 1024);
+                            const limitSize = parseInt(match[2]) / (1024 * 1024);
+
+                            debugEl.innerHTML = `<div class="error-message">
+                                <h4>File Upload Error</h4>
+                                <p>The file you're trying to upload (${uploadedSize.toFixed(2)} MB) is larger than
+                                the server allows (${limitSize.toFixed(2)} MB).</p>
+                                <p>Solution: Ask your server administrator to increase the PHP limits in php.ini:</p>
+                                <ul>
+                                    <li>post_max_size (currently ${limitSize.toFixed(2)} MB)</li>
+                                    <li>upload_max_filesize</li>
+                                </ul>
+                            </div>`;
+                            document.getElementById('regions-log').innerHTML = '';
+                            document.getElementById('regions-log').appendChild(debugEl);
+                            return;
+                        }
+                    }
+
+                    // Default debug display
+                    const debugContent = document.createElement('pre');
+                    debugContent.textContent = debugData;
+                    debugContent.style.whiteSpace = 'pre-wrap';
+                    debugContent.style.maxHeight = '200px';
+                    debugContent.style.overflow = 'auto';
+                    debugEl.appendChild(debugContent);
+
+                    // Create a collapsible section
+                    const toggle = document.createElement('button');
+                    toggle.textContent = 'Show/Hide Debug Info';
+                    toggle.onclick = () => {
+                        debugContent.style.display = debugContent.style.display === 'none' ? 'block' : 'none';
+                    };
+
+                    document.getElementById('regions-log').appendChild(toggle);
+                    document.getElementById('regions-log').appendChild(debugEl);
+                }
+
+                // Revised processing function with better error handling
                 fetch('process_audio.php', {
                         method: 'POST',
                         body: formData
                     })
                     .then(response => {
-                        // Check if the response is valid before trying to parse JSON
-                        if (!response.ok) {
-                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                        }
+                        // Store the original response for debugging
+                        return response.text().then(text => {
+                            // Try to parse as JSON
+                            try {
+                                // Check for the PHP error pattern at the beginning
+                                if (text.trim().startsWith('<br') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                                    throw new Error('Server returned HTML instead of JSON');
+                                }
 
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                            // Return response.text() and throw an error with the text content
-                            return response.text().then(text => {
-                                throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}...`);
-                            });
-                        }
-
-                        return response.json();
+                                // Attempt to parse as JSON
+                                return JSON.parse(text);
+                            } catch (e) {
+                                // If parsing fails, show the raw response for debugging
+                                updateStatus('Server returned invalid JSON. See debug info below.', 'error');
+                                createDebugLink('Server Response', text.substring(0, 1000));
+                                throw new Error(`Failed to parse server response: ${e.message}`);
+                            }
+                        });
                     })
                     .then(data => {
                         if (data.status === 'success') {
@@ -625,7 +797,6 @@
 
                             // Show a success message encouraging users to use the advanced save options
                             updateStatus("Please use the Advanced Save Options below to download your files", "info");
-
                         } else {
                             updateStatus(`Processing error: ${data.message}`, "error");
                         }
@@ -646,9 +817,9 @@
 
                 // Get the last region
                 const lastRegion = sequentialRegions.pop();
+
                 // Remove from the appropriate category in regionsData
                 const regionType = lastRegion.type;
-
                 if (regionType === 'speaker1' || regionType === 'speaker2' || regionType === 'trash') {
                     // Find and remove the region from the appropriate array
                     const regionIndex = regionsData[regionType].findIndex(r =>
@@ -657,40 +828,86 @@
                     if (regionIndex !== -1) {
                         regionsData[regionType].splice(regionIndex, 1);
                     }
-
-                    // Remove the visual region from the waveform
-                    if (lastRegion.region) {
-                        lastRegion.region.remove();
-                    }
-
-                    // Update the regions log
-                    updateRegionsLog();
-
-                    // Set the last end point to the previous region's end, or 0
-                    if (sequentialRegions.length > 0) {
-                        lastEndPoint = sequentialRegions[sequentialRegions.length - 1].end;
-                    } else {
-                        lastEndPoint = 0;
-                    }
-
-                    updateStatus(`Removed ${regionType} region`, 'info');
                 }
+
+                // Remove the visual region from the waveform
+                if (lastRegion.region) {
+                    lastRegion.region.remove();
+                }
+
+                // Update the regions log
+                updateRegionsLog();
+
+                // Set the last end point to the previous region's end, or 0
+                if (sequentialRegions.length > 0) {
+                    lastEndPoint = sequentialRegions[sequentialRegions.length - 1].end;
+                } else {
+                    lastEndPoint = 0;
+                }
+
+                updateStatus(`Removed ${regionType} region`, 'info');
             });
 
-            // Helper function to update the regions log
+            // Helper function to update the regions log - fixing the Node.appendChild error
             function updateRegionsLog() {
                 const regionsLogElement = document.getElementById('regions-log');
+
+                // First make sure the regions-log element exists
+                if (!regionsLogElement) {
+                    console.error("Regions log element not found");
+                    return;
+                }
+
+                // Clear the contents
                 regionsLogElement.innerHTML = '';
 
+                // Create a fresh timeline container
+                const timeline = document.createElement('div');
+                timeline.id = 'timeline-container';
+                timeline.className = 'timeline-container';
+
+                // Add the timeline to the regions log
+                regionsLogElement.appendChild(timeline);
+
+                // Calculate total duration for timeline
+                let totalDuration = 0;
+                if (wavesurfer && wavesurfer.getDuration) {
+                    totalDuration = wavesurfer.getDuration();
+                } else if (sequentialRegions.length > 0) {
+                    // Find the last end point among all regions
+                    totalDuration = Math.max(...sequentialRegions.map(region => region.end));
+                }
+
+                if (totalDuration > 0) {
+                    // Create and add segments to the timeline
+                    sequentialRegions.forEach(region => {
+                        const segment = document.createElement('div');
+                        segment.className = `timeline-segment ${region.type}`;
+                        const startPercent = (region.start / totalDuration) * 100;
+                        const widthPercent = ((region.end - region.start) / totalDuration) * 100;
+                        segment.style.left = `${startPercent}%`;
+                        segment.style.width = `${widthPercent}%`;
+                        timeline.appendChild(segment);
+                    });
+                }
+
+                // Create region entries below timeline
                 sequentialRegions.forEach((region, index) => {
                     // Convert speaker1/speaker2 to voice1/voice2 for display
                     let displayType = region.type;
                     if (displayType === 'speaker1') displayType = 'voice1';
                     if (displayType === 'speaker2') displayType = 'voice2';
+                    if (displayType === 'trash') displayType = 'muted';
 
                     const regionElement = document.createElement('div');
                     regionElement.className = `region-entry ${region.type}`;
                     regionElement.innerHTML = `<span>${index + 1}: ${displayType} (${region.start.toFixed(2)}s - ${region.end.toFixed(2)}s)</span>`;
+
+                    // Add click handler to jump to this region
+                    regionElement.addEventListener('click', () => {
+                        wavesurfer.seekTo(region.start / wavesurfer.getDuration());
+                    });
+
                     regionsLogElement.appendChild(regionElement);
                 });
             }
@@ -719,7 +936,6 @@
             // Add after your DOMContentLoaded event listener setup:
             function initDragAndDrop() {
                 const statusBar = document.getElementById('status-messages');
-
                 if (!statusBar) {
                     console.error('Status bar element not found for drag-and-drop');
                     return;
@@ -759,7 +975,6 @@
                 });
             });
 
-
             // Function to handle advanced save options
             function saveProcessedAudio(speaker, option) {
                 // Create form data for submission
@@ -781,36 +996,27 @@
                         body: formData
                     })
                     .then(response => {
-                        // Check if the response is valid before trying to parse JSON
-                        if (!response.ok) {
-                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                        }
+                        // Store the original response for debugging
+                        return response.text().then(text => {
+                            // Try to parse as JSON
+                            try {
+                                // Check for the PHP error pattern at the beginning
+                                if (text.trim().startsWith('<br') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                                    throw new Error('Server returned HTML instead of JSON');
+                                }
 
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                            // Return response.text() and throw an error with the text content
-                            return response.text().then(text => {
-                                throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}...`);
-                            });
-                        }
-
-                        return response.json();
+                                // Attempt to parse as JSON
+                                return JSON.parse(text);
+                            } catch (e) {
+                                // If parsing fails, show the raw response for debugging
+                                updateStatus('Server returned invalid JSON. See debug info below.', 'error');
+                                createDebugLink('Server Response', text.substring(0, 1000));
+                                throw new Error(`Failed to parse server response: ${e.message}`);
+                            }
+                        });
                     })
                     .then(data => {
-                        if (data.status === 'success' && data.file) {
-                            // Create a download link
-                            const link = document.createElement('a');
-                            link.href = data.file;
-                            link.download = data.filename || `${currentFileName}_${speaker}_${option}.wav`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-
-                            updateStatus(`${speaker} audio saved successfully!`, "success");
-                        } else {
-                            updateStatus(`Error saving ${speaker}: ${data.message}`, "error");
-                        }
+                        // ...existing code...
                     })
                     .catch(error => {
                         updateStatus(`Error: ${error.message}`, "error");
@@ -874,29 +1080,6 @@
                 return regionObj;
             }
 
-            // Define a single set of event handlers for speaker buttons
-            const buttonMappings = {
-                'speaker1Region': 'speaker1',
-                'speaker2Region': 'speaker2',
-                'mutedRegion': 'trash'
-            };
-
-            Object.entries(buttonMappings).forEach(([buttonId, type]) => {
-                const btn = document.getElementById(buttonId);
-                if (btn) {
-                    if (buttonId === 'speaker1Region') {
-                        btn.title = "Mark Voice 1 Region";
-                    } else if (buttonId === 'speaker2Region') {
-                        btn.title = "Mark Voice 2 Region";
-                    }
-
-                    btn.addEventListener('click', () => {
-                        selectedRegionType = type;
-                        createRegionAtCursor();
-                    });
-                }
-            });
-
             // Function to create a region at the current cursor position
             function createRegionAtCursor() {
                 const currentTime = wavesurfer.getCurrentTime();
@@ -908,7 +1091,6 @@
                 }
 
                 createRegionMetadata(startTime, currentTime);
-
                 lastEndPoint = currentTime;
                 updateStatus(`${selectedRegionType} region created (${startTime.toFixed(2)}s - ${currentTime.toFixed(2)}s)`, 'success');
                 updateRegionsLog();
@@ -928,8 +1110,54 @@
                         return false;
                     }
                 }
+
                 return true;
             }
+
+            // Add this function to indicate currently playing segment in the timeline
+            wavesurfer.on('audioprocess', () => {
+                const currentTime = wavesurfer.getCurrentTime();
+
+                // Update visual indication of current position on timeline
+                const timelineSegments = document.querySelectorAll('.timeline-segment');
+                timelineSegments.forEach(segment => {
+                    segment.classList.remove('current');
+                });
+
+                // Find the current segment being played
+                const currentSegment = sequentialRegions.find(region =>
+                    currentTime >= region.start && currentTime <= region.end);
+
+                if (currentSegment && currentSegment.region) {
+                    // Find the corresponding timeline segment and highlight it
+                    const totalDuration = wavesurfer.getDuration();
+                    const currentStartPercent = (currentSegment.start / totalDuration) * 100;
+
+                    // Find the segment at this position
+                    const matchingSegment = Array.from(timelineSegments).find(segment =>
+                        parseFloat(segment.style.left) === currentStartPercent);
+
+                    if (matchingSegment) {
+                        matchingSegment.classList.add('current');
+                    }
+                }
+            });
+
+            // Enhance resetAudioState function to clear timeline as well
+            function resetAudioState() {
+                wavesurfer.clearRegions();
+                regionsData = {
+                    speaker1: [],
+                    speaker2: [],
+                    trash: []
+                };
+                sequentialRegions = [];
+                lastEndPoint = 0;
+                updateRegionsLog();
+            }
+
+            // Initialize the timeline on load
+            updateRegionsLog();
         });
     </script>
 </body>

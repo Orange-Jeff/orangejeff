@@ -1,0 +1,414 @@
+/* Base Styles */
+body {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    max-width: 768px;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f4f4f9;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Frame Modes */
+body.standalone {
+    margin: 0 auto;
+    opacity: 1;
+    max-width: 768px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+body.in-frame {
+    margin: 0 0 0 20px;
+    opacity: 1;
+    max-width: 768px !important;
+    margin-right: 0 !important;
+}
+
+/* Fallback for when classes haven't been applied */
+body:not(.in-frame):not(.standalone) {
+    opacity: 1;
+    margin: 0 auto;
+}
+
+/* Layout Components */
+.container {
+    background: #f4f4f9;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 15px;
+}
+
+/* Timeline Components */
+.timeline-container {
+    width: 100%;
+    height: 24px;
+    background: #eee;
+    margin: 10px 0;
+    position: relative;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.timeline-segment {
+    position: absolute;
+    height: 100%;
+    top: 0;
+}
+
+.timeline-segment.speaker1 {
+    background-color: rgba(247, 124, 8, 0.7);
+}
+
+.timeline-segment.speaker2 {
+    background-color: rgba(0, 255, 0, 0.7);
+}
+
+.timeline-segment.trash {
+    background-color: rgba(108, 117, 125, 0.7);
+}
+
+/* Error and Debug Styles */
+.error-message {
+    color: #c00;
+    background: #ffeeee;
+    border: 1px solid #c00;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 5px;
+    line-height: 1.4;
+    white-space: pre-line;
+}
+
+.debug-info {
+    margin: 15px 0;
+    background: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 12px;
+    font-family: monospace;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.debug-info pre {
+    margin: 10px 0;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.debug-info button {
+    background: #0056b3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 12px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.debug-info button:hover {
+    background-color: #004494;
+}
+
+/* Editor Components */
+.editor-header {
+    background: #f4f4f9;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.editor-title {
+    margin: 10px 0 8px 0;
+    color: #0056b3;
+    line-height: 1.2;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* Waveform Styles */
+#waveform-container {
+    position: relative;
+    margin: 5px 0;
+    padding: 5px;
+    background: #f4f4f9;
+    border-radius: 4px;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.waveform-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 150px;
+    background: #f4f4f9;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+    transition: min-height 0.3s ease;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+#waveform {
+    width: 100%;
+    height: 150px;
+    background-color: #e0f0ff;
+    border: 2px solid #0056b3;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+#waveform.stereo {
+    height: 180px;
+}
+
+.waveform-wrapper.stereo {
+    min-height: 180px;
+}
+
+/* Channel Labels */
+.channel-label {
+    position: absolute;
+    left: 5px;
+    font-size: 12px;
+    color: #666;
+    z-index: 2;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 2px 5px;
+    border-radius: 3px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+#waveform.stereo .channel-label {
+    opacity: 1;
+}
+
+.channel-label.left {
+    top: 5px;
+}
+
+.channel-label.right {
+    bottom: 5px;
+}
+
+/* Button Controls */
+.button-controls,
+.button-group {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.button-blue {
+    background-color: #0056b3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 10px;
+    font-size: 14px;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.button-blue:hover {
+    background-color: #004494;
+}
+
+.button-blue:active,
+.button-blue.playing {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    background-color: #004494;
+}
+
+.button-blue.warning {
+    background-color: #6c757d;
+}
+
+.button-blue.warning:hover {
+    background-color: #5a6268;
+}
+
+/* Play Button */
+#playPause {
+    width: 40px;
+}
+
+#playPause i.fas {
+    transition: all 0.2s ease;
+}
+
+#playPause.playing i.fas {
+    transform: scale(1.1);
+}
+
+/* Controls Layout */
+.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    gap: 5px;
+    border-bottom: none;
+    margin-bottom: 15px;
+}
+
+/* Status Bar */
+.persistent-status-bar,
+.status-bar {
+    width: 100%;
+    height: 120px;
+    min-height: 120px;
+    max-height: 120px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 8px;
+    margin: 10px 0;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column-reverse;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+}
+
+.status-bar.drag-over {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    border-style: dashed;
+}
+
+.status-message {
+    margin: 0;
+    font-size: 13px;
+    color: #666;
+    padding: 4px 8px;
+    line-height: 1.4;
+    min-height: 24px;
+    height: auto;
+    white-space: pre-line;
+    border-left: 3px solid transparent;
+}
+
+.status-message.info {
+    border-left-color: #2196f3;
+}
+
+.status-message.success {
+    border-left-color: #4caf50;
+}
+
+.status-message.error {
+    border-left-color: #f44336;
+}
+
+.status-message:first-child {
+    background-color: #2196f3;
+    color: white;
+    border-left: none;
+}
+
+.status-message:first-child.error {
+    background-color: #f44336;
+}
+
+.status-message:first-child.success {
+    background-color: #4caf50;
+}
+
+/* Regions Log */
+.regions-log {
+    margin-top: 15px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    font-family: monospace;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.region-entry {
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.region-entry.speaker1 {
+    color: #ff8c00;
+    border-left-color: rgba(247, 124, 8, 0.7);
+}
+
+.region-entry.speaker2 {
+    color: #28a745;
+    border-left-color: rgba(0, 255, 0, 0.7);
+}
+
+.region-entry.trash {
+    color: #6c757d;
+    border-left-color: rgba(108, 117, 125, 0.7);
+}
+
+/* Process Controls */
+.process-controls .command-button {
+    width: auto !important;
+}
+
+#processAudio {
+    margin-top: 0;
+    margin-left: 30px;
+    width: auto !important;
+}
+
+/* Responsive Styles */
+@media (max-width: 576px) {
+    .controls {
+        flex-wrap: nowrap;
+        padding: 0;
+        gap: 5px;
+    }
+
+    .button-blue {
+        min-width: calc(25% - 10px);
+        flex-grow: 1;
+    }
+
+    .command-button {
+        flex: 1 1 calc(50% - 5px);
+        justify-content: center;
+        white-space: normal;
+    }
+
+    .waveform-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .waveform-header > * {
+        width: 100%;
+    }
+}
