@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>NetBound Tools: Image Sync</title>
+    <title>NetBound Tools: Image to Video</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -356,7 +356,7 @@
 <body>
     <div class="tool-container">
         <div class="tool-header">
-            <h1 class="tool-title">NetBound Tools: Image Sync</h1>
+            <h1 class="tool-title">NetBound Tools: Image to Video</h1>
 
             <!-- Status bar now includes status -->
             <div id="statusBar" class="status-bar">

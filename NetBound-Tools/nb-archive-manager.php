@@ -1,4 +1,17 @@
 <?php
+/*
+| Filename: nb-archive-manager.php
+| Dependants: shared-styles.css
+|
+| NetBound Tools Archive Manager. Provides an interface for managing file backups.
+|
+| Functions:
+| - parseFileName($basename): Parses a filename to extract original name, version, and extension.
+| - groupFilesWithOthers($files, $maxMainGroups): Groups files for display, prioritizing common files.
+| - groupFiles($files): Groups files by original filename.
+| - (Various POST request handlers for file operations)
+*/
+
 session_start();
 
 /*
@@ -878,127 +891,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         document.addEventListener('DOMContentLoaded', () => {
             // Check if we're in an iframe
-            const isInIframe = window !== window.parent;
-
-            // Add debug info
-            updateStatus(`Running in ${isInIframe ? 'iframe' : 'normal'} mode`, 'info');
-
-            // Left-justify content when in iframe
-            if (isInIframe) {
-                document.querySelector('.menu-container').style.margin = '0';
-                document.body.classList.add('iframe-mode');
-            }
-
-            // Rest of the function remains the same...
-
-            // Initialize with ghosted buttons
-            document.querySelectorAll('#contextualButtons .command-button').forEach(button => {
-                button.classList.add('ghosted');
-            });
-
-            // Rest of the event listeners remain unchanged
-            document.getElementById('btnVSCodeHistory').addEventListener('click', () => {
-                clearCheckedItems();
-                closeAllTreeItems();
-                showVSCodeHistory();
-            });
-
-            document.getElementById('btnSelectAll').addEventListener('click', handleSelectAll);
-
-            document.getElementById('btnDeleteSelected').addEventListener('click', handleDeleteSelected);
-
-            document.getElementById('btnToClipboard').addEventListener('click', async () => {
-                const selectedFiles = Array.from(document.querySelectorAll('.file-check:checked'));
-
-                if (selectedFiles.length === 0) {
-                    updateStatus('No file selected', 'error');
-                    return;
-                }
-
-                if (selectedFiles.length > 1) {
-                    updateStatus('Please select only one file', 'error');
-                    return;
-                }
-
-                const filePath = selectedFiles[0].dataset.path;
-
-                try {
-                    const response = await fetch(window.location.href, {
-                        method: 'POST',
-                        body: new URLSearchParams({
-                            'action': 'getFileContent',
-                            'csrf_token': csrfToken,
-                            'file': filePath
-                        })
-                    });
-
-                    if (!response.ok) throw new Error('Failed to fetch file content');
-
-                    const content = await response.text();
-                    await navigator.clipboard.writeText(content);
-
-                    // Check if we're running in an iframe
-                    const isIframe = window !== window.parent;
-
-                    if (isIframe) {
-                        // Signal parent window to switch back to editor
-                        window.parent.postMessage({
-                            action: 'switchToEditor',
-                            status: 'Archived file content copied to clipboard'
-                        }, '*');
-                    } else {
-                        // Just show status if running independently
-                        updateStatus('File content copied to clipboard', 'success');
-                    }
-
-                } catch (error) {
-                    console.error('Error:', error);
-                    updateStatus('Failed to copy file content', 'error');
-                }
-            });
-
-            document.getElementById('btnNetboundBackups').addEventListener('click', () => {
-                clearCheckedItems();
-                closeAllTreeItems();
-                showNetboundBackups();
-            });
-
-            document.getElementById('fileTree').addEventListener('change', handleCheckboxChange);
-
-            document.getElementById('btnRetrieveSelected').addEventListener('click', async () => {
-                const selectedFiles = Array.from(document.querySelectorAll('.file-check:checked'))
-                    .map(checkbox => checkbox.dataset.path);
-
-                if (!selectedFiles.length) {
-                    updateStatus('Select files to retrieve', 'info');
-                    return;
-                }
-
-                const result = await postData('retrieve', {
-                    files: selectedFiles
-                });
-
-                if (result.success) {
-                    updateStatus(`${result.retrieved.length} file(s) copied to current folder`, 'success');
-                    // Refresh file list without updating status
-                    const newGroups = await postData(currentView === 'vscode' ? 'getHistory' : 'getBackups');
-                    setupTreeView(newGroups);
-                    clearCheckedItems();
-                }
-            });
-
-            document.getElementById('btnRestart').addEventListener('click', () => {
-                window.location.reload();
-            });
         });
-
-        function clearCheckedItems() {
-            document.querySelectorAll('.file-check, .date-check, .folder-check').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            updateCheckedCount();
-        }
-    </script>
-</body>
-
-</html>
