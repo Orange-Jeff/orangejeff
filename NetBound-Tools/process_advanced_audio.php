@@ -1,27 +1,16 @@
 <?php
-// Set error reporting for debugging
+// Set error reporting
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// Log function for debugging
-function log_debug($message)
-{
-    file_put_contents('process_debug.log', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
+// Log function
+function log_debug($message) {
+    file_put_contents('audio_processing.log', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
 }
 
 log_debug("Request received");
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    log_debug("Error: Only POST method is accepted");
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'message' => 'Only POST method is accepted'
-    ]);
-    exit;
-}
-
-// Ensure we have output directory
+// Ensure output directory exists
 $output_dir = __DIR__ . '/output';
 if (!file_exists($output_dir)) {
     mkdir($output_dir, 0777, true);
@@ -38,82 +27,52 @@ if (!isset($_FILES['audioFile']) || $_FILES['audioFile']['error'] !== UPLOAD_ERR
     exit;
 }
 
-// Log uploaded file info
-log_debug("File received: " . $_FILES['audioFile']['name'] . ", size: " . $_FILES['audioFile']['size']);
-log_debug("Speaker: " . ($_POST['speaker'] ?? 'unknown') . ", Option: " . ($_POST['option'] ?? 'unknown'));
-
 // Get processing parameters
 $speaker = $_POST['speaker'] ?? 'speaker1';
 $option = $_POST['option'] ?? 'default';
 $timestamp = date('YmdHis');
 $input_filename = basename($_FILES['audioFile']['name']);
 $output_filename = "{$input_filename}_{$speaker}_{$option}_{$timestamp}.wav";
+$temp_output = $output_dir . '/temp_' . uniqid() . '.wav';
 $output_path = $output_dir . '/' . $output_filename;
 
 // Parse regions data
 $regions = json_decode($_POST['regions'], true);
-if (!$regions) {
-    log_debug("No valid regions data provided");
+if (!$regions || !isset($regions['speaker1']) || !isset($regions['speaker2'])) {
+    log_debug("Invalid regions data provided");
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'No valid regions data provided'
+        'message' => 'Invalid regions data format'
     ]);
     exit;
 }
 
-// Temp file for processing
-$temp_output = $output_dir . '/temp_' . uniqid() . '.wav';
-
 try {
-    // Copy source file to temp
-    if (!copy($_FILES['audioFile']['tmp_name'], $temp_output)) {
+    // Move uploaded file to temp location
+    if (!move_uploaded_file($_FILES['audioFile']['tmp_name'], $temp_output)) {
         throw new Exception("Failed to create temporary file");
     }
 
     // Process based on option
     switch ($option) {
         case 'default':
-            // Mute other speaker's regions
-            copy($temp_output, $output_path);
+            // Create output file
+            if (!copy($temp_output, $output_path)) {
+                throw new Exception("Failed to create output file");
+            }
+
+            // Mute regions of other speaker
             $other_speaker = $speaker === 'speaker1' ? 'speaker2' : 'speaker1';
-            foreach ($regions as $region) {
-                if ($region['type'] === $other_speaker) {
+            if (isset($regions[$other_speaker])) {
+                foreach ($regions[$other_speaker] as $region) {
                     muteRegion($output_path, $region['start'], $region['end']);
                 }
             }
             break;
 
-        case 'edited':
-            // Delete non-speaking regions
-            $speaking_regions = [];
-            foreach ($regions as $region) {
-                if ($region['type'] === $speaker) {
-                    $speaking_regions[] = [
-                        'start' => $region['start'],
-                        'end' => $region['end']
-                    ];
-                }
-            }
-            concatenateRegions($temp_output, $speaking_regions, $output_path);
-            break;
-
-        case $speaker:
-            // Extract only this speaker's segments
-            $speaker_regions = [];
-            foreach ($regions as $region) {
-                if ($region['type'] === $speaker) {
-                    $speaker_regions[] = [
-                        'start' => $region['start'],
-                        'end' => $region['end']
-                    ];
-                }
-            }
-            extractRegions($temp_output, $speaker_regions, $output_path);
-            break;
-
         case 'full_lr':
-            // Route speakers to left/right channels
+            // Create stereo version with speakers on different channels
             if (!createStereoSeparation($temp_output, $regions, $output_path)) {
                 throw new Exception("Failed to create stereo separation");
             }
@@ -123,234 +82,136 @@ try {
             throw new Exception("Unknown processing option: $option");
     }
 
-    // Clean up temp file
-    @unlink($temp_output);
-
-    log_debug("Successfully processed file: $output_path");
-
-    // Return success response
+    // Success response
+    log_debug("Processing successful: $output_filename");
     header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
+        'message' => 'Audio processed successfully',
         'fileUrl' => 'output/' . $output_filename,
-        'fileName' => $output_filename,
-        'message' => 'Audio processed successfully'
+        'fileName' => $output_filename
     ]);
 
 } catch (Exception $e) {
-    // Clean up temp file if it exists
-    if (file_exists($temp_output)) {
-        @unlink($temp_output);
-    }
-
-    log_debug("Processing error: " . $e->getMessage());
+    log_debug("Error: " . $e->getMessage());
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
-}
-
-// Read WAV header and get format info
-function getWavInfo($handle) {
-    // Read RIFF header
-    fseek($handle, 0);
-    $header = unpack('NChunkID/VChunkSize/NFormat', fread($handle, 12));
-
-    // Read format chunk
-    fseek($handle, 12);
-    $format = unpack('NSubchunk1ID/VSubchunk1Size/vAudioFormat/vNumChannels/VSampleRate/VByteRate/vBlockAlign/vBitsPerSample',
-        fread($handle, 24));
-
-    // Find data chunk
-    $dataOffset = 36;
-    while (true) {
-        fseek($handle, $dataOffset);
-        $chunkHeader = fread($handle, 8);
-        if (strlen($chunkHeader) < 8) break;
-
-        $chunk = unpack('NID/VSize', $chunkHeader);
-        if ($chunk['ID'] === 0x64617461) { // 'data' chunk
-            break;
-        }
-        $dataOffset += 8 + $chunk['Size'];
+} finally {
+    // Clean up temp file
+    if (file_exists($temp_output)) {
+        @unlink($temp_output);
     }
-
-    return [
-        'channels' => $format['NumChannels'],
-        'sampleRate' => $format['SampleRate'],
-        'bitsPerSample' => $format['BitsPerSample'],
-        'dataOffset' => $dataOffset + 8,
-        'bytesPerSample' => $format['BitsPerSample'] / 8,
-        'blockAlign' => $format['BlockAlign']
-    ];
 }
 
+// Audio processing functions
 function muteRegion($file, $start, $end) {
     $handle = fopen($file, 'r+b');
     if (!$handle) {
-        throw new Exception("Could not open file for muting: $file");
+        throw new Exception("Could not open file for muting");
     }
 
-    $info = getWavInfo($handle);
+    // Read WAV header
+    $header = fread($handle, 44);
+    if (strlen($header) !== 44) {
+        fclose($handle);
+        throw new Exception("Invalid WAV header");
+    }
+
+    // Get format info
+    $channels = unpack('v', substr($header, 22, 2))[1];
+    $sampleRate = unpack('V', substr($header, 24, 4))[1];
+    $bitsPerSample = unpack('v', substr($header, 34, 2))[1];
+    $bytesPerSample = $bitsPerSample / 8;
 
     // Calculate positions
-    $startByte = $info['dataOffset'] + floor($start * $info['sampleRate']) * $info['blockAlign'];
-    $endByte = $info['dataOffset'] + floor($end * $info['sampleRate']) * $info['blockAlign'];
+    $startByte = 44 + floor($start * $sampleRate) * $channels * $bytesPerSample;
+    $endByte = 44 + floor($end * $sampleRate) * $channels * $bytesPerSample;
     $length = $endByte - $startByte;
-
-    // Create silence buffer
-    $silence = str_repeat("\0", min(8192, $length));
 
     // Write silence
     fseek($handle, $startByte);
-    $remaining = $length;
-    while ($remaining > 0) {
-        $writeSize = min(strlen($silence), $remaining);
+    $silence = str_repeat("\0", 8192);
+
+    while ($length > 0) {
+        $writeSize = min(strlen($silence), $length);
         fwrite($handle, substr($silence, 0, $writeSize));
-        $remaining -= $writeSize;
+        $length -= $writeSize;
     }
 
     fclose($handle);
 }
 
-function concatenateRegions($input_file, $regions, $output_file) {
-    $input = fopen($input_file, 'rb');
-    if (!$input) {
-        throw new Exception("Could not open input file: $input_file");
-    }
-
-    $info = getWavInfo($input);
-
-    // Create output file with WAV header
-    $output = fopen($output_file, 'wb');
-    if (!$output) {
-        fclose($input);
-        throw new Exception("Could not create output file: $output_file");
-    }
-
-    // Copy WAV header
-    fseek($input, 0);
-    $header = fread($input, $info['dataOffset']);
-    fwrite($output, $header);
-
-    // Calculate total output size
-    $totalSamples = 0;
-    foreach ($regions as $region) {
-        $regionSamples = floor(($region['end'] - $region['start']) * $info['sampleRate']);
-        $totalSamples += $regionSamples;
-    }
-
-    // Update data chunk size
-    $dataSize = $totalSamples * $info['blockAlign'];
-    fseek($output, 40);
-    fwrite($output, pack('V', $dataSize));
-
-    // Update RIFF chunk size
-    $riffSize = $dataSize + 36;
-    fseek($output, 4);
-    fwrite($output, pack('V', $riffSize));
-
-    // Copy regions
-    foreach ($regions as $region) {
-        $startSample = floor($region['start'] * $info['sampleRate']);
-        $endSample = floor($region['end'] * $info['sampleRate']);
-        $numSamples = $endSample - $startSample;
-
-        fseek($input, $info['dataOffset'] + $startSample * $info['blockAlign']);
-
-        $remaining = $numSamples * $info['blockAlign'];
-        while ($remaining > 0) {
-            $readSize = min(8192, $remaining);
-            $data = fread($input, $readSize);
-            fwrite($output, $data);
-            $remaining -= $readSize;
-        }
-    }
-
-    fclose($input);
-    fclose($output);
-}
-
-function extractRegions($input_file, $regions, $output_file) {
-    // For single speaker extraction, use concatenateRegions
-    concatenateRegions($input_file, $regions, $output_file);
-}
-
 function createStereoSeparation($input_file, $regions, $output_file) {
-    $input = fopen($input_file, 'rb');
-    if (!$input) {
-        throw new Exception("Could not open input file: $input_file");
+    $handle = fopen($input_file, 'rb');
+    if (!$handle) {
+        throw new Exception("Could not open input file");
     }
 
-    $info = getWavInfo($input);
+    // Read WAV header
+    $header = fread($handle, 44);
+    if (strlen($header) !== 44) {
+        fclose($handle);
+        throw new Exception("Invalid WAV header");
+    }
 
-    // Create output file
+    // Get format info
+    $channels = unpack('v', substr($header, 22, 2))[1];
+    $sampleRate = unpack('V', substr($header, 24, 4))[1];
+    $bitsPerSample = unpack('v', substr($header, 34, 2))[1];
+    $bytesPerSample = $bitsPerSample / 8;
+
+    // Create stereo output
     $output = fopen($output_file, 'wb');
     if (!$output) {
-        fclose($input);
-        throw new Exception("Could not create output file: $output_file");
+        fclose($handle);
+        throw new Exception("Could not create output file");
     }
 
-    // Copy and modify header for stereo
-    fseek($input, 0);
-    $header = fread($input, $info['dataOffset']);
-
-    // Update header for stereo output
+    // Write modified header for stereo
     $header = substr($header, 0, 22) .
              pack('v', 2) . // NumChannels = 2
-             substr($header, 24, 8) .
-             pack('V', $info['sampleRate'] * 4) . // ByteRate = SampleRate * NumChannels * BitsPerSample/8
-             pack('v', 4) . // BlockAlign = NumChannels * BitsPerSample/8
-             substr($header, 36);
-
+             pack('V', $sampleRate) . // SampleRate
+             pack('V', $sampleRate * 4) . // ByteRate = SampleRate * NumChannels * BytesPerSample
+             pack('v', 4) . // BlockAlign = NumChannels * BytesPerSample
+             substr($header, 34);
     fwrite($output, $header);
 
     // Process audio data
-    $bufferSize = 8192;
-    $totalSamples = filesize($input_file) - $info['dataOffset'];
-    $totalSamples = floor($totalSamples / $info['blockAlign']);
+    while (!feof($handle)) {
+        $data = fread($handle, 8192);
+        if ($data === false) break;
 
-    // Create stereo buffer
-    $stereoData = str_repeat("\0", $bufferSize * 2);
+        $pos = ftell($handle) - strlen($data) - 44;
+        $time = $pos / ($sampleRate * $bytesPerSample);
 
-    for ($sample = 0; $sample < $totalSamples; $sample += $bufferSize / $info['blockAlign']) {
-        // Read input data
-        fseek($input, $info['dataOffset'] + $sample * $info['blockAlign']);
-        $data = fread($input, $bufferSize);
-        if (!$data) break;
-
-        // Get current time position
-        $time = $sample / $info['sampleRate'];
-
-        // Determine which speaker is active
+        // Find active speaker for this position
         $activeSpeaker = null;
-        foreach ($regions as $region) {
-            if ($time >= $region['start'] && $time < $region['end']) {
-                $activeSpeaker = $region['type'];
-                break;
+        foreach (['speaker1', 'speaker2'] as $spk) {
+            foreach ($regions[$spk] as $region) {
+                if ($time >= $region['start'] && $time < $region['end']) {
+                    $activeSpeaker = $spk;
+                    break 2;
+                }
             }
         }
 
-        // Route audio to appropriate channel
-        if ($activeSpeaker === 'speaker1') {
-            // Route to left channel
-            for ($i = 0; $i < strlen($data); $i += $info['blockAlign']) {
-                fwrite($output, substr($data, $i, $info['blockAlign']) . str_repeat("\0", $info['blockAlign']));
+        // Write stereo data
+        for ($i = 0; $i < strlen($data); $i += $bytesPerSample) {
+            $sample = substr($data, $i, $bytesPerSample);
+            if ($activeSpeaker === 'speaker1') {
+                fwrite($output, $sample . str_repeat("\0", $bytesPerSample));
+            } elseif ($activeSpeaker === 'speaker2') {
+                fwrite($output, str_repeat("\0", $bytesPerSample) . $sample);
+            } else {
+                fwrite($output, str_repeat("\0", $bytesPerSample * 2));
             }
-        } elseif ($activeSpeaker === 'speaker2') {
-            // Route to right channel
-            for ($i = 0; $i < strlen($data); $i += $info['blockAlign']) {
-                fwrite($output, str_repeat("\0", $info['blockAlign']) . substr($data, $i, $info['blockAlign']));
-            }
-        } else {
-            // No active speaker - write silence to both channels
-            fwrite($output, str_repeat("\0", strlen($data) * 2));
         }
     }
 
-    fclose($input);
+    fclose($handle);
     fclose($output);
-
     return true;
 }

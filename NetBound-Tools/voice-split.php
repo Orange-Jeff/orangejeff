@@ -1,59 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Voice Split Tool</title>
-    <link rel="stylesheet" type="text/css" href="nb-voice-split.css">
-</head>
-<body>
-    <div id="app-container">
-        <div id="toolbar">
+<?php
+function showInterface() {
+    ?>
+    <div class="tool-container">
+        <div class="audio-controls">
             <input type="file" id="audioFileInput" accept="audio/wav" />
             <button onclick="loadAudio()">Load Audio</button>
-            <div class="save-buttons">
-                <button onclick="saveProcessedAudio('speaker1', 'default')" id="save-speaker1">Save Speaker 1</button>
-                <button onclick="saveProcessedAudio('speaker2', 'default')" id="save-speaker2">Save Speaker 2</button>
-                <button onclick="saveProcessedAudio('both', 'full_lr')" id="save-stereo">Save Stereo</button>
+        </div>
+        <div id="waveform"></div>
+        <div id="timeline"></div>
+        <div class="control-panel">
+            <div class="region-controls">
+                <button onclick="setRegionType('speaker1')">Speaker 1</button>
+                <button onclick="setRegionType('speaker2')">Speaker 2</button>
+                <button onclick="deleteSelectedRegion()">Delete Region</button>
+            </div>
+            <div class="save-controls">
+                <button onclick="saveProcessedAudio('speaker1', 'default')">Save Speaker 1</button>
+                <button onclick="saveProcessedAudio('speaker2', 'default')">Save Speaker 2</button>
+                <button onclick="saveProcessedAudio('combined', 'full_lr')">Save Combined</button>
             </div>
         </div>
-        <div id="status-messages"></div>
-        <div id="waveform-container">
-            <div id="waveform"></div>
-            <div id="timeline"></div>
-        </div>
-        <div id="region-controls">
-            <button onclick="setRegionType('speaker1')" class="region-btn speaker1" disabled>Speaker 1</button>
-            <button onclick="setRegionType('speaker2')" class="region-btn speaker2" disabled>Speaker 2</button>
-            <button onclick="setRegionType('trash')" class="region-btn trash" disabled>Trash</button>
-            <button onclick="deleteSelectedRegion()" class="region-btn delete" disabled>Delete Region</button>
-        </div>
+        <div id="status"></div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.4/wavesurfer.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.4/plugin/wavesurfer.regions.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/6.6.4/plugin/wavesurfer.timeline.min.js"></script>
 
     <script>
         let wavesurfer;
-        let originalAudioFile;
-        let sequentialRegions = [];
         let selectedRegion = null;
-        let isProcessing = false;
-
-        function initializeWaveSurfer() {
-            return WaveSurfer.create({
-                container: '#waveform',
-                waveColor: '#4F4A85',
-                progressColor: '#383351',
-                responsive: true,
-                height: 128,
-                plugins: [
-                    WaveSurfer.regions.create(),
-                    WaveSurfer.timeline.create({
-                        container: '#timeline'
-                    })
-                ]
-            });
-        }
+        let originalAudioFile;
+        let regions = [];
 
         function loadAudio() {
             const fileInput = document.getElementById('audioFileInput');
@@ -69,223 +43,130 @@
                 wavesurfer.destroy();
             }
 
-            wavesurfer = initializeWaveSurfer();
-            wavesurfer.load(url);
-
-            wavesurfer.on('ready', function() {
-                updateStatus('Audio loaded successfully', 'success');
-                setupRegionHandling();
-                updateButtons();
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#4F4A85',
+                progressColor: '#383351',
+                plugins: [
+                    WaveSurfer.regions.create(),
+                    WaveSurfer.timeline.create({
+                        container: '#timeline'
+                    })
+                ]
             });
 
-            wavesurfer.on('error', function(err) {
-                updateStatus('Error loading audio: ' + err, 'error');
+            wavesurfer.load(url);
+            wavesurfer.on('ready', function() {
+                setupRegions();
             });
         }
 
-        function setupRegionHandling() {
-            sequentialRegions = [];
-            selectedRegion = null;
-
-            wavesurfer.enableDragSelection({
-                color: 'rgba(79, 74, 133, 0.2)'
-            });
+        function setupRegions() {
+            regions = [];
+            wavesurfer.enableDragSelection({});
 
             wavesurfer.on('region-created', function(region) {
                 region.type = 'speaker1';
-                region.element.title = 'Speaker 1';
-                sequentialRegions.push(region);
-                updateRegionDisplay(region);
-                updateButtons();
+                regions.push(region);
             });
 
-            wavesurfer.on('region-click', function(region, e) {
-                e.stopPropagation();
-
-                if (selectedRegion && selectedRegion !== region) {
-                    selectedRegion.element.classList.remove('selected');
-                }
-
+            wavesurfer.on('region-click', function(region) {
                 selectedRegion = region;
-                region.element.classList.add('selected');
-                updateRegionDisplay(region);
-                updateButtons();
             });
-
-            wavesurfer.on('interaction', function(e) {
-                if (e.targetRegions.length === 0) {
-                    if (selectedRegion) {
-                        selectedRegion.element.classList.remove('selected');
-                        selectedRegion = null;
-                        updateButtons();
-                    }
-                }
-            });
-        }
-
-        function updateRegionDisplay(region) {
-            region.element.style.backgroundColor = getColorForType(region.type);
-            region.element.title = getTypeLabel(region.type);
-
-            // Update button states to reflect current region type
-            document.querySelectorAll('.region-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.classList.contains(region.type));
-            });
-        }
-
-        function updateButtons() {
-            const hasSelection = selectedRegion !== null;
-            const buttons = document.querySelectorAll('.region-btn');
-
-            buttons.forEach(btn => {
-                btn.disabled = !hasSelection || isProcessing;
-                btn.classList.toggle('active', hasSelection && btn.classList.contains(selectedRegion?.type));
-            });
-        }
-
-        function getColorForType(type) {
-            const colors = {
-                'speaker1': 'rgba(65, 105, 225, 0.3)',
-                'speaker2': 'rgba(50, 205, 50, 0.3)',
-                'trash': 'rgba(255, 0, 0, 0.3)'
-            };
-            return colors[type] || colors.speaker1;
-        }
-
-        function getTypeLabel(type) {
-            const labels = {
-                'speaker1': 'Speaker 1',
-                'speaker2': 'Speaker 2',
-                'trash': 'Trash'
-            };
-            return labels[type] || 'Unknown';
         }
 
         function setRegionType(type) {
-            if (selectedRegion && !isProcessing) {
+            if (selectedRegion) {
                 selectedRegion.type = type;
-                updateRegionDisplay(selectedRegion);
+                selectedRegion.element.title = type;
+                updateRegionColor(selectedRegion);
             }
         }
 
+        function updateRegionColor(region) {
+            const colors = {
+                'speaker1': 'rgba(0, 0, 255, 0.2)',
+                'speaker2': 'rgba(0, 255, 0, 0.2)'
+            };
+            region.element.style.backgroundColor = colors[region.type] || colors.speaker1;
+        }
+
         function deleteSelectedRegion() {
-            if (selectedRegion && !isProcessing) {
-                const index = sequentialRegions.indexOf(selectedRegion);
+            if (selectedRegion) {
+                const index = regions.indexOf(selectedRegion);
                 if (index > -1) {
-                    sequentialRegions.splice(index, 1);
+                    regions.splice(index, 1);
                 }
                 selectedRegion.remove();
                 selectedRegion = null;
-                updateButtons();
             }
         }
 
         function saveProcessedAudio(speaker, option) {
-            if (isProcessing) {
-                updateStatus('Processing in progress...', 'info');
-                return;
-            }
-
-            if (!originalAudioFile || !(originalAudioFile instanceof File)) {
+            if (!originalAudioFile) {
                 updateStatus('No audio file loaded', 'error');
                 return;
             }
 
-            if (sequentialRegions.length === 0) {
+            if (regions.length === 0) {
                 updateStatus('No regions defined', 'error');
                 return;
             }
-
-            isProcessing = true;
-            updateButtons();
-
-            const loadingIndicator = document.createElement('div');
-            loadingIndicator.className = 'loading-indicator';
-            loadingIndicator.innerHTML = '<div class="spinner"></div><p>Processing audio...</p>';
-            document.body.appendChild(loadingIndicator);
 
             const formData = new FormData();
             formData.append('audioFile', originalAudioFile);
             formData.append('speaker', speaker);
             formData.append('option', option);
-            formData.append('fileName', originalAudioFile.name);
 
             const groupedRegions = {
-                speaker1: sequentialRegions.filter(r => r.type === 'speaker1')
+                speaker1: regions.filter(r => r.type === 'speaker1')
                     .map(r => ({ start: r.start, end: r.end })),
-                speaker2: sequentialRegions.filter(r => r.type === 'speaker2')
-                    .map(r => ({ start: r.start, end: r.end })),
-                trash: sequentialRegions.filter(r => r.type === 'trash')
+                speaker2: regions.filter(r => r.type === 'speaker2')
                     .map(r => ({ start: r.start, end: r.end }))
             };
 
             formData.append('regions', JSON.stringify(groupedRegions));
 
-            updateStatus(`Processing ${speaker} with option: ${option}...`, "info");
+            updateStatus('Processing audio...', 'info');
 
             fetch('process_advanced_audio.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(result => {
-                if (document.body.contains(loadingIndicator)) {
-                    document.body.removeChild(loadingIndicator);
-                }
-
                 if (result.success) {
-                    updateStatus('Processing complete!', 'success');
-
+                    updateStatus('Processing complete', 'success');
                     if (result.fileUrl) {
-                        const downloadLink = document.createElement('a');
-                        downloadLink.href = result.fileUrl;
-                        downloadLink.download = result.fileName || `${speaker}_processed.wav`;
-                        downloadLink.style.display = 'none';
-                        document.body.appendChild(downloadLink);
-                        downloadLink.click();
-                        document.body.removeChild(downloadLink);
-
-                        updateStatus(`File saved as ${result.fileName}`, 'success');
+                        const link = document.createElement('a');
+                        link.href = result.fileUrl;
+                        link.download = result.fileName || 'processed.wav';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                     }
                 } else {
                     throw new Error(result.message || 'Processing failed');
                 }
             })
             .catch(error => {
-                if (document.body.contains(loadingIndicator)) {
-                    document.body.removeChild(loadingIndicator);
-                }
-                updateStatus(`Error: ${error.message}`, "error");
-                console.error("Processing error:", error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                updateButtons();
+                updateStatus('Error: ' + error.message, 'error');
+                console.error(error);
             });
         }
 
         function updateStatus(message, type = 'info') {
-            const statusDiv = document.createElement('div');
-            statusDiv.className = `status-message ${type}`;
+            const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;
-
-            const container = document.getElementById('status-messages');
-            container.insertBefore(statusDiv, container.firstChild);
-
-            while (container.children.length > 5) {
-                container.removeChild(container.lastChild);
-            }
+            statusDiv.className = type;
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            updateStatus('Ready to load audio file', 'info');
-            updateButtons();
+            loadAudio();
         });
     </script>
-</body>
-</html>
+    <?php
+}
+
+showInterface();
+?>

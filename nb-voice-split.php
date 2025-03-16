@@ -892,15 +892,16 @@
 
                 const regionData = {
                     start: startTime,
-                    end: currentTime,
-                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`,
-                    region: region
-                };
+                    end: currentTime
+,
+                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`
+,
+                    region: region };
 
                 if (speakerType === 'trash') {
                     regionsData.trash.push(regionData);
                 } else {
-                    regionsData[`speaker${speakerType}`].push(regionData);
+                    regionsData['speaker' + speakerType].push(regionData);
                 }
 
                 sequentialRegions.push(regionData);
@@ -947,7 +948,23 @@
                 formData.append('speaker', speaker);
                 formData.append('option', option);
                 formData.append('fileName', currentFileName);
-                formData.append('regions', JSON.stringify(sequentialRegions));
+
+                // Convert regions to the format expected by the backend
+                const processedRegions = {
+                    speaker1: regionsData.speaker1.map(r => ({
+                        start: r.start,
+                        end: r.end
+                    })),
+                    speaker2: regionsData.speaker2.map(r => ({
+                        start: r.start,
+                        end: r.end
+                    })),
+                    trash: regionsData.trash.map(r => ({
+                        start: r.start,
+                        end: r.end
+                    }))
+                };
+                formData.append('regions', JSON.stringify(processedRegions));
 
                 // For processing, you'll need the original audio file
                 if (originalAudioFile instanceof File) {
