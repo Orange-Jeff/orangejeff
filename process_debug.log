@@ -1,0 +1,8 @@
+[2025-03-16 03:04:56] Request received
+[2025-03-16 03:04:56] File received: ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav, size: 1201327
+[2025-03-16 03:04:56] Speaker: speaker1, Option: default
+[2025-03-16 03:04:56] File processed and saved: E:\OrangeJeff/output/speaker1_default_20250316030456.wav
+[2025-03-16 03:06:51] Request received
+[2025-03-16 03:06:51] File received: ElevenLabs_2025-03-14T18_37_16_OrangeJeff_ivc_s50_sb75_se0_b_m2 (4).wav_speaker1.wav, size: 1201327
+[2025-03-16 03:06:51] Speaker: speaker1, Option: speaker1
+[2025-03-16 03:06:51] File processed and saved: E:\OrangeJeff/output/speaker1_speaker1_20250316030651.wav

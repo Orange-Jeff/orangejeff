@@ -34,7 +34,7 @@
 
         .editor-header {
             background: #f4f4f9;
-            padding: 0 0 10px 0;
+            padding: 0;
             border-bottom: 1px solid #dee2e6;
             width: 100%;
             box-sizing: border-box;
@@ -43,7 +43,6 @@
         .editor-title {
             margin: 20px 0 8px 0;
             color: #0056b3;
-            line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
         }
@@ -78,8 +77,8 @@
         #waveform {
             width: 100%;
             height: 150px;
-            background-color: #e0f0ff;
-            border: 2px solid #0056b3;
+            background-color: #f0f8ff;
+            border: 1px solid #0056b3;
             position: relative;
             transition: all 0.3s ease;
             overflow: hidden;
@@ -134,7 +133,7 @@
         .button-controls,
         .button-group {
             width: 100%;
-            padding: 10px 0;
+            padding: 5px 0;
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
@@ -279,6 +278,10 @@
             margin: 2px 0;
             border-radius: 3px;
             color: #666;
+        }
+
+        .status-bar {
+            margin: 5px 0 !important;
         }
 
         .status-message:first-child {
@@ -454,10 +457,11 @@
         #cursor-position {
             background: #e9ecef;
             padding: 3px 5px !important;
-            margin-left: 3px !important;
-            margin-right: 3px !important;
+            margin: 0 !important;
             font-size: 12px !important;
             font-family: monospace;
+            white-space: nowrap;
+            line-height: 1;
         }
 
         /* Process Controls */
@@ -616,6 +620,7 @@
                     <button type="button" id="clearRegions" class="button-blue warning" title="Clear All Segments"><i class="fas fa-eraser"></i></button>
                 </div>
             </div>
+
             <div class="waveform-wrapper">
                 <div id="waveform">
                     <div class="channel-label left">Left Channel</div>
@@ -625,17 +630,17 @@
             <div class="controls">
                 <div class="button-group">
                     <button id="jumpStart" class="button-blue" title="Jump to start"><i class="fas fa-step-backward"></i></button>
-                    <button id="jumpBack" class="button-blue" title="Jump back"><i class="fas fa-backward"></i></button>
-                    <button id="playPause" class="button-blue" title="Play/Pause"><i class="fas fa-play"></i></button>
-                    <button id="jumpForward" class="button-blue" title="Jump forward"><i class="fas fa-forward"></i></button>
+                    <button id="jumpBack" class="button-blue" title="Jump back 3s"><i class="fas fa-backward"></i></button>
+                    <button id="playPause" class="button-blue" style="width: 50px" title="Play/Pause"><i class="fas fa-play"></i></button>
+                    <button id="jumpForward" class="button-blue" title="Jump forward 3s"><i class="fas fa-forward"></i></button>
                     <button id="jumpEnd" class="button-blue" title="Jump to end"><i class="fas fa-step-forward"></i></button>
                 </div>
 
                 <span id="cursor-position">Position: 0:00</span>
 
                 <div class="button-group" style="margin-left: 10px;">
-                    <button id="speaker1Region" class="button-blue" title="Mark Speaker 1 Region" style="background-color: #ff8c00;">1</button>
-                    <button id="speaker2Region" class="button-blue" title="Mark Speaker 2 Region" style="background-color: #28a745;">2</button>
+                    <button id="speaker1Region" class="button-blue" title="Mark Speaker 1 Region" style="background-color: #ff8c00;"><i class="fas fa-user"></i></button>
+                    <button id="speaker2Region" class="button-blue" title="Mark Speaker 2 Region" style="background-color: #28a745;"><i class="fas fa-user-alt"></i></button>
                     <button id="trashRegion" class="button-blue" title="Mark Trash Region" style="background-color: #6c757d;"><i class="fas fa-trash"></i></button>
                     <button id="undoRegion" class="button-blue" title="Undo Last Region"><i class="fas fa-undo"></i></button>
 
@@ -751,7 +756,8 @@
             const wavesurfer = WaveSurfer.create({
                 container: '#waveform',
                 waveColor: '#0056b3',
-                progressColor: '#003366',
+                progressColor: '#0066cc',
+                cursorWidth: 2,
                 responsive: true,
                 height: 150,
                 scrollParent: true,
@@ -763,13 +769,13 @@
                     channels: [{
                             waveColor: '#4488cc',
                             progressColor: '#2266aa',
-                            height: 65,
+                            height: 75,
                             label: 'Left'
                         },
                         {
                             waveColor: '#99bbdd',
                             progressColor: '#6699cc',
-                            height: 65,
+                            height: 75,
                             label: 'Right'
                         }
                     ]
@@ -877,7 +883,7 @@
                 }
 
                 // Create region
-                const color = speakerType === 1 ? 'rgba(255, 140, 0, 0.3)' :
+                const color = speakerType === 1 ? 'rgba(255, 102, 0, 0.3)' :
                     speakerType === 2 ? 'rgba(40, 167, 69, 0.3)' :
                     'rgba(108, 117, 125, 0.3)';
                 const label = speakerType === 'trash' ? 'Trash' : `Speaker ${speakerType}`;
@@ -909,6 +915,7 @@
                 const logEntry = document.createElement('div');
                 logEntry.className = `region-entry ${speakerType === 'trash' ? 'trash' : 'speaker' + speakerType}`;
                 logEntry.textContent = `${label}: ${formatTime(startTime)} - ${formatTime(currentTime)}`;
+                document.getElementById('regions-log').style.cssText = 'height: 85px !important; min-height: 85px; overflow-y: auto; line-height: 16px;';
                 regionsLog.appendChild(logEntry);
                 regionsLog.scrollTop = regionsLog.scrollHeight;
 
@@ -1082,6 +1089,24 @@
                 wavesurfer.playPause();
             });
 
+            // Forward/Back 3 seconds
+            document.getElementById('jumpForward').addEventListener('click', () => {
+                const currentTime = wavesurfer.getCurrentTime();
+                const duration = wavesurfer.getDuration();
+                const newTime = Math.min(currentTime + 3, duration);
+                wavesurfer.seekTo(newTime / duration);
+                updateDisplays();
+            });
+
+            document.getElementById('jumpBack').addEventListener('click', () => {
+                const currentTime = wavesurfer.getCurrentTime();
+                const duration = wavesurfer.getDuration();
+                const newTime = Math.max(currentTime - 3, 0);
+                wavesurfer.seekTo(newTime / duration);
+                updateDisplays();
+            });
+
+            // Play/Pause events
             wavesurfer.on('play', () => {
                 playPauseButton.classList.add('playing');
                 playPauseIcon.classList.remove('fa-play');
@@ -1197,11 +1222,27 @@
             // Process audio button
             processAudioBtn.addEventListener('click', processAudio);
 
+            // Clear regions handler
+            document.getElementById('clearRegions').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all segments?')) {
+                    wavesurfer.clearRegions();
+                    regionsData = { speaker1: [], speaker2: [], trash: [] };
+                    sequentialRegions = [];
+                    regionsLog.innerHTML = '';
+                    lastEndPoint = 0;
+                    document.getElementById('saveOptionsContainer').style.display = 'none';
+                    processedFiles.style.display = 'none';
+                }
+            });
+
             // Restart button functionality
             btnRestart.addEventListener('click', () => {
                 if (!originalAudioFile) {
                     return;
                 }
+
+                document.getElementById('saveOptionsContainer').style.display = 'none';
+                processedFiles.style.display = 'none';
 
                 if (confirm('Are you sure you want to restart? All segments will be cleared.')) {
                     handleFile(originalAudioFile);
