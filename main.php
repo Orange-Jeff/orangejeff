@@ -1,8 +1,15 @@
 <?php
-/* -------------------------------------------------------------------------- */
-/*                                 Core Setup                                   */
-/*                                 V-INC                                       */
-/* -------------------------------------------------------------------------- */
+/*
+| NetBound Tool Suite - Main Editor and launcher
+| version  : 100.1.20
+| NetBound.ca - orangejeff@frogstar.com
+| created  : 19/10/2024 20:24:36
+| updated  : 16/03/2025 23:39:57
++---------------------------------------------------------------------------- */
+/*
+| Filename: main.php
+| Dependant: main.css
+|/* -------------------------------------------------------------------------- */
 // Error Reporting and Session Start
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
