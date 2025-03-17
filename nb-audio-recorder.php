@@ -14,6 +14,28 @@
     <title>NetBound Tools: Dual Audio Recorder</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="nb-recorder.css">
+    <style>
+        /* Default styling (centered for standalone) */
+        .tool-container {
+            margin: 0 auto;
+            max-width: 1200px;
+        }
+
+        /* Left-justified when in iframe */
+        .in-iframe .tool-container {
+            margin: 0;
+            max-width: none;
+        }
+    </style>
+    <script>
+        // Detect if page is in an iframe
+        window.addEventListener('DOMContentLoaded', function() {
+            if (window.self !== window.top) {
+                // Page is in an iframe
+                document.body.classList.add('in-iframe');
+            }
+        });
+    </script>
 </head>
 
 <body>
@@ -375,7 +397,6 @@
                     const percentage = x / rect.width;
 
                     audio.currentTime = audio.duration * percentage;
-                    if (!                    audio.currentTime = audio.duration * percentage;
                     if (!isPlaying && !isPlayingSync) {
                         playButton.click();
                     }
@@ -520,7 +541,7 @@
                 // Draw the waveform using both min and max values
                 waveformData.forEach(([min, max], i) => {
                     const height = Math.max(1, Math.abs(max - min) * center);
-                    ctx.fillRect(i, center - height/2, 1, height);
+                    ctx.fillRect(i, center - height / 2, 1, height);
                 });
             }
 
@@ -754,7 +775,6 @@
             let resolution = '';
             if (resMatch) {
                 const width = parseInt(resMatch[1]);
-                const width = parseInt(resMatch[1]);
                 if (width > 3000) {
                     resolution = ' (High Res)';
                 } else if (width > 1500) {
@@ -847,7 +867,9 @@
                 const quality = document.getElementById('camera-quality').value;
                 let constraints = {
                     video: {
-                        deviceId: deviceId ? { exact: deviceId } : undefined,
+                        deviceId: deviceId ? {
+                            exact: deviceId
+                        } : undefined,
                         zoom: true // Request zoom capability
                     }
                 };
@@ -855,20 +877,36 @@
                 // Add quality constraints
                 switch (quality) {
                     case 'qvga':
-                        constraints.video.width = { ideal: 320 };
-                        constraints.video.height = { ideal: 240 };
+                        constraints.video.width = {
+                            ideal: 320
+                        };
+                        constraints.video.height = {
+                            ideal: 240
+                        };
                         break;
                     case 'vga':
-                        constraints.video.width = { ideal: 640 };
-                        constraints.video.height = { ideal: 480 };
+                        constraints.video.width = {
+                            ideal: 640
+                        };
+                        constraints.video.height = {
+                            ideal: 480
+                        };
                         break;
                     case 'hd':
-                        constraints.video.width = { ideal: 1280 };
-                        constraints.video.height = { ideal: 720 };
+                        constraints.video.width = {
+                            ideal: 1280
+                        };
+                        constraints.video.height = {
+                            ideal: 720
+                        };
                         break;
                     case 'fhd':
-                        constraints.video.width = { ideal: 1920 };
-                        constraints.video.height = { ideal: 1080 };
+                        constraints.video.width = {
+                            ideal: 1920
+                        };
+                        constraints.video.height = {
+                            ideal: 1080
+                        };
                         break;
                 }
 
@@ -892,7 +930,9 @@
 
                         // Apply initial zoom
                         await videoTrack.applyConstraints({
-                            advanced: [{ zoom: settings.zoom || 1 }]
+                            advanced: [{
+                                zoom: settings.zoom || 1
+                            }]
                         });
                     } else {
                         document.getElementById('camera-zoom').style.display = 'none';
@@ -942,7 +982,9 @@
             if (videoTrack) {
                 try {
                     await videoTrack.applyConstraints({
-                        advanced: [{ zoom: zoomLevel }]
+                        advanced: [{
+                            zoom: zoomLevel
+                        }]
                     });
                 } catch (err) {
                     console.error("Could not apply zoom:", err);
@@ -960,4 +1002,3 @@
 </body>
 
 </html>
-

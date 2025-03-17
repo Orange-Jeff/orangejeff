@@ -10,24 +10,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetBound Tools: Audio Splitter</title>
+    <title>NetBound Tools: Audio Voice Splitter</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: #f4f4f9;
-            width: 100%;
-            max-width: 768px;
+            width: 768px;
+            /* Fixed width for standalone mode */
             margin: 0 auto;
             box-sizing: border-box;
+            transition: margin 0.3s ease;
+        }
+
+        body.in-iframe {
+            margin: 0;
+            /* Left-aligned in iframe */
+            width: 100%;
+            max-width: 768px;
+        }
+
+        body.in-iframe .editor-header {
+            padding-top: 15px;
+            /* Add space above the title when in iframe */
         }
 
         /* Layout Components */
         .container {
             background: #f4f4f9;
             width: 100%;
-            margin: 0;
+            max-width: 768px;
+            margin: 0 auto;
             box-sizing: border-box;
             padding: 0 20px;
         }
@@ -41,8 +55,10 @@
         }
 
         .editor-title {
-            margin: 20px 0 8px 0;
+            margin: 10px 0;
+            padding: 0;
             color: #0056b3;
+            line-height: 1.2;
             font-weight: bold;
             font-size: 18px;
         }
@@ -591,7 +607,7 @@
 <body>
     <div class="container">
         <div class="editor-header">
-            <h1 class="editor-title">NetBound Tools: Speaker Splitter</h1>
+            <h1 class="editor-title">NetBound Tools: Audio Voice Splitter</h1>
             <div class="status-bar" id="status-messages">
                 <div class="status-message info">Waiting for audio...</div>
             </div>
@@ -609,7 +625,7 @@
 
         <input type="file" id="fileInput" accept=".wav" style="display: none;">
 
-        <div id="waveform-container" style="display: none;">
+        <div id="waveform-container">
             <div class="waveform-header">
                 <span id="duration-display">Duration: 0:00</span>
                 <span id="window-display">Viewable: 0:00 - 0:00</span>
@@ -646,20 +662,20 @@
 
 
                     <!-- Add process button here -->
-                    <button type="button" id="processAudio" class="command-button" style="display: none; margin-left: auto; padding: 6px 8px;">
+                    <button type="button" id="processAudio" class="command-button" style="margin-left: auto; padding: 6px 8px;">
                         <i class="fas fa-cogs"></i> Process
                     </button>
                 </div>
             </div>
         </div>
 
-        <div id="regions-log" class="regions-log" style="display: none;"></div>
+        <div id="regions-log" class="regions-log">
 
-        <div class="processed-files" id="processedFiles" style="display: none;">
+        </div>
+
+        <div class="processed-files" id="processedFiles">
             <h3>Processed Files:</h3>
-            <a href="#" id="speaker1File" target="_blank">Download Speaker 1 File</a>
-            <a href="#" id="speaker2File" target="_blank">Download Speaker 2 File</a>
-            <a href="#" id="stereoFile" target="_blank">Download Stereo File (Speaker 1 Left, Speaker 2 Right)</a>
+            <p class="placeholder-text">Process audio to generate download links</p>
         </div>
 
         <form id="regionForm" method="POST" action="process_audio.php" enctype="multipart/form-data" style="display: none;">
@@ -669,7 +685,7 @@
         </form>
 
         <!-- Advanced Save Options -->
-        <div id="saveOptionsContainer" class="save-options-container" style="display: none;">
+        <div id="saveOptionsContainer" class="save-options-container">
             <h3>Advanced Save Options</h3>
 
             <div class="save-option">
@@ -714,6 +730,23 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Check if we're in an iframe and adjust styling
+            function checkIfInIframe() {
+                try {
+                    const isInIframe = window.self !== window.top;
+                    if (isInIframe) {
+                        document.body.classList.add('in-iframe');
+                    }
+                    return isInIframe;
+                } catch (e) {
+                    // If we can't access window.top due to security restrictions, we're in an iframe
+                    document.body.classList.add('in-iframe');
+                    return true;
+                }
+            }
+
+            const inIframe = checkIfInIframe();
+
             // Mark body as loaded to enable transitions
             document.body.classList.add('loaded');
 
@@ -843,10 +876,11 @@
                 // Store the original file for later processing
                 originalAudioFile = file;
 
-                // Show the waveform container
-                waveformContainer.style.display = 'block';
-                regionsLog.style.display = 'block';
-                processAudioBtn.style.display = 'block';
+                // Clear placeholder text
+                const placeholders = document.querySelectorAll('.placeholder-text');
+                placeholders.forEach(placeholder => {
+                    placeholder.style.display = 'none';
+                });
 
                 const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 updateStatus(`Loading: ${file.name} (${fileSizeMB} MB)`, 'info');
@@ -866,7 +900,7 @@
                 };
                 sequentialRegions = [];
                 regionsLog.innerHTML = '';
-                processedFiles.style.display = 'none';
+                regionsLog.innerHTML = '<p class="placeholder-text">No regions created yet. Mark speaker segments using the buttons above.</p>';
 
                 wavesurfer.once('ready', () => {
                     URL.revokeObjectURL(audioUrl);
@@ -898,11 +932,10 @@
 
                 const regionData = {
                     start: startTime,
-                    end: currentTime
-,
-                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`
-,
-                    region: region };
+                    end: currentTime,
+                    type: speakerType === 'trash' ? 'trash' : `speaker${speakerType}`,
+                    region: region
+                };
 
                 if (speakerType === 'trash') {
                     regionsData.trash.push(regionData);
@@ -1226,7 +1259,11 @@
             document.getElementById('clearRegions').addEventListener('click', () => {
                 if (confirm('Are you sure you want to clear all segments?')) {
                     wavesurfer.clearRegions();
-                    regionsData = { speaker1: [], speaker2: [], trash: [] };
+                    regionsData = {
+                        speaker1: [],
+                        speaker2: [],
+                        trash: []
+                    };
                     sequentialRegions = [];
                     regionsLog.innerHTML = '';
                     lastEndPoint = 0;

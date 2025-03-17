@@ -580,7 +580,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 statusBox.removeChild(statusBox.firstChild);
             }
 
-            // Auto-scroll to bottom
+            // Auto-scroll to bottom to show the latest message
             statusBox.scrollTop = statusBox.scrollHeight;
         }
 
@@ -880,16 +880,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check if we're in an iframe
             const isInIframe = window !== window.parent;
 
-            // Add debug info
-            updateStatus(`Running in ${isInIframe ? 'iframe' : 'normal'} mode`, 'info');
-
             // Left-justify content when in iframe
             if (isInIframe) {
                 document.querySelector('.menu-container').style.margin = '0';
                 document.body.classList.add('iframe-mode');
             }
-
-            // Rest of the function remains the same...
 
             // Initialize with ghosted buttons
             document.querySelectorAll('#contextualButtons .command-button').forEach(button => {

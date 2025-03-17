@@ -634,10 +634,8 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                         <div class="header-top">
                             <h1 class="tool-title">NetBound Tool Suite: Editor</h1>
                         </div>
+                        <div class="persistent-status-bar" id="statusBar"></div>
                     </div>
-
-                    <div class="persistent-status-bar" id="statusBar"></div>
-
                     <div class="button-group">
                         <button type="button" class="command-button" onclick="openFileRequester()" title="Open a file from your computer">
                             <i class="fas fa-folder-open"></i> From File
