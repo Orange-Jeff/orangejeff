@@ -734,6 +734,94 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
         };
 
         // Add this near the beginning of your script section, right after the STATUS_MESSAGES constant
+        // Check if running in an iframe
+        function inIframe() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        // Apply iframe-specific styling when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply iframe-specific styling if needed
+            if (inIframe()) {
+                document.body.classList.add('in-iframe');
+            } else {
+                document.body.classList.add('standalone');
+            }
+
+            // Initialize drag and drop for status bar
+            initDragAndDrop();
+
+            // Show initial welcome message
+            status.update('NetBound Tool Suite ready. Drag files here or use the menu.', 'success');
+        });
+
+        // Initialize drag and drop functionality for the status bar
+        function initDragAndDrop() {
+            const statusBar = document.getElementById('statusBar');
+            if (!statusBar) return;
+
+            statusBar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                statusBar.classList.add('drag-over');
+            });
+
+            statusBar.addEventListener('dragleave', () => {
+                statusBar.classList.remove('drag-over');
+            });
+
+            statusBar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                statusBar.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    handleDroppedFiles(e.dataTransfer.files);
+                }
+            });
+        }
+
+        // Handle dropped files
+        function handleDroppedFiles(files) {
+            if (files.length > 0) {
+                const validFiles = Array.from(files).filter(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    return ['php', 'html', 'css', 'js', 'txt', 'json'].includes(ext);
+                });
+
+                if (validFiles.length === 0) {
+                    status.update('No valid files found. Supported types: PHP, HTML, CSS, JS, TXT, JSON', 'error');
+                    return;
+                }
+
+                // Create form data for file upload
+                const formData = new FormData();
+                validFiles.forEach(file => {
+                    formData.append('files[]', file);
+                });
+                formData.append('action', 'transferFiles');
+
+                // Display upload status
+                status.update(`Uploading ${validFiles.length} file(s)...`, 'info');
+
+                // Upload files
+                fetch('main.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        status.update(result.message, result.status);
+                        refreshFileList();
+                    })
+                    .catch(error => {
+                        status.update(`Upload error: ${error.message}`, 'error');
+                    });
+            }
+        }
+
+        // Add this near the beginning of your script section, right after the STATUS_MESSAGES constant
         const APP_PATHS = {
             archiveManager: 'nb-archive-manager.php',
             // Add other common tool paths here
