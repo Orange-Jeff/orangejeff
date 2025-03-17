@@ -632,8 +632,7 @@ $sortIcon = $sortBy === 'date' ? 'fa-clock' : 'fa-sort-alpha-down';
                 <div class="editor" id="editorSection">
                     <div class="editor-header">
                         <div class="header-top">
-                            <h1 class="editor-title">
-                                NetBound Editor: <?php echo date("F j Y", filemtime(__FILE__)); ?></h1>
+                            <h1 class="tool-title">NetBound Tool Suite: Editor</h1>
                         </div>
                     </div>
 
