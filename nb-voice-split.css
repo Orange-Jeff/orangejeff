@@ -1,0 +1,3079 @@
+/*
+ * NETBOUND TOOLS SHARED STYLESHEET
+ * Version 1.3 * Last updated: April 24,
+ 2025 * * This stylesheet provides consistent styling across all NetBound tools. * Sections are organized to be easily foldable in code editors.
+ */
+
+/* ======================================
+ * 0. CSS VARIABLES (CUSTOM PROPERTIES)
+ * ====================================== */
+:root {
+    /* Color palette */
+    --color-primary: #0056b3;
+    --color-primary-hover: #004494;
+    --color-primary-dark: #003d7e;
+    --color-disabled: #cccccc;
+    --color-success: #28a745;
+    --color-error: #dc3545;
+    --color-warning: #f39c12;
+    --color-info: #4a9eff;
+    --color-text: #333333;
+    --color-text-light: #666666;
+    --color-bg-light: #f5f5f5;
+    --color-bg-white: #ffffff;
+    --color-border: #dddddd;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 10px;
+    --spacing-lg: 15px;
+    --spacing-xl: 20px;
+
+    /* Typography */
+    --font-size-xs: 12px;
+    --font-size-sm: 13px;
+    --font-size-md: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
+
+    /* UI Elements */
+    --border-radius: 4px;
+    --btn-height: 34px;
+    --transition-speed: 0.2s;
+    --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+    /* Layout */
+    --editor-height: 432px;
+    /* Standard Editor/Preview Height (16:9 ratio for 768px width) */
+}
+
+/* ======================================
+ * 1. BASE STYLES
+ * ====================================== */
+html,
+body {
+    background-color: var(--color-bg-light);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        padding: 0;
+    /* Prevent scroll on body */
+}
+
+html,
+body,
+html {
+    overflow-y: hidden;
+}
+
+html {
+    height: 100%;
+    /* Prevent scroll on html */
+}
+
+body.in-iframe,
+body:not(.in-iframe) {
+    text-align: left;
+}
+
+body:not(.in-iframe) {
+    display: flex;
+    /* Removed justify-content: center; to allow content to fill height from the top */
+}
+
+/* Center content when not in iframe */
+.menu-container:not(.in-iframe) {
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+/* ======================================
+ * 2. LAYOUT CONTAINERS
+ * ====================================== */
+.menu-container {
+    box-sizing: border-box;
+    /* Allow menu container to fill body */
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    /* Prevent internal overflow from causing body scroll */
+    min-height: 0;
+    overflow: hidden;
+        padding: var(--spacing-md);
+    /* Important for flex shrinking */
+}
+
+/* When in iframe mode, add extra padding */
+body.in-iframe .menu-container {
+    padding-bottom: 50px;
+    /* More padding in iframe mode */
+}
+
+/* Title bar with optional hamburger menu */
+.title-container {
+    align-items: center;
+    display: flex;
+        flex-shrink: 0;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+    width: 100%;
+    /* Prevent shrinking */
+}
+
+/* ======================================
+ * 3. TYPOGRAPHY
+ * ====================================== */
+.editor-title {
+    color: var(--color-primary);
+    font-size: var(--font-size-xl);
+    font-weight: bold;
+    line-height: 1.2;
+        margin-bottom: var(--spacing-lg);
+        margin-top: 0;
+}
+
+/* Title inside title container should have no bottom margin */
+.title-container .editor-title {
+    margin-bottom: 0;
+}
+
+.list-title h2 {
+    font-weight: bold;
+    line-height: 1.2;
+        margin: 0;
+}
+
+/* ======================================
+ * 4. NAVIGATION ELEMENTS
+ * ====================================== */
+.list-title h2,
+.hamburger-menu {
+    color: var(--color-primary);
+    font-size: var(--font-size-xl);
+}
+
+.hamburger-menu {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-decoration: none;
+}
+
+.hamburger-menu:hover {
+    color: var(--color-primary-dark);
+}
+
+/* Header Nav Buttons (Sidebar Header - White Outline on Blue) - Restored */
+.header-nav-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.header-nav-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid white;
+    border-radius: var(--border-radius);
+    color: white;
+        cursor: pointer;
+    display: flex;
+    height: 26px;
+    justify-content: center;
+    /* No hover effect */
+    opacity: 1 !important;
+    transition: none;
+        width: 26px;
+    /* Ensure always visible */
+}
+
+.header-nav-button:hover {
+    /* No hover effect */
+    background: transparent;
+    border-color: white;
+}
+
+.header-nav-button:disabled {
+    /* Keep pointer cursor */
+    border-color: white;
+    color: white;
+    /* Override disabled opacity */
+        cursor: pointer;
+        /* Keep styles the same as enabled, just prevent clicks via JS */
+        opacity: 1;
+}
+
+/* ======================================
+ * 5. BUTTON SYSTEM - CONSOLIDATED
+ * ====================================== */
+/* Button Container Styles */
+.button-controls {
+    flex-shrink: 0;
+    margin-bottom: var(--spacing-sm);
+    /* Prevent shrinking */
+}
+
+.button-row {
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 3px 0;
+    }
+
+        .button-row,
+        .bottom-action-bar {
+        display: flex;
+        gap: var(--spacing-sm);
+    justify-content: flex-start;
+}
+
+.bottom-action-bar {
+    /* Adjusted from md */
+    border: none;
+    box-shadow: none;
+    /* Adjusted from md */
+        margin-top: var(--spacing-sm);
+        position: relative;
+}
+
+/* Standard Button - Base for all buttons */
+.command-button {
+    /* Changed from flex to inline-flex */
+        align-items: center;
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+        color: white;
+        /* Increased padding for better touch targets */
+        cursor: pointer;
+    display: inline-flex;
+    font-size: var(--font-size-md);
+        gap: 6px;
+        height: var(--btn-height);
+        min-width: max-content;
+        padding: 8px 14px;
+        /* Slightly increased gap between icon and text */
+    transition: background-color var(--transition-speed);
+    /* Added for consistent height */
+}
+
+.command-button:hover {
+    background-color: var(--color-primary-dark);
+        /* Using darker color for better contrast on hover */
+}
+
+.command-button:disabled {
+    background-color: var(--color-disabled);
+    cursor: not-allowed;
+}
+
+.command-button i {
+    color: white;
+}
+
+/* Split Button System */
+.split-button {
+    background-color: transparent;
+    border-radius: var(--border-radius);
+    display: inline-flex;
+    height: var(--btn-height);
+    overflow: hidden;
+}
+
+.split-button .main-part,
+.split-button .append-part {
+    align-items: center;
+    background-color: var(--color-primary);
+    border: none;
+        box-sizing: border-box;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    font-family: inherit;
+    font-size: var(--font-size-md);
+    gap: 6px;
+    height: 100%;
+    justify-content: center;
+        /* Increased gap to match command buttons */
+        transition: background-color var(--transition-speed);
+}
+
+.split-button .main-part {
+        /* Matching command button padding */
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    padding: 8px 14px;
+}
+
+.split-button .append-part {
+        /* Slightly less horizontal padding for the icon-only part */
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    padding: 8px 10px;
+}
+
+.split-button .main-part:hover,
+.split-button .append-part:hover {
+    background-color: var(--color-primary-dark);
+        /* Using darker color for better contrast on hover */
+}
+
+/* Ghost Button - Darker Variant - Adjusted for disabled look */
+.ghost-button-dark {
+    align-items: center;
+    border: 1px solid var(--color-border);
+    /* Indicate disabled state */
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+        cursor: not-allowed;
+    display: inline-flex;
+    font-size: var(--font-size-md);
+    gap: 5px;
+    height: var(--btn-height);
+    /* No transition for disabled look */
+    min-width: max-content;
+    opacity: 0.65;
+    /* Use standard border color */
+        padding: 6px 12px;
+        transition: none;
+    /* Faded appearance */
+}
+
+.ghost-button-dark,
+.ghost-button-dark:hover {
+    background-color: transparent;
+    color: var(--color-text-light);
+}
+
+.ghost-button-dark:hover {
+    /* Minimal or no hover effect */
+    border-color: var(--color-border);
+}
+
+.ghost-button-dark i {
+    color: inherit;
+}
+
+/* Secondary Button Variant */
+.secondary-button {
+    background-color: #6c757d;
+}
+
+.secondary-button:hover {
+    background-color: #5a6268;
+}
+
+/* Delete Confirmation Button */
+.confirm-delete {
+    animation: pulse 1.5s infinite;
+    background-color: var(--color-error) !important;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+/* Style for the new Import Project button */
+/* Removed specific import-button style */
+
+/* ======================================
+ * 6. STATUS SYSTEM - CONSOLIDATED
+ * ====================================== */
+/* Status Box - Main container for status messages */
+.status-box {
+    background: var(--color-bg-white);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+        color: var(--color-text);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    font-size: var(--font-size-md);
+    height: 80px;
+    line-height: 1.4;
+    margin-bottom: var(--spacing-sm);
+    overflow: hidden;
+        /* Hide overflow at container level */
+        overflow-x: hidden;
+        overflow-y: auto;
+        /* Re-enable vertical scrolling */
+        padding: 4px 6px;
+        position: relative;
+        text-align: left !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    width: 100%;
+}
+
+.status-box > div:first-child {
+    margin-top: 0; /* Ensure no top margin on first element */
+}
+
+#imagePreviewArea {
+    border-top: none !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+#imagePreviewArea.sidebar-style {
+    align-items: center;
+    background: #f9f9f9;
+    border: 1px solid blue !important;
+    border-radius: 5px;
+    box-sizing: border-box;
+    display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin: 0;
+        max-height: 120px;
+        min-height: 60px;
+        padding: 5px 10px;
+}
+
+.status-box .message {
+    background: var(--color-bg-white);
+    border-left: 4px solid var(--color-primary);
+    border-radius: 2px;
+    color: var(--color-text);
+    flex-shrink: 0;
+    font-size: 0.9em;
+    margin: 3px 0;
+        /* Ensure breaks */
+        margin-bottom: 4px;
+    overflow-wrap: break-word;
+    padding: 4px 6px;
+        /* Legacy support */
+        word-break: break-word;
+    /* Wrap long words/text */
+    word-wrap: break-word;
+    /* Ensure spacing between messages */
+}
+
+.status-box .message:last-child {
+    margin-bottom: 0;
+    /* Remove margin from the very last message */
+}
+
+/* Message Type Styling */
+.message.success {
+    border-left-color: var(--color-success);
+}
+
+.message.error {
+    border-left-color: var(--color-error);
+}
+
+.message.warning {
+    border-left-color: var(--color-warning);
+}
+
+.message.info {
+    border-left-color: var(--color-info);
+}
+
+/* Latest Message Highlight */
+.message.latest {
+    color: white;
+    font-weight: bold;
+}
+
+.message.latest.success {
+    background-color: var(--color-success);
+    border-left-color: var(--color-success);
+}
+
+.message.latest.error {
+    background-color: var(--color-error);
+    border-left-color: var(--color-error);
+}
+
+.message.latest.warning {
+    background-color: var(--color-warning);
+    border-left-color: var(--color-warning);
+}
+
+.message.latest.info {
+    background-color: var(--color-info);
+    border-left-color: var(--color-info);
+}
+
+/* Style for drag-over state */
+.status-box.drag-over {
+    background-color: #e9f5ff;
+    /* Light blue background */
+    border-color: var(--color-info);
+    /* Blue border */
+}
+
+.status-box>* {
+    text-align: left !important;
+}
+
+/* Drag and Drop Indicator Icon */
+.status-box .drag-indicator {
+    /* Adjust size as needed */
+    color: var(--color-text-light);
+    font-size: var(--font-size-lg);
+    /* Subtle color */
+    opacity: 0.6;
+    /* Make it slightly transparent */
+    pointer-events: none;
+    position: absolute;
+        right: 8px;
+        top: 5px;
+    /* Prevent icon from interfering with drop */
+}
+
+/* Style for the moved image preview area inside the status box */
+#imagePreviewArea {
+    box-sizing: border-box;
+    display: flex;
+    flex-grow: 1;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+        max-height: 85px;
+    overflow-x: hidden;
+    overflow-y: auto;
+        padding: 5px;
+}
+
+#imagePreviewArea:empty {
+    display: none;
+    margin-top: 0;
+    padding: 0;
+}
+
+/* REMOVED .status-message styles */
+
+/* Frame Thumbnails in Status Box */
+/* NOTE: Updated selector to #statusBox */
+#statusBox .first-last-container {
+    align-items: center;
+        background-color: #dff0d8;
+        border-radius: var(--border-radius);
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 6px;
+}
+
+#statusBox .first-last-frame img {
+    border-radius: 2px;
+    height: 36px;
+    width: auto;
+}
+
+#statusBox .frame-label {
+    color: #333;
+    font-size: 0.85rem;
+    margin-top: var(--spacing-xs);
+}
+
+#statusBox .frame-favicon {
+    height: 16px;
+    margin-right: var(--spacing-xs);
+    vertical-align: middle;
+    width: auto;
+}
+
+/* ======================================
+ * 7. EDITOR SYSTEM - CONSOLIDATED *======================================*/
+.editor-view {
+    background-color: var(--color-bg-light);
+    /* flex: 1; */
+    /* REMOVED: Allow editor view to take only needed space */
+    flex-direction: column;
+    gap: 0;
+    /* Removed margin-bottom, spacing handled by filename container */
+    margin-bottom: 0;
+    max-width: 100%;
+    min-height: 0;
+    /* Important for flexbox shrinking */
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Filename Input Container - Placed after editor-view */
+.editor-view,
+.filename-container {
+    box-sizing: border-box;
+    display: flex;
+    padding: 0;
+        width: 100%;
+    }
+
+    .filename-container {
+    align-items: center;
+    /* Keep bottom margin before bottom buttons */
+    gap: 12px;
+    justify-content: space-between;
+        margin-bottom: var(--spacing-sm);
+        /* Ensure it has margin-top to separate from editor */
+        margin-top: var(--spacing-sm);
+    /* Removed border */
+    /* Remove padding since border is gone */
+}
+
+/* Filename Input Styling */
+.filename-input {
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+        flex: 1;
+        font-family: inherit;
+    font-size: var(--font-size-md);
+    height: var(--btn-height);
+    padding: 6px 10px;
+}
+
+.filename-input:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 3px rgba(33, 150, 243, 0.3);
+    outline: none;
+}
+
+.filename-input:read-only {
+    background: #f8f8f8;
+}
+
+.filename-input.inline-rename {
+    flex-grow: 1;
+    margin-left: 0;
+    width: 100%;
+}
+
+/* Editor Container */
+.editor-containers {
+    display: flex;
+    flex: 1;
+    gap: 0;
+    /* Allow editor containers to fill editor-view */
+    margin-top: -1px;
+    /* Pull editor up to tabs */
+    min-height: 0;
+    /* Important for flexbox shrinking */
+}
+
+/* Add this new style for the preview container */
+.preview-container {
+    border: 1px solid blue;
+}
+
+.editor-container {
+    /* Minimum reasonable height */
+    background: #272822;
+    /* Default dark background */
+    border: 1px solid var(--color-primary);
+    border-radius: 0 var(--border-radius) var(--border-radius) var(--border-radius);
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    /* Use the standard editor height variable */
+        height: var(--editor-height);
+        margin-bottom: 0;
+        max-height: var(--editor-height);
+        /* Ensure max height matches */
+        min-height: 300px;
+    overflow: hidden;
+    position: relative;
+    /* Prevent content overflow */
+}
+
+@media (max-height: 768px) {
+    .editor-container {
+        /* Adjust height dynamically on smaller viewports if needed */
+        /* Example: height: calc(100vh - 300px); */
+        min-height: 250px;
+    }
+}
+
+.editor-container.split {
+    width: 50%;
+}
+
+.editor-container.hidden {
+    display: none;
+}
+
+/* Editor Controls */
+.editor-controls {
+    background: #1e1e1e;
+        border-bottom: 1px solid var(--color-primary);
+        box-sizing: border-box;
+        height: var(--btn-height);
+        justify-content: flex-end;
+        left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 10;
+}
+
+.editor-controls,
+.editor-controls button {
+    align-items: center;
+    display: flex;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.editor-controls button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+        color: #ccc;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    justify-content: center;
+        min-width: 28px;
+    transition: all var(--transition-speed) ease;
+}
+
+.editor-controls button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--color-bg-white);
+}
+
+.editor-controls button.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg-white);
+}
+
+/* Editor Placeholder */
+#editor-placeholder {
+    align-items: center;
+    /* Fill the container */
+    background-color: #1e1e1e;
+    border-radius: 4px;
+        color: #666;
+    display: flex;
+    flex-direction: column;
+    /* Height will be determined by the parent .editor-container */
+        height: 100%;
+    justify-content: center;
+    margin-top: var(--btn-height);
+    /* Inherit or match parent? */
+    overflow: hidden;
+    /* Styles moved from inline to CSS for consistency */
+        padding: 0;
+        position: relative;
+        text-align: center;
+        /* Keep relative for absolute positioning inside */
+        width: 100%;
+    /* Account for editor controls height */
+}
+
+
+/* Ace Editor Instance */
+#editor,
+#editor-secondary {
+    bottom: 0;
+        left: 0;
+    position: absolute;
+    /* Position below editor controls */
+    right: 0;
+    top: var(--btn-height);
+}
+
+.editor-container.split #editor,
+.editor-container.split #editor-secondary {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Tab System */
+.tab-bar {
+    background: var(--color-bg-light);
+    border-bottom: none;
+    justify-content: space-between;
+    margin-bottom: 0;
+}
+
+.tab-bar,
+.tab-list {
+    display: flex;
+    height: 36px;
+        padding: 0;
+    }
+
+    .tab-list {
+    align-items: flex-end;
+    box-sizing: border-box;
+        flex: 1;
+    gap: var(--spacing-xs);
+    margin: 0;
+        -ms-overflow-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tab-list::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    align-items: center;
+    background: #444444;
+    border: 1px solid #444444;
+    border-bottom: none;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    cursor: pointer;
+    display: flex;
+    gap: var(--spacing-sm);
+    height: 36px;
+        margin-bottom: -1px;
+        max-width: 200px;
+    min-width: 100px;
+    padding: 0 var(--spacing-md);
+        position: relative;
+    transition: all var(--transition-speed) ease;
+    user-select: none;
+    /* Connect with editor container */
+    z-index: 2;
+    /* Ensure tabs are above editor */
+}
+
+.tab,
+.tab.active {
+    color: var(--color-bg-white);
+}
+
+.tab.active {
+    background: #2a2a2a;
+    border-color: var(--color-primary);
+    /* Match editor border */
+    border-bottom-color: #2a2a2a;
+    /* Match editor background */
+    /* Hide bottom border */
+    height: 38px;
+    /* Make active tab slightly taller */
+    z-index: 3;
+    /* Ensure active tab is above others */
+}
+
+.tab:hover:not(.active) {
+    background: #333333;
+    color: var(--color-bg-white);
+}
+
+.tab-title {
+    flex: 1;
+        font-size: var(--font-size-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-close {
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: inherit;
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    opacity: 0.7;
+        padding: var(--spacing-xs);
+}
+
+.tab-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.new-tab {
+    align-self: center;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: #999;
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    /* Align vertically */
+    margin-bottom: 1px;
+    margin-top: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+    /* Align with bottom of tabs */
+}
+
+.new-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-bg-white);
+}
+
+/* Tab Controls */
+.tab-controls {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    gap: var(--spacing-xs);
+    height: 100%;
+    padding-left: var(--spacing-sm);
+    /* Match tab bar height */
+}
+
+.tab-controls,
+.tab-controls button {
+    align-items: center;
+    display: flex;
+}
+.tab-controls button {
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: #999;
+    cursor: pointer;
+    /* Fit within controls area */
+    font-size: var(--font-size-md);
+    height: calc(100% - 2 * var(--spacing-xs));
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.tab-controls button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-bg-white);
+}
+
+.tab-controls button.active {
+    background: var(--color-primary);
+    color: var(--color-bg-white);
+}
+
+.tab-controls #syncButton {
+    display: none;
+    transition: all var(--transition-speed) ease;
+}
+
+.tab-controls #syncButton.active {
+    background: var(--color-primary);
+    transform: rotate(360deg);
+}
+
+/* Ace Editor Theme */
+.editor-view[data-theme="light"] {
+    background: var(--color-bg-white);
+}
+
+/* ACE Editor Tooltip */
+.ace_tooltip {
+    background-color: #272822;
+    border: 1px solid #1e1e1e;
+    border-radius: 0;
+    box-shadow: var(--box-shadow);
+        color: #f8f8f2;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: var(--font-size-xs);
+    max-width: 500px;
+    padding: var(--spacing-sm);
+    z-index: 999;
+    /* Ensure tooltips are on top */
+}
+
+.ace_tooltip hr {
+    border: none;
+    border-top: 1px solid #3a3a3a;
+    margin: var(--spacing-xs) 0;
+}
+
+/* WordPress Editor Specific */
+#editor-container.wp-specific {
+    border: 1px solid var(--color-primary);
+        border-radius: var(--border-radius);
+    height: var(--editor-height) !important;
+        margin-bottom: var(--spacing-lg);
+    overflow: hidden;
+    position: relative;
+        /* Use a more specific class if needed */
+            width: 100% !important;
+}
+
+/* HTML Formatting Toolbar */
+.formatting-toolbar {
+    align-items: center;
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+    display: flex;
+        flex-wrap: wrap;
+        padding: var(--spacing-xs);
+}
+
+.toolbar-button {
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: var(--font-size-md);
+    margin-right: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.toolbar-button:hover {
+    background-color: #e5e5e5;
+}
+
+.toolbar-button.active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.toolbar-divider {
+    background-color: var(--color-border);
+    height: 20px;
+    margin: 0 var(--spacing-xs);
+    width: 1px;
+}
+
+/* ======================================
+ * 8. UI CONTROLS & FORM ELEMENTS
+ * ====================================== */
+/* Add specific styles for other form elements if needed */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+textarea,
+select {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+        font-family: inherit;
+    font-size: var(--font-size-md);
+    padding: 8px 12px;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
+    outline: none;
+}
+
+/* ======================================
+ * 9. SCROLLBAR STYLING - GLOBAL
+ * ====================================== */
+/* Apply globally */
+::-webkit-scrollbar {
+    height: 16px; /* Same width for horizontal scrollbars */
+    width: 16px;
+        /* Wider scrollbar for touch */
+}
+
+::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 0;  /* Squared corners */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888888;
+    border: 3px solid #f0f0f0; /* Create padding effect */
+    border-radius: 0;
+        /* Squared corners */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+::-webkit-scrollbar-corner {
+    background: #f0f0f0;
+}
+
+/* ======================================
+ * 10. AUDIO/VIDEO TOOL SPECIFIC
+ * ====================================== */
+/* Placeholder for standard audio waveform styling */
+.audio-waveform {
+    /* Or adjust based on your design */
+    background-color: var(--color-primary-dark);
+    border-radius: var(--border-radius);
+        /* Example styles - adjust as needed */
+        height: 100px;
+    /* Example color */
+    width: 100%;
+    /* Add other specific waveform styles here */
+}
+
+/* ======================================
+ * 11. RESPONSIVE DESIGN
+ * ====================================== */
+@media (max-width: 768px) {
+    .menu-container {
+        padding: var(--spacing-sm);
+    }
+
+    .button-row {
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
+            justify-content: center;
+    }
+
+    .command-button,
+    .split-button .main-part,
+    .split-button .append-part {
+        font-size: var(--font-size-sm);
+        min-width: 100px;
+        padding: 4px 8px;
+    }
+
+    .editor-title {
+        font-size: var(--font-size-lg);
+    }
+/* Fix annotation list and sidebar height for mobile */
+.annotation-sidebar {
+    height: 300px;
+    max-height: 300px;
+    min-height: 200px;
+}
+
+.annotation-list {
+    max-height: 200px;
+    min-height: 200px;
+}
+
+/* Adjust screen container for mobile */
+.screen-container {
+    height: 350px;
+    max-height: 350px;
+    min-height: 350px;
+}
+
+/* Make buttons more finger-friendly on mobile */
+.annotation-buttons .annotation-action-btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    min-width: 32px !important;
+    width: 32px !important;
+}
+
+/* Adjust toolbar and project controls */
+.project-domain-row {
+    flex-direction: column;
+    gap: 8px;
+}
+
+.project-domain-input,
+.project-save-button {
+    width: 100%;
+}
+
+/* MOBILE SCROLL FIX: allow full page scroll and auto screen-container height on mobile */
+html,
+body {
+    height: auto !important;
+    overflow-y: auto !important;
+}
+
+.menu-container {
+    overflow: visible !important;
+}
+
+#annotatorInterface {
+    overflow: auto !important;
+}
+
+.screen-container {
+    height: auto !important;
+    max-height: none !important;
+}
+
+/* Make status box expand and allow full page scroll */
+
+.status-box,#statusBox {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+#imagePreviewArea {
+    max-height: none !important;
+    overflow: visible !important;
+}
+}
+
+/* Small phone adjustments */
+@media (max-width: 480px) {
+    .button-controls {
+        font-size: 16px;
+    }
+
+    .screen-container {
+        height: 300px;
+        max-height: 300px;
+        min-height: 300px;
+    }
+
+    .annotation-sidebar {
+        height: 200px;
+        max-height: 200px;
+    }
+
+    .annotation-list {
+        max-height: 150px;
+        min-height: 150px;
+    }
+
+    /* Adjust annotation item layout for very small screens */
+    .annotation-layout {
+        flex-direction: column;
+    }
+
+    .annotation-right-column {
+        align-items: flex-start;
+        margin-top: 5px;
+        width: 100%;
+    }
+
+    .annotation-buttons {
+        justify-content: flex-start;
+    }
+}
+
+/* ======================================
+ * 12. IFRAME-SPECIFIC STYLING
+ * ====================================== */
+body.in-iframe .menu-container {
+    /* Adjust padding for iframe */
+    max-width: none;
+    padding: var(--spacing-sm);
+    /* Allow full width in iframe */
+}
+
+/* ======================================
+ * 13. VIDEO WATERMARKER SPECIFIC
+ * ====================================== */
+/* Add styles specific to the video watermarker tool */
+
+/* ======================================
+ * 14. WORDPRESS POSTER SPECIFIC STYLES
+ * ====================================== */
+/* Add styles specific to the WordPress poster tool */
+
+/* ======================================
+ * 15. STANDARD CONTAINER DIMENSIONS
+ * ====================================== */
+/* Standard container width for all NetBound tools */
+.menu-container {
+    box-sizing: border-box;
+    /* Force max width */
+    margin: 0 auto;
+    max-width: 768px !important;
+    overflow: visible;
+    width: 100%;
+    /* Allow content to display naturally */
+}
+
+/* Override styles for fullscreen editor mode */
+.editor-container.fullscreen {
+    bottom: 0 !important;
+    height: 100vh !important;
+    left: 0 !important;
+    max-height: 100vh !important;
+    min-height: 100vh !important;
+    position: fixed !important;
+        right: 0 !important;
+        top: 0 !important;
+    width: 100% !important;
+    z-index: 9999 !important;
+    /* Remove border radius in fullscreen */
+}
+
+.editor-container.fullscreen,
+.editor-container.fullscreen .editor-controls {
+    border-radius: 0 !important;
+}
+
+/* ======================================
+ * 16. SCREEN ANNOTATOR SPECIFIC STYLES
+ * ====================================== */
+
+/* Container for the whole annotator UI */
+/* This ID needs to be targeted to control flex growth */
+#annotatorInterface {
+    /* Allow this section to fill remaining space */
+    /* Use flex for children */
+    flex-grow: 1;
+    /* Stack children vertically */
+    min-height: 0;
+    /* Crucial for flex children */
+    overflow: hidden;
+    /* Prevent its own overflow */
+}
+
+/* Container for the image and annotation layer */
+#annotatorInterface,
+.screen-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.screen-container {
+    align-items: flex-start;
+        background-color: black;
+            border: 1px solid blue;
+            /* Set border to 1px blue */
+    border-radius: var(--border-radius);
+    height: 400px;
+        /* Fixed absolute height */
+        margin: 0 auto 0;
+        max-height: 400px;
+        /* Enforce maximum height */
+        max-width: 768px;
+        min-height: 400px;
+        /* Ensure consistent height */
+        overflow-x: hidden;
+        overflow-y: auto;
+        position: relative;
+        width: 100%;
+}
+
+/* Style for the main image container */
+#screenContainer {
+    border: 2px solid blue;
+    /* Added blue border */
+}
+
+/* The image itself */
+.screen-image {
+    /* Maintain aspect ratio */
+        display: block;
+    /* Make image fit container width */
+    height: auto;
+    /* Override any potential max-width from elsewhere */
+    margin: 0;
+    /* Remove extra space below image */
+        max-width: none;
+    /* Ensure no extra margin */
+    padding: 0;
+    width: 100%;
+    /* Ensure no extra padding */
+}
+
+/* Layer for drawing/placing annotations */
+.annotation-layer {
+    height: 100%;
+        left: 0;
+        pointer-events: none;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    /* Allows clicks to pass through to image */
+    z-index: 10;
+}
+
+/* Individual annotation markers */
+.annotation-marker {
+    align-items: center;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        color: white;
+        cursor: pointer;
+    display: flex;
+    font-size: 12px;
+    font-weight: bold;
+    height: 24px;
+        justify-content: center;
+    pointer-events: auto;
+    position: absolute;
+        transform: translate(-50%, -50%);
+    /* Markers are clickable */
+    transition: transform 0.2s ease;
+    width: 24px;
+    z-index: 15;
+    /* Center marker on click point */
+}
+
+.annotation-marker:hover,
+.annotation-marker.active {
+    transform: scale(1.2);
+    z-index: 20;
+}
+
+.annotation-marker.active {
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.annotation-marker.blue {
+    background-color: var(--color-primary);
+}
+
+.annotation-marker.orange {
+    background-color: #ff9800;
+    /* Specific orange color */
+}
+
+/* Annotation number markers in sidebar that match dots on image */
+.annotation-marker-badge {
+    align-items: center;
+        display: inline-flex;
+    font-size: 11px !important;
+    height: 18px !important;
+    justify-content: center;
+    margin-left: 0 !important;
+    margin-right: 6px !important;
+    min-width: 18px !important;
+        padding-left: 8px !important;
+        width: 18px !important;
+}
+
+/* Annotation item action buttons */
+.annotation-item-actions {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+    margin-top: 8px;
+    /* Ensure right alignment */
+}
+
+.annotation-action-btn {
+    align-items: center;
+    background-color: var(--color-primary);
+    border: none;
+        border-radius: var(--border-radius);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    height: 34px;
+    justify-content: center;
+    transition: background-color 0.2s;
+    width: 34px;
+}
+
+.annotation-action-btn:hover {
+    background-color: var(--color-primary-dark);
+        /* Using darker color to match other buttons */
+}
+
+.annotation-action-btn.delete-btn:hover {
+    background-color: var(--color-error);
+}
+
+.annotation-item-header {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.annotation-title-section {
+    align-items: center;
+    display: flex;
+}
+
+.annotation-title-text {
+    color: var(--color-primary);
+    display: block;
+    font-size: 14px;
+        font-weight: bold;
+}
+
+.annotation-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+}
+
+.annotation-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Make sure the annotation text is properly indented to match date position */
+.annotation-item-text {
+    clear: both;
+        /* Clear any floats */
+        display: block;
+        /* Ensure it's on its own line */
+        font-size: var(--font-size-sm);
+        margin-bottom: 10px;
+            margin-top: 5px;
+    overflow-wrap: break-word;
+        padding-bottom: 5px;
+            padding-left: 34px;
+            /* Indent text to align with date (24px badge width + 10px margin) */
+            padding-top: 5px;
+            text-align: left;
+            white-space: pre-line;
+            width: 100%;
+    word-break: break-word;
+    word-wrap: break-word;
+}
+
+/* Style for the annotation date text */
+.annotation-date-text {
+    color: #666;
+        display: inline-block;
+    font-size: 12px;
+        font-weight: bold;
+            margin-bottom: 5px;
+    margin-left: 0;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+/* Reply buttons container */
+.reply-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+    margin-top: 5px;
+}
+
+/* Individual annotation item in the list */
+.annotation-item {
+    background-color: #f9f9f9;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    margin-bottom: 5px;
+    padding: 12px;
+        padding: 8px 5px;
+        text-align: left;
+}
+
+/* Update annotation text styles */
+.annotation-item-text {
+    font-size: var(--font-size-sm);
+    overflow-wrap: break-word;
+    padding: 5px 0;
+        white-space: pre-line;
+    word-break: break-word;
+    word-wrap: break-word;
+}
+
+/* Reply input container - shown on a dedicated line */
+.add-reply {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+    margin-top: 8px;
+}
+
+.add-reply .reply-author {
+    color: #666;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.add-reply textarea.reply-input {
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 13px;
+    margin-bottom: 5px;
+    min-height: 60px;
+    padding: 8px;
+    resize: vertical;
+    width: 100%;
+}
+
+/* Make all buttons in annotation items the same size */
+.annotation-action-btn {
+    align-items: center;
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: 4px;
+    color: white;
+        cursor: pointer;
+    display: flex;
+    height: 34px;
+    justify-content: center;
+    width: 34px;
+}
+
+.annotation-action-btn:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.delete-btn:hover {
+    background-color: var(--color-error);
+}
+
+.reply-button,
+.reply-cancel-button {
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    padding: 6px 12px;
+}
+
+.reply-button {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.reply-button:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.reply-cancel-button {
+    background-color: #6c757d;
+    color: white;
+}
+
+.annotation-item-header {
+    align-items: center;
+    display: flex;
+    margin-bottom: 5px;
+}
+
+.annotation-item-header .annotation-title {
+    color: var(--color-primary);
+    flex-grow: 1;
+    font-size: var(--font-size-md);
+    font-weight: bold;
+}
+
+.annotation-item-header .annotation-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+/* Post-it note style popups */
+.post-it-container {
+    border-radius: var(--border-radius);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+    display: none;
+        padding: var(--spacing-sm);
+    pointer-events: auto;
+    position: absolute;
+    transition: all 0.2s ease;
+    width: 220px;
+        z-index: 25;
+    /* Hidden by default */
+}
+
+.post-it-container.blue {
+    background-color: #e3f2fd;
+    /* Light blue background */
+    border-left: 4px solid var(--color-primary);
+}
+
+.post-it-container.orange {
+    background-color: #fff3e0;
+    /* Light orange background */
+    border-left: 4px solid #ff9800;
+}
+
+.post-it-container.visible {
+    display: block;
+}
+
+.post-it-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+    padding-bottom: var(--spacing-xs);
+}
+
+.post-it-header,
+.post-it-title {
+    align-items: center;
+        display: flex;
+    }
+
+    .post-it-title {
+    font-size: var(--font-size-sm);
+    font-weight: bold;
+    gap: 5px;
+}
+
+.post-it-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.post-it-control {
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius);
+        color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    padding: 2px;
+}
+
+.post-it-control:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.post-it-content {
+    line-height: 1.4;
+    text-align: left;
+}
+
+.post-it-content,
+.post-it-input {
+    font-size: var(--font-size-sm);
+    }
+
+    .post-it-input {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    box-sizing: border-box;
+        font-family: inherit;
+    /* Changed from vertical */
+    max-height: 200px;
+    min-height: 80px;
+    overflow-y: auto;
+    padding: var(--spacing-xs);
+        resize: none;
+    white-space: pre-wrap;
+    width: 100%;
+
+
+        .post-it-input,
+        .post-it-img-nav {
+        margin-bottom: var(--spacing-xs);
+        }
+
+        .post-it-img-nav {
+            align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+.post-it-thumbnail {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: var(--border-radius);
+    height: 56px;
+    object-fit: cover;
+    width: 100px;
+}
+
+.post-it-nav-btn {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+        color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    display: flex;
+    font-size: var(--font-size-md);
+    height: 24px;
+    justify-content: center;
+    width: 24px;
+}
+
+.post-it-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.post-it-nav-btn:disabled {
+    color: rgba(0, 0, 0, 0.2);
+    cursor: not-allowed;
+}
+
+/* Sidebar for listing annotations */
+.annotation-sidebar {
+    background-color: #f9f9f9;
+        border: 1px solid blue !important;
+        border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    height: 300px;
+        /* Fixed height */
+        margin-bottom: 10px !important;
+        max-height: 300px;
+        /* Ensure it doesn't grow beyond this */
+    overflow: hidden;
+    padding: 0;
+        /* Remove padding to fix container issue */
+}
+
+/* Thumbnail styling in sidebar header */
+.annotation-header-thumbnail {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    display: block; /* Ensure proper display */
+    height: 40px;
+        margin-right: 8px;
+        object-fit: cover;
+        width: 40px;
+        /* Increase thumbnail size */
+}
+
+/* Adjust content spacing in sidebar header */
+.sidebar-header-content {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+        /* Consistent gap */
+        padding: 0;
+        /* Reset padding */
+        width: 100%;
+    /* Vertically align items in the middle */
+        /* Reduced gap */
+}
+
+.sidebar-title-container {
+    /* Stack date and filename */
+    align-items: flex-start;
+    display: flex;
+        flex-direction: column;
+    /* Smaller gap between date and filename */
+    flex-grow: 1;
+    /* Align items to the start */
+        gap: 2px;
+    overflow: hidden;
+    /* Prevent overflow */
+}
+
+#sidebarTitleDate {
+    /* Prevent wrapping */
+        flex-shrink: 0;
+    /* Consistent size */
+    font-weight: bold;
+    /* Prevent shrinking */
+    /* Adjust line height */
+}
+
+#sidebarTitleDate,
+#sidebarTitleFilename {
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    #sidebarTitleFilename {
+    /* Consistent size */
+    color: rgba(255, 255, 255, 0.8);
+    /* Prevent wrapping */
+    font-weight: normal;
+    /* Normal weight */
+    overflow: hidden;
+        text-overflow: ellipsis;
+    /* Adjust line height */
+}
+
+.sidebar-counter {
+    /* Match title font size */
+    color: #eee;
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    /* Push counter towards the right, before nav */
+    font-weight: normal;
+    margin-left: auto;
+        white-space: nowrap;
+    /* Normal weight */
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-shrink: 0;
+    gap: 5px;
+    margin-right: 5px; /* Add right margin to prevent button cutoff */
+}
+
+/* Style for the moved nav buttons - Revert to outline style */
+.sidebar-nav .top-nav-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid white;
+    /* Adjust icon size if needed */
+        border-radius: var(--border-radius);
+    color: white;
+    cursor: pointer;
+        display: flex;
+        /* Remove padding */
+        font-size: var(--font-size-sm);
+    /* Match old header style */
+    height: 26px;
+    justify-content: center;
+    /* Match old header style */
+    padding: 0;
+    transition: none;
+    width: 26px;
+}
+
+.sidebar-nav .top-nav-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    /* Slight hover effect */
+}
+
+.sidebar-nav .top-nav-button:disabled {
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.5);
+    /* Dim disabled buttons */
+        cursor: not-allowed;
+        opacity: 0.5;
+}
+
+/* List of annotations within the sidebar */
+.annotation-list {
+    border-bottom: 1px solid #ccc;
+        /* Add bottom border so scrollbar has a bottom */
+        box-sizing: border-box;
+    flex: 1;
+    margin-right: 0;
+        /* Ensure no right margin */
+        max-height: 220px;
+        /* Fixed max height */
+        min-height: 220px;
+        /* Fixed min height */
+    overflow-y: auto;
+    padding: 10px 0 10px 10px;
+        /* Add padding to list directly instead of container */
+    width: 100%;
+}
+
+.annotation-list-empty {
+    color: var(--color-text-light);
+        font-size: var(--font-size-sm);
+        font-style: italic;
+            padding: var(--spacing-md);
+            text-align: center;
+}
+
+/* Individual annotation item in the list */
+.annotation-item.blue:nth-child(odd) {
+    background-color: #e3f2fd;
+    /* Light blue */
+}
+
+.annotation-item.blue:nth-child(even) {
+    background-color: #bbdefb;
+    /* Darker light blue */
+}
+
+.annotation-item.orange:nth-child(odd) {
+    background-color: #fff3e0;
+    /* Light orange */
+}
+
+.annotation-item.orange:nth-child(even) {
+    background-color: #ffe0b2;
+    /* Darker light orange */
+}
+
+.annotation-item:hover {
+    filter: brightness(95%);
+}
+
+.annotation-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    position: absolute;
+        right: 8px;
+        top: 8px;
+    transition: opacity 0.2s;
+}
+
+.annotation-item:hover .annotation-actions {
+    opacity: 1;
+}
+
+.annotation-action {
+    align-items: center;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 3px;
+    color: #666;
+        cursor: pointer;
+    display: flex;
+    font-size: 11px;
+        height: 22px;
+            justify-content: center;
+            width: 22px;
+}
+
+.annotation-action:hover {
+    background: #e0e0e0;
+}
+
+.annotation-action.delete:hover {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.annotation-action.done:hover {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.annotation-number {
+    /* Changed from inline-block */
+    align-items: center;
+    border-radius: 50%;
+        color: white;
+        display: inline-flex;
+        flex-shrink: 0;
+        font-size: var(--font-size-xs);
+        height: 20px;
+    /* Center number vertically */
+    justify-content: center;
+    line-height: 20px;
+        text-align: center;
+    /* Center number horizontally */
+    width: 20px;
+    /* Prevent shrinking */
+}
+
+.annotation-number.blue {
+    background-color: var(--color-primary);
+}
+
+.annotation-number.orange {
+    background-color: #ff9800;
+}
+
+.annotation-text {
+    flex-grow: 1;
+    font-size: var(--font-size-sm);
+    /* Allow text to take remaining space */
+    overflow-wrap: break-word;
+    white-space: pre-line;
+    word-break: break-word;
+    word-wrap: break-word;
+}
+
+.annotation-item.completed .annotation-text {
+    color: #999;
+    text-decoration: line-through;
+}
+
+/* Annotation number badges in sidebar and post-its */
+.annotation-number-badge {
+    color: inherit;
+    display: inline-block;
+    font-weight: bold;
+    margin-right: 5px;
+    min-width: 20px;
+}
+
+/* Reply containers styling */
+.replies-container {
+    border-top: 1px dashed #ccc;
+    margin-top: 5px;
+    padding-top: 5px;
+}
+
+.reply-item {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-left: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    margin-bottom: 10px;
+        padding: 5px;
+}
+
+.reply-author {
+    color: #666;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.reply-text {
+    font-size: 13px;
+}
+
+/* Reply input styling */
+.add-reply {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+        margin-top: 8px;
+}
+
+.add-reply textarea.reply-input {
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    font-size: 13px;
+    margin-bottom: 5px;
+    min-height: 60px;
+    padding: 8px;
+    resize: vertical;
+    width: 100%;
+}
+
+.add-reply button {
+    align-self: flex-end;
+    margin-right: 0;
+}
+
+.reply-buttons {
+    align-self: flex-end;
+    display: flex;
+    gap: 5px;
+}
+
+/* Add button for reply cancellation */
+.reply-cancel-button {
+    background-color: #6c757d;
+    border: none;
+        border-radius: var(--border-radius);
+    color: white;
+        cursor: pointer;
+    font-size: var(--font-size-sm);
+    padding: 5px 10px;
+}
+
+/* URL styling in annotations */
+.annotation-item-text a,
+.reply-text a,
+.post-it-replies a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.annotation-item-text a:hover,
+.reply-text a:hover,
+.post-it-replies a:hover {
+    text-decoration: none;
+}
+
+/* Replies within an annotation item */
+.replies-container {
+    margin-top: var(--spacing-sm);
+    padding-left: var(--spacing-lg);
+}
+
+.reply-item {
+    border-left: 2px solid var(--color-border);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.reply-author {
+    color: var(--color-text-light);
+    font-size: var(--font-size-xs);
+}
+
+.reply-text,
+.add-reply {
+    margin-top: var(--spacing-xs);
+}
+
+.add-reply {
+    display: flex;
+}
+
+.reply-input {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    flex: 1;
+    font-size: var(--font-size-xs);
+    max-height: 100px;
+    min-height: 28px;
+    overflow-y: auto;
+    padding: var(--spacing-xs);
+        resize: vertical;
+}
+
+.reply-button {
+    background-color: var(--color-primary);
+    border: none;
+        border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    color: white;
+        cursor: pointer;
+        padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* General annotation controls area (if needed) */
+.annotation-controls {
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+}
+
+/* Toolbar above the screen container */
+.screen-toolbar {
+    background-color: #f5f5f5;
+    border-radius: var(--border-radius);
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+}
+
+.screen-toolbar,
+.annotation-toggles {
+    align-items: center;
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* User icons for toggling annotation color */
+.user-icon {
+    align-items: center;
+    border-radius: var(--border-radius);
+    color: white;
+        cursor: pointer;
+        display: inline-flex;
+    /* Changed from 50% to border-radius variable */
+    font-size: var(--font-size-md);
+    height: 34px;
+        justify-content: center;
+    opacity: 0.5;
+    width: 34px;
+    /* Default inactive state */
+}
+
+.user-icon.active {
+    opacity: 1;
+}
+
+.user-icon.blue {
+    background-color: var(--color-primary);
+}
+
+.user-icon.orange {
+    background-color: #ff9800;
+}
+
+/* Navigation controls (prev/next image) - Blue Square Buttons - Restored */
+.nav-controls {
+    gap: var(--spacing-xs);
+    margin-left: auto;
+    /* Push to the right */
+}
+
+.nav-controls,
+.top-nav-button {
+    align-items: center;
+    display: flex;
+}
+.top-nav-button {
+    background: var(--color-primary);
+    border: none;
+    /* Increased from 30px to match command button height */
+        border-radius: var(--border-radius);
+    color: white;
+    cursor: pointer;
+        /* Ensure always visible */
+        font-size: var(--font-size-md);
+    /* Increased from 30px to match command button height */
+    height: 34px;
+    justify-content: center;
+    /* No hover effect */
+    opacity: 1 !important;
+    transition: none;
+        width: 34px;
+    /* Ensure icon size is consistent */
+}
+
+.top-nav-button:hover {
+    /* No hover effect */
+    background: var(--color-primary);
+    /* Keep blue */
+}
+
+.top-nav-button:disabled {
+    /* Keep pointer cursor */
+    background: var(--color-primary);
+    color: white;
+    /* Override disabled opacity */
+        cursor: pointer;
+        /* Keep styles the same as enabled, just prevent clicks via JS */
+        opacity: 1;
+}
+
+/* Bottom controls area (Save, Export) */
+/* Removed styles for .bottom-controls */
+
+/* Project management form (Save to Server) */
+.project-form {
+    background-color: #f9f9f9;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    display: none;
+    margin-top: 0;
+        padding: 10px;
+    /* Hidden by default */
+}
+
+.project-form-title {
+    font-weight: bold;
+}
+
+.project-form-title,
+.project-form-row {
+    align-items: center;
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-bottom: 8px;
+}
+
+.project-form-label {
+    font-size: var(--font-size-sm);
+    width: 100px;
+}
+
+.project-form-input {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    flex: 1;
+        padding: 6px 8px;
+}
+
+/* Project selector dropdown */
+.project-selector-container {
+    margin-bottom: 8px;
+}
+
+.project-selector {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    padding: 8px;
+        width: 100%;
+}
+
+/* Badge indicating a shared project */
+.shared-project-badge {
+    align-items: center;
+    background-color: #e3f2fd;
+    border-radius: 12px;
+    color: var(--color-primary);
+    display: inline-flex;
+    font-size: var(--font-size-xs);
+    gap: 5px;
+    margin-left: var(--spacing-sm);
+    padding: 3px 8px;
+}
+
+/* Project list items (if a project browser is implemented) */
+.project-list-item {
+    align-items: center;
+        border-bottom: 1px solid var(--color-border);
+            cursor: pointer;
+    display: flex;
+        justify-content: space-between;
+        padding: var(--spacing-sm);
+}
+
+.project-list-item:hover {
+    background-color: #f5f5f5;
+}
+
+.project-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.project-name {
+    font-weight: bold;
+}
+
+.project-meta {
+    color: var(--color-text-light);
+    font-size: var(--font-size-xs);
+}
+
+.project-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.project-action {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--color-text-light);
+    cursor: pointer;
+    display: flex;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.project-action:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--color-text);
+}
+
+/* Row containing project domain input and save button */
+.project-domain-row {
+    align-items: center;
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+    display: flex;
+        flex-shrink: 0;
+    gap: 12px;
+    justify-content: space-between;
+        margin-bottom: var(--spacing-sm);
+        margin-top: var(--spacing-sm);
+    padding-left: 0;
+    width: 100%;
+    /* Prevent shrinking */
+}
+
+/* Input for project domain/name */
+.project-domain-input {
+    border: 1px solid var(--color-primary) !important;
+    /* Ensure blue border by default, override others */
+    border-radius: var(--border-radius);
+    box-shadow: none !important;
+        box-sizing: border-box;
+        flex: 1;
+        font-family: inherit;
+    font-size: var(--font-size-md);
+    height: var(--btn-height);
+    padding: 6px 10px;
+    /* Remove any default shadow */
+}
+
+/* Ensure focus doesn't remove the blue border and remove shadow */
+.project-domain-input:focus {
+    /* Remove focus shadow */
+    border-color: var(--color-primary) !important;
+    /* Remove default outline */
+        box-shadow: none !important;
+        outline: none !important;
+    /* Explicitly keep border color */
+}
+
+/* Save button specifically for the project domain */
+.project-save-button {
+    align-items: center;
+    background-color: var(--color-primary);
+    border: none;
+        border-radius: var(--border-radius);
+        box-sizing: border-box;
+            color: white;
+            cursor: pointer;
+    display: inline-flex;
+    font-size: var(--font-size-md);
+    gap: 5px;
+    height: var(--btn-height);
+        min-width: max-content;
+        padding: 6px 12px;
+    transition: background-color var(--transition-speed);
+}
+
+.project-save-button:hover {
+    background-color: var(--color-primary-hover);
+}
+
+/* Status box styles specific to annotator (already moved from include) */
+/* Note: .status-box, .status-box.drag-over, .status-message, etc. are already defined */
+/* No need to add them again unless overriding */
+
+/* Two-column annotation layout styles */
+.annotation-layout {
+    align-items: flex-start;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.annotation-left-column {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    flex-grow: 1;
+        padding-right: 10px;
+    text-align: left;
+}
+
+.annotation-right-column {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    min-width: 110px;
+    /* Ensures enough space for the buttons */
+}
+
+.annotation-title-text {
+    border-bottom: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    font-size: 15px;
+        font-weight: bold;
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    width: 100%;
+}
+
+.annotation-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+}
+
+.annotation-item-text {
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    white-space: pre-line;
+}
+
+/* Reply styling improvements */
+.reply-item {
+    background-color: #f9f9f9;
+    border-left: 3px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    padding: 8px;
+}
+
+.reply-author {
+    color: #555;
+        font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.reply-text {
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+/* Add reply section styling */
+.add-reply {
+    border-top: 1px dashed #ccc;
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+        padding-top: 10px;
+        width: 100%;
+}
+
+.add-reply .reply-author {
+    margin-bottom: 5px;
+}
+
+.add-reply textarea.reply-input {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 8px;
+        min-height: 60px;
+        padding: 8px;
+    resize: vertical;
+    width: 100%;
+}
+
+.reply-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.reply-button,
+.reply-cancel-button {
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 6px 12px;
+}
+
+.reply-button {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.reply-cancel-button {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Remove bottom scroll button as requested */
+
+/* Remove Home button (btnScrollTop) */
+#btnScrollBottom,
+#btnScrollTop {
+    display: none;
+}
+
+/* Sidebar header styling */
+.sidebar-header {
+    align-items: center;
+    background-color: var(--color-primary);
+    box-sizing: border-box;
+        /* Include padding in width calculation */
+    color: white;
+    display: flex;
+    font-weight: bold;
+    justify-content: space-between;
+    margin: -10px -10px 10px -10px;
+        /* Negative margin to make it edge-to-edge */
+    overflow: hidden; /* Prevent overflow */
+    padding: 10px 15px;
+        /* Restored padding */
+        padding-bottom: 10px !important;
+    padding-top: 10px !important;
+    width: calc(100% + 20px);
+        /* Ensure full width including negative margins */
+    }
+
+    /* ======================================
+         * 18. CONSOLIDATED STYLES FROM PHP INLINE AND STYLES.CSS
+         * ====================================== */
+
+    /* Fixed height for annotation list with scrollbar */
+    .annotation-list {
+        flex: 1 1 auto;
+        /* Allow growing/shrinking, base size auto */
+        overflow-y: scroll !important;
+        padding-bottom: 12px;
+        /* Enable vertical scrolling */
+        scrollbar-width: auto !important;
+        /* Add a little extra so last item is visible */
+    }
+
+    /* --- Custom Scrollbars for all main boxes, with thumb padding for annotation-list --- */
+    .status-box,
+    .annotation-list,
+    .image-preview-area {
+        scrollbar-color: #b0b0b0 #ededed;
+        scrollbar-width: auto !important;
+    }
+
+    .status-box::-webkit-scrollbar,
+    .annotation-list::-webkit-scrollbar,
+    .image-preview-area::-webkit-scrollbar {
+        background: #ededed;
+        width: 10px;
+    }
+
+    .status-box::-webkit-scrollbar-thumb,
+    .image-preview-area::-webkit-scrollbar-thumb,
+    .annotation-list::-webkit-scrollbar-thumb {
+        background: #b0b0b0;
+        border-radius: 6px;
+    }
+
+    .annotation-list::-webkit-scrollbar-thumb {
+        border-left: 6px solid #ededed;
+        margin-left: 6px;
+    }
+
+    .status-box::-webkit-scrollbar-track,
+    .annotation-list::-webkit-scrollbar-track,
+    .image-preview-area::-webkit-scrollbar-track {
+        background: #ededed;
+    }
+
+    /* --- Always show scrollbar for status box --- */
+    .status-box {
+        overflow-y: scroll !important;
+    }
+
+    /* Make sure post-it containers are removed properly */
+    .post-it-container.visible {
+        display: block;
+    }
+
+    /* Fix the annotation sidebar position and make it a flex container */
+    .annotation-sidebar {
+        /* Reduce the bottom margin by 10px */
+        display: flex;
+        /* Use flexbox */
+        flex-direction: column;
+        /* Prevent sidebar itself from scrolling */
+        height: 400px;
+        margin-bottom: 10px !important;
+        max-height: 400px;
+        min-height: 300px;
+        /* Stack children vertically */
+        overflow: hidden;
+    }
+
+    /* --- Sidebar header (blue banner) fix: more bottom padding, visible top --- */
+    .annotation-sidebar .sidebar-header {
+        background: #0056b3;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        box-sizing: border-box;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        height: auto !important;
+        justify-content: center;
+        margin-top: 0 !important;
+        min-height: 44px !important;
+        padding: 14px 10px 18px 16px !important;
+    }
+
+    .sidebar-title-container {
+        align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+    }
+
+    #sidebarTitleDate {
+        font-size: 15px;
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+
+    #sidebarTitleFilename {
+        color: #e0e0e0;
+        font-size: 13px;
+    }
+
+    /* Add styles for completed annotation markers */
+    .annotation-marker.completed::after {
+        background-color: #28a745;
+        color: white;
+        content: '\f00c';
+        /* checkmark icon */
+        font-family: 'Font Awesome 5 Free';
+        font-size: 8px;
+        font-weight: 900;
+        height: 14px;
+        position: absolute;
+        right: -5px;
+        top: -5px;
+        width: 14px;
+    }
+
+    /* --- Annotation marker badge: center numbers, match image dots, fix size --- */
+    .annotation-marker.completed::after,
+    .annotation-marker-badge {
+        align-items: center;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .annotation-marker-badge {
+        background: #0056b3;
+        box-sizing: border-box;
+        color: #fff;
+        font-size: 13px;
+        font-weight: bold;
+        height: 22px;
+        margin-left: 0;
+        margin-right: 8px;
+        min-width: 22px;
+        padding: 0 2px;
+        text-align: center;
+        width: 22px;
+    }
+
+    .annotation-marker-badge.orange {
+        background: #ff9800;
+    }
+
+    /* --- Outdent note dots, indent note text to align with date --- */
+    .annotation-item .annotation-layout {
+        align-items: flex-start;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .annotation-left-column {
+        align-items: flex-start;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+    }
+
+    .annotation-date-text {
+        color: #888;
+        display: inline-block;
+        font-size: 12px;
+        margin-bottom: 2px;
+        margin-left: 0;
+    }
+
+    .annotation-item-text {
+        color: #222;
+        font-size: 14px;
+        margin-left: 0;
+        margin-top: 0;
+        padding-left: 0;
+    }
+
+    /* --- Tighten up vertical spacing for notes and replies --- */
+    .annotation-item {
+        border-bottom: 1px solid #f0f0f0;
+        /* halve left padding from 32px to 16px */
+        margin: 0;
+        padding: 6px 0 4px 16px !important;
+    }
+
+    .annotation-item:last-child {
+        border-bottom: none;
+        margin-bottom: 8px !important;
+    }
+
+    .replies-container {
+        margin: 2px 0 0 0;
+        padding: 0 0 0 18px;
+    }
+
+    .reply-item {
+        border-left: 2px solid #ededed;
+        color: #444;
+        font-size: 13px;
+        margin: 2px 0 0 0;
+        padding: 2px 0 2px 0;
+    }
+
+    .add-reply {
+        margin: 2px 0 0 18px;
+        padding: 0;
+    }
+
+    .reply-input,
+    .add-reply textarea {
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 13px;
+        margin-bottom: 2px;
+        padding: 3px 6px;
+        width: 100%;
+    }
+
+    .reply-buttons {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 2px;
+    }
+
+    .reply-button,
+    .reply-cancel-button {
+        background: #ededed;
+        border: none;
+        border-radius: 3px;
+        color: #333;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+
+    .reply-button:hover,
+    .reply-cancel-button:hover {
+        background: #b0b0b0;
+    }
+
+    /* Style for completed items in the list */
+    .annotation-item .annotation-item-text {
+        transition: all 0.2s;
+    }
+
+    .annotation-item.completed .annotation-item-text {
+        opacity: 0.7;
+        text-decoration: line-through;
+        transition: opacity 0.3s;
+        /* Added transition for smooth effect */
+    }
+
+    /* --- Preview area: fully black on load, no white/half-height box --- */
+    .screen-container.preview-container {
+        background: #000 !important;
+        display: block;
+        height: 400px;
+        max-height: 400px;
+        min-height: 400px;
+        overflow-x: hidden;
+        overflow-y: scroll !important;
+        position: relative;
+    }
+
+    .screen-image:empty,
+    .screen-image[src=""] {
+        background: #000 !important;
+        display: block;
+        min-height: 400px;
+        width: 100%;
+    }
+
+    /* Hide the image element if no image is loaded */
+    #screenImage:not([src]),
+    #screenImage[src=""],
+    #screenImage[src="about:blank"] {
+        display: none !important;
+    }
+
+    /* --- Notes action buttons: close together, right margin, no edge touch, always show scrollbar --- */
+    .annotation-buttons {
+        display: flex;
+        gap: 0;
+        justify-content: flex-end;
+        padding-right: 12px;
+    }
+
+    .annotation-buttons .annotation-action-btn {
+        align-items: center;
+        border-radius: 4px;
+        display: flex;
+        font-size: 14px !important;
+        height: 26px !important;
+        justify-content: center;
+        margin-right: 0 !important;
+        min-height: 26px !important;
+        min-width: 26px !important;
+        padding: 0 !important;
+        width: 26px !important;
+    }
+
+    .annotation-buttons .annotation-action-btn:not(:last-child) {
+        margin-right: 4px !important;
+    }
+
+    .annotation-list {
+        overflow-y: scroll !important;
+        scrollbar-width: auto !important;
+    }
+
+    /* --- Preview container sizing and border fix --- */
+    .screen-container.preview-container {
+        background: #000 !important;
+        border: 1px solid #0056b3 !important;
+        box-sizing: border-box;
+        height: 400px;
+        max-height: 400px;
+        min-height: 300px;
+        overflow-x: hidden;
+        overflow-y: auto !important;
+    }
+
+    .screen-container.preview-container,
+    .screen-image {
+        display: block;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .screen-image {
+        height: auto;
+        /* High-quality scaling for all browsers */
+        image-rendering: auto;
+        image-rendering: crisp-edges;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: high-quality;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+    }
+
+    .screen-image:empty,
+    .screen-image[src=""] {
+        background: #000 !important;
+        display: block;
+        min-height: 200px;
+    }
+
+    .image-preview-area {
+        background: #fff;
+        border-radius: 0 0 4px 4px;
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow-y: auto !important;
+        width: 100%;
+    }
+
+    /* Remove any top margin/padding/border from imagePreviewArea to fix 3px band */
+    #imagePreviewArea {
+        border-top: none !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    /* --- Notes action buttons: smaller like nav buttons, extra right padding --- */
+    .annotation-buttons .annotation-action-btn {
+        align-items: center;
+        border-radius: 4px;
+        display: flex;
+        font-size: 14px !important;
+        height: 26px !important;
+        justify-content: center;
+        margin-right: 10px !important;
+        min-height: 26px !important;
+        min-width: 26px !important;
+        padding: 0 0 0 0 !important;
+        width: 26px !important;
+    }
+
+    .annotation-buttons .annotation-action-btn:last-child {
+        margin-right: 0 !important;
+}
+
+    /* ======================================
+         * 17. MOBILE RESPONSIVENESS
+         * ====================================== */
+    /* Media queries for mobile responsiveness */
+    @media (max-width: 768px) {
+        body {
+            max-width: 100%;
+            padding: 0;
+        }
+
+        .tool-container {
+            padding: 10px;
+            width: 100%;
+        }
+
+        .button-controls {
+            flex-wrap: wrap;
+        }
+
+        .command-button {
+            flex: 1;
+            justify-content: center;
+            min-width: 120px;
+        }
+
+        .processing-container {
+            height: 300px;
+            /* Smaller height on mobile */
+        }
+
+        /* Adjust status bar for mobile */
+        .status-box {
+            height: 70px;
+            max-height: 70px;
+            min-height: 70px;
+        }
+    }
+
+    /* Small phone adjustments */
+    @media (max-width: 480px) {
+        .button-controls {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .command-button {
+            width: 100%;
+        }
+
+        .tool-title {
+            font-size: 16px;
+        }
+
+        .screen-container {
+            height: 350px;
+            max-height: 350px;
+            /* Reduced height on small phones */
+            min-height: 350px;
+        }
+
+        .annotation-sidebar {
+            height: 250px;
+            /* Reduced height on small phones */
+            max-height: 250px;
+        }
+    }
+    }

@@ -1,0 +1,205 @@
+/* nb-archive-manager.css - Archive Manager specific styles */
+
+:root {
+    --color-primary: #0056b3;
+    --color-primary-hover: #004494;
+    --color-success: #28a745;
+    --color-error: #dc3545;
+    --color-info: #4a9eff;
+    --color-bg: #E9ECEF;
+    --color-white: #fff;
+    --color-gray: #888;
+    --border-radius: 4px;
+    --btn-height: 34px;
+    --font-size-md: 14px;
+    --font-size-xl: 18px;
+}
+
+body {
+    background: var(--color-bg);
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.menu-container {
+    max-width: 768px;
+    margin: 0 auto;
+    background: var(--color-bg);
+    padding: 10px;
+}
+
+.title-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    background: var(--color-bg);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.editor-title {
+    margin: 0;
+    color: var(--color-primary);
+    font-size: var(--font-size-xl);
+    font-weight: bold;
+    padding: 5px 0;
+}
+
+.hamburger-menu {
+    color: var(--color-primary);
+    font-size: var(--font-size-xl);
+    padding: 4px 8px;
+    text-decoration: none;
+    align-self: flex-start;
+}
+
+.hamburger-menu:hover {
+    color: var(--color-primary-hover);
+}
+
+.status-box {
+    position: relative;
+    background: var(--color-white);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    padding: 8px 12px 8px 12px;
+    margin-bottom: 15px;
+    min-height: 48px;
+    font-size: var(--font-size-md);
+    color: #333;
+    overflow-y: auto;
+}
+
+.status-download-icon {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    color: var(--color-gray);
+    font-size: 20px;
+    opacity: 0.7;
+    cursor: pointer;
+    z-index: 2;
+    transition: color 0.2s, opacity 0.2s;
+}
+.status-download-icon:hover {
+    color: var(--color-primary);
+    opacity: 1;
+}
+
+.status-box .message {
+    margin: 3px 0;
+    padding: 4px 6px;
+    background: var(--color-white);
+    border-radius: 2px;
+    color: #333;
+    font-size: 0.95em;
+    border-left: 4px solid var(--color-primary);
+    word-break: break-word;
+}
+.message.success {
+    border-left-color: var(--color-success);
+}
+.message.error {
+    border-left-color: var(--color-error);
+}
+.message.info {
+    border-left-color: var(--color-info);
+}
+.message.latest {
+    color: #fff;
+    font-weight: bold;
+}
+.message.latest.success {
+    background: var(--color-success);
+}
+.message.latest.error {
+    background: var(--color-error);
+}
+.message.latest.info {
+    background: var(--color-info);
+}
+
+.button-controls {
+    margin-bottom: 15px;
+    background: var(--color-bg);
+}
+.button-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.command-button {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 6px 12px;
+    font-size: var(--font-size-md);
+    height: var(--btn-height);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.2s;
+}
+.command-button:hover {
+    background: var(--color-primary-hover);
+}
+.command-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.editor-view {
+    background: var(--color-white);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    min-height: 300px;
+    margin-bottom: 15px;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.file-tree {
+    padding: 16px;
+    font-size: var(--font-size-md);
+    color: #222;
+}
+
+.bottom-action-bar {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    background: var(--color-bg);
+}
+.save-button-container {
+    display: flex;
+}
+.save-button, .download-button {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 6px 12px;
+    font-size: var(--font-size-md);
+    height: var(--btn-height);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.2s;
+}
+.save-button:hover, .download-button:hover {
+    background: var(--color-primary-hover);
+}
+.save-button:disabled, .download-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Add more program-specific styles as needed */
