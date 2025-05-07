@@ -1,0 +1,20 @@
+# Ignore .history directory
+.history/
+.qodo
+backups/
+r-ss
+.history/
+backups/
+
+.env
+.github/
+.vscode/
+InteractiveAvatarNextJSDemo/
+OrangeJeff.code-workspace
+_old/
+github-mcp-server/
+node_modules/
+projects/
+rem/
+scripts/
+vendor/
