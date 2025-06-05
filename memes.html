@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Meme Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <h1>Meme Generator</h1>
+
+        <div id="generator">
+            <h2>Create Meme</h2>
+            <label for="imageInput">Choose Image:</label>
+            <input type="file" id="imageInput" accept="image/*">
+
+            <label for="topText">Top Text:</label>
+            <input type="text" id="topText" placeholder="Enter top text">
+
+            <label for="bottomText">Bottom Text:</label>
+            <input type="text" id="bottomText" placeholder="Enter bottom text">
+
+            <div class="font-controls">
+                <div class="font-control-group">
+                    <label for="fontFamily">Font:</label>
+                    <select id="fontFamily">
+                        <option value="Impact" selected>Impact</option>
+                        <option value="Arial">Arial</option>
+                        <option value="'Comic Sans MS', cursive, sans-serif">Comic Sans</option>
+                    </select>
+                </div>
+                <div class="font-control-group">
+                    <label for="fontSize">Size:</label>
+                    <select id="fontSize">
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+            </div>
+
+            <canvas id="memeCanvas"></canvas>
+
+            <div class="button-group">
+                <button id="saveLocalBtn">Save Locally</button>
+                <button id="saveGalleryBtn">Save to Gallery</button>
+            </div>
+        </div>
+
+        <div id="gallery">
+            <h2>Gallery</h2>
+            <div id="galleryThumbs">
+                <!-- Thumbnails will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="fullScreenViewer" class="hidden">
+        <button id="closeViewerBtn">&times;</button>
+        <button id="prevBtn">&lt;</button>
+        <img id="fullScreenImage" src="" alt="Full screen meme">
+        <button id="nextBtn">&gt;</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
